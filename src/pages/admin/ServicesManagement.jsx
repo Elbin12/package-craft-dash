@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-// Temporarily comment out Redux to test React context
-// import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -30,77 +29,70 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard.jsx';
-// Temporarily comment out RTK Query to test Redux connection
-// import { 
-//   useGetServicesQuery, 
-//   useCreateServiceMutation, 
-//   useUpdateServiceMutation, 
-//   useDeleteServiceMutation 
-// } from '../../store/api/servicesApi';
-// import {
-//   setWizardOpen,
-//   setEditingService,
-//   setDeleteConfirmOpen,
-//   setServiceToDelete,
-//   clearEditingService,
-// } from '../../store/slices/servicesSlice';
+import { 
+  useGetServicesQuery, 
+  useCreateServiceMutation, 
+  useUpdateServiceMutation, 
+  useDeleteServiceMutation 
+} from '../../store/api/servicesApi';
+import {
+  setWizardOpen,
+  setEditingService,
+  setDeleteConfirmOpen,
+  setServiceToDelete,
+  clearEditingService,
+} from '../../store/slices/servicesSlice';
 
 const ServicesManagement = () => {
-  // Temporarily use local state instead of Redux
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editingService, setEditingService] = useState(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [serviceToDelete, setServiceToDelete] = useState(null);
+  const dispatch = useDispatch();
+  const { 
+    wizardOpen, 
+    editingService, 
+    deleteConfirmOpen, 
+    serviceToDelete 
+  } = useSelector((state) => state.services);
 
-  // Temporarily use mock data instead of RTK Query
-  const services = [];
-  const isLoading = false;
-  const error = null;
-  
-  // Mock mutation functions
-  const createService = () => Promise.resolve();
-  const updateService = () => Promise.resolve();
-  const deleteService = () => Promise.resolve();
+  const { data: services = [], isLoading, error } = useGetServicesQuery();
+  const [createService] = useCreateServiceMutation();
+  const [updateService] = useUpdateServiceMutation();
+  const [deleteService] = useDeleteServiceMutation();
 
   const handleCreateService = async (serviceData) => {
     try {
       if (editingService) {
-        console.log('Update service:', serviceData);
+        await updateService({ id: editingService.id, ...serviceData }).unwrap();
       } else {
-        console.log('Create service:', serviceData);
+        await createService(serviceData).unwrap();
       }
-      setEditingService(null);
-      setWizardOpen(false);
+      handleCloseWizard();
     } catch (error) {
       console.error('Failed to save service:', error);
     }
   };
 
   const handleEditService = (service) => {
-    setEditingService(service);
-    setWizardOpen(true);
+    dispatch(setEditingService(service));
+    dispatch(setWizardOpen(true));
   };
 
-  const handleDeleteConfirm = (id) => {
-    setServiceToDelete(id);
-    setDeleteConfirmOpen(true);
+  const handleDeleteConfirm = (service) => {
+    dispatch(setServiceToDelete(service));
+    dispatch(setDeleteConfirmOpen(true));
   };
 
   const handleDeleteService = async () => {
-    if (serviceToDelete) {
-      try {
-        console.log('Delete service:', serviceToDelete);
-        setServiceToDelete(null);
-      } catch (error) {
-        console.error('Failed to delete service:', error);
-      }
+    try {
+      await deleteService(serviceToDelete.id).unwrap();
+      dispatch(setDeleteConfirmOpen(false));
+      dispatch(setServiceToDelete(null));
+    } catch (error) {
+      console.error('Failed to delete service:', error);
     }
-    setDeleteConfirmOpen(false);
   };
 
   const handleCloseWizard = () => {
-    setWizardOpen(false);
-    setEditingService(null);
+    dispatch(setWizardOpen(false));
+    dispatch(clearEditingService());
   };
 
   if (isLoading) {
@@ -135,7 +127,7 @@ const ServicesManagement = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => setWizardOpen(true)}
+          onClick={() => dispatch(setWizardOpen(true))}
         >
           Create New Service
         </Button>
@@ -210,7 +202,7 @@ const ServicesManagement = () => {
                       <IconButton 
                         size="small" 
                         color="error"
-                        onClick={() => handleDeleteConfirm(service.id)}
+                        onClick={() => handleDeleteConfirm(service)}
                       >
                         <Delete />
                       </IconButton>
@@ -233,7 +225,7 @@ const ServicesManagement = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={() => dispatch(setDeleteConfirmOpen(false))}
       >
         <DialogTitle>Delete Service</DialogTitle>
         <DialogContent>
@@ -242,7 +234,7 @@ const ServicesManagement = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>
+          <Button onClick={() => dispatch(setDeleteConfirmOpen(false))}>
             Cancel
           </Button>
           <Button onClick={handleDeleteService} color="error" variant="contained">

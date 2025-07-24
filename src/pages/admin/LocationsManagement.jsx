@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
-// Temporarily comment out Redux to test React context
-// import { useDispatch, useSelector } from 'react-redux';
+import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -29,75 +28,69 @@ import {
   Delete,
   LocationOn,
 } from '@mui/icons-material';
-// Temporarily comment out RTK Query to test context
-// import { 
-//   useGetLocationsQuery, 
-//   useCreateLocationMutation, 
-//   useUpdateLocationMutation, 
-//   useDeleteLocationMutation 
-// } from '../../store/api/locationsApi';
-// import {
-//   setDialogOpen,
-//   setEditingLocation,
-//   setFormData,
-//   resetFormData,
-// } from '../../store/slices/locationsSlice';
+import { 
+  useGetLocationsQuery, 
+  useCreateLocationMutation, 
+  useUpdateLocationMutation, 
+  useDeleteLocationMutation 
+} from '../../store/api/locationsApi';
+import {
+  setDialogOpen,
+  setEditingLocation,
+  setFormData,
+  resetFormData,
+} from '../../store/slices/locationsSlice';
 
 const LocationsManagement = () => {
-  // Temporarily use local state instead of Redux
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    lat: '',
-    lng: '',
-    tripSurcharge: '',
-  });
+  const dispatch = useDispatch();
+  const { 
+    dialogOpen, 
+    editingLocation, 
+    formData 
+  } = useSelector((state) => state.locations);
 
-  // Temporarily use mock data instead of RTK Query
-  const locations = [];
-  const isLoading = false;
-  const error = null;
+  const { data: locations = [], isLoading, error } = useGetLocationsQuery();
+  const [createLocation] = useCreateLocationMutation();
+  const [updateLocation] = useUpdateLocationMutation();
+  const [deleteLocation] = useDeleteLocationMutation();
 
   const handleOpenDialog = (location = null) => {
     if (location) {
-      setEditingLocation(location);
-      setFormData({
+      dispatch(setEditingLocation(location));
+      dispatch(setFormData({
         name: location.name,
         address: location.address,
         lat: location.lat.toString(),
         lng: location.lng.toString(),
         tripSurcharge: location.tripSurcharge.toString(),
-      });
+      }));
     } else {
-      setEditingLocation(null);
-      setFormData({
-        name: '',
-        address: '',
-        lat: '',
-        lng: '',
-        tripSurcharge: '',
-      });
+      dispatch(setEditingLocation(null));
+      dispatch(resetFormData());
     }
-    setDialogOpen(true);
+    dispatch(setDialogOpen(true));
   };
 
   const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingLocation(null);
-    setFormData({
-      name: '',
-      address: '',
-      lat: '',
-      lng: '',
-      tripSurcharge: '',
-    });
+    dispatch(setDialogOpen(false));
+    dispatch(setEditingLocation(null));
+    dispatch(resetFormData());
   };
 
   const handleSaveLocation = async () => {
     try {
-      console.log('Save location:', formData);
+      const locationData = {
+        ...formData,
+        lat: parseFloat(formData.lat),
+        lng: parseFloat(formData.lng),
+        tripSurcharge: parseFloat(formData.tripSurcharge),
+      };
+
+      if (editingLocation) {
+        await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
+      } else {
+        await createLocation(locationData).unwrap();
+      }
       handleCloseDialog();
     } catch (error) {
       console.error('Failed to save location:', error);
@@ -106,14 +99,14 @@ const LocationsManagement = () => {
 
   const handleDeleteLocation = async (id) => {
     try {
-      console.log('Delete location:', id);
+      await deleteLocation(id).unwrap();
     } catch (error) {
       console.error('Failed to delete location:', error);
     }
   };
 
   const handleFormChange = (field, value) => {
-    setFormData({ ...formData, [field]: value });
+    dispatch(setFormData({ [field]: value }));
   };
 
   if (isLoading) {

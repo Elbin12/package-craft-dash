@@ -1,5 +1,6 @@
-import React from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from 'react';
+// Temporarily comment out Redux to test React context
+// import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -36,22 +37,20 @@ import { ServiceCreationWizard } from '../../components/admin/services/ServiceCr
 //   useUpdateServiceMutation, 
 //   useDeleteServiceMutation 
 // } from '../../store/api/servicesApi';
-import {
-  setWizardOpen,
-  setEditingService,
-  setDeleteConfirmOpen,
-  setServiceToDelete,
-  clearEditingService,
-} from '../../store/slices/servicesSlice';
+// import {
+//   setWizardOpen,
+//   setEditingService,
+//   setDeleteConfirmOpen,
+//   setServiceToDelete,
+//   clearEditingService,
+// } from '../../store/slices/servicesSlice';
 
 const ServicesManagement = () => {
-  const dispatch = useDispatch();
-  const { 
-    wizardOpen, 
-    editingService, 
-    deleteConfirmOpen, 
-    serviceToDelete 
-  } = useSelector((state) => state.services);
+  // Temporarily use local state instead of Redux
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingService, setEditingService] = useState(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState(null);
 
   // Temporarily use mock data instead of RTK Query
   const services = [];
@@ -66,42 +65,42 @@ const ServicesManagement = () => {
   const handleCreateService = async (serviceData) => {
     try {
       if (editingService) {
-        await updateService({ id: editingService.id, ...serviceData });
+        console.log('Update service:', serviceData);
       } else {
-        await createService(serviceData);
+        console.log('Create service:', serviceData);
       }
-      dispatch(clearEditingService());
-      dispatch(setWizardOpen(false));
+      setEditingService(null);
+      setWizardOpen(false);
     } catch (error) {
       console.error('Failed to save service:', error);
     }
   };
 
   const handleEditService = (service) => {
-    dispatch(setEditingService(service));
-    dispatch(setWizardOpen(true));
+    setEditingService(service);
+    setWizardOpen(true);
   };
 
   const handleDeleteConfirm = (id) => {
-    dispatch(setServiceToDelete(id));
-    dispatch(setDeleteConfirmOpen(true));
+    setServiceToDelete(id);
+    setDeleteConfirmOpen(true);
   };
 
   const handleDeleteService = async () => {
     if (serviceToDelete) {
       try {
-        await deleteService(serviceToDelete);
-        dispatch(setServiceToDelete(null));
+        console.log('Delete service:', serviceToDelete);
+        setServiceToDelete(null);
       } catch (error) {
         console.error('Failed to delete service:', error);
       }
     }
-    dispatch(setDeleteConfirmOpen(false));
+    setDeleteConfirmOpen(false);
   };
 
   const handleCloseWizard = () => {
-    dispatch(setWizardOpen(false));
-    dispatch(clearEditingService());
+    setWizardOpen(false);
+    setEditingService(null);
   };
 
   if (isLoading) {
@@ -136,7 +135,7 @@ const ServicesManagement = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => dispatch(setWizardOpen(true))}
+          onClick={() => setWizardOpen(true)}
         >
           Create New Service
         </Button>
@@ -234,7 +233,7 @@ const ServicesManagement = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={() => dispatch(setDeleteConfirmOpen(false))}
+        onClose={() => setDeleteConfirmOpen(false)}
       >
         <DialogTitle>Delete Service</DialogTitle>
         <DialogContent>
@@ -243,7 +242,7 @@ const ServicesManagement = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => dispatch(setDeleteConfirmOpen(false))}>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>
             Cancel
           </Button>
           <Button onClick={handleDeleteService} color="error" variant="contained">

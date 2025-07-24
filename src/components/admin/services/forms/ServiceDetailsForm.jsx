@@ -5,16 +5,13 @@ import {
   Typography,
 } from '@mui/material';
 
-interface ServiceDetailsFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// ServiceDetailsFormProps: { data, onUpdate }
 
-const ServiceDetailsForm: React.FC<ServiceDetailsFormProps> = ({
+const ServiceDetailsForm = ({
   data,
   onUpdate,
 }) => {
-  const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (field) => (event) => {
     onUpdate({ [field]: event.target.value });
   };
 

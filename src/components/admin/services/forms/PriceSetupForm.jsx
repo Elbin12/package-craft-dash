@@ -20,40 +20,27 @@ import {
 import { Info, MoreVert } from '@mui/icons-material';
 import { Popover as PopoverUI, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
-interface PriceRule {
-  questionId: string;
-  packageId: string;
-  optionId?: string;
-  answer?: 'yes' | 'no';
-  priceType: 'upcharge' | 'discount' | 'ignore' | 'bid_in_person';
-  value: number;
-}
+// PriceRule structure: { questionId, packageId, optionId, answer, priceType, value }
+// PriceSetupFormProps: { data, onUpdate }
 
-interface PriceSetupFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
-
-const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
+const PriceSetupForm = ({
   data,
   onUpdate,
 }) => {
-  const [priceRules, setPriceRules] = useState<PriceRule[]>(data.pricing?.rules || []);
-  const [popoverAnchor, setPopoverAnchor] = useState<{
-    element: HTMLElement | null;
-    questionId: string;
-    packageId: string;
-    answer?: 'yes' | 'no';
-    optionId?: string;
-  }>({ element: null, questionId: '', packageId: '' });
+  const [priceRules, setPriceRules] = useState(data.pricing?.rules || []);
+  const [popoverAnchor, setPopoverAnchor] = useState({ 
+    element: null, 
+    questionId: '', 
+    packageId: '' 
+  });
   const packages = data.packages || [];
   const questions = data.questions || [];
 
   useEffect(() => {
-    const rules: PriceRule[] = [];
+    const rules = [];
     
-    questions.forEach((question: any) => {
-      packages.forEach((pkg: any) => {
+    questions.forEach((question) => {
+      packages.forEach((pkg) => {
         if (question.type === 'yes_no') {
           ['yes', 'no'].forEach((answer) => {
             const existingRule = priceRules.find(
@@ -65,13 +52,13 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
             rules.push(existingRule || {
               questionId: question.id,
               packageId: pkg.id,
-              answer: answer as 'yes' | 'no',
+              answer: answer,
               priceType: 'ignore',
               value: 0,
             });
           });
         } else if (question.type === 'options' && question.options) {
-          question.options.forEach((option: any) => {
+          question.options.forEach((option) => {
             const existingRule = priceRules.find(
               r => r.questionId === question.id && 
                    r.packageId === pkg.id && 
@@ -98,12 +85,12 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
   }, [priceRules, onUpdate]);
 
   const updatePriceRule = (
-    questionId: string,
-    packageId: string,
-    field: 'priceType' | 'value',
-    value: any,
-    answer?: 'yes' | 'no',
-    optionId?: string
+    questionId,
+    packageId,
+    field,
+    value,
+    answer,
+    optionId
   ) => {
     setPriceRules(prevRules =>
       prevRules.map(rule => {
@@ -120,7 +107,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
     );
   };
 
-  const getPriceRule = (questionId: string, packageId: string, answer?: 'yes' | 'no', optionId?: string) => {
+  const getPriceRule = (questionId, packageId, answer, optionId) => {
     return priceRules.find(
       r => r.questionId === questionId && 
            r.packageId === packageId &&
@@ -143,11 +130,11 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
   }
 
   const handlePopoverOpen = (
-    event: React.MouseEvent<HTMLElement>,
-    questionId: string,
-    packageId: string,
-    answer?: 'yes' | 'no',
-    optionId?: string
+    event,
+    questionId,
+    packageId,
+    answer,
+    optionId
   ) => {
     setPopoverAnchor({ 
       element: event.currentTarget, 
@@ -162,7 +149,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
     setPopoverAnchor({ element: null, questionId: '', packageId: '' });
   };
 
-  const handlePriceTypeSelect = (priceType: string) => {
+  const handlePriceTypeSelect = (priceType) => {
     updatePriceRule(
       popoverAnchor.questionId,
       popoverAnchor.packageId,
@@ -174,7 +161,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
     handlePopoverClose();
   };
 
-  const getPriceTypeIcon = (priceType: string) => {
+  const getPriceTypeIcon = (priceType) => {
     switch (priceType) {
       case 'upcharge': return '+';
       case 'discount': return '-';
@@ -183,7 +170,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
     }
   };
 
-  const getPriceTypeColor = (priceType: string) => {
+  const getPriceTypeColor = (priceType) => {
     switch (priceType) {
       case 'upcharge': return 'success.main';
       case 'discount': return 'warning.main';
@@ -209,7 +196,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
         Price Setup
       </Typography>
       
-      {questions.map((question: any) => (
+      {questions.map((question) => (
         <Box key={question.id} mb={4}>
           <Typography 
             variant="h6" 
@@ -249,7 +236,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
                         </Typography>
                       </TableCell>
                       {packages.map((pkg) => {
-                        const rule = getPriceRule(question.id, pkg.id, answer as 'yes' | 'no');
+                        const rule = getPriceRule(question.id, pkg.id, answer);
                         
                         return (
                           <TableCell key={pkg.id} align="center">
@@ -264,13 +251,13 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
                                   pkg.id, 
                                   'value', 
                                   Number(e.target.value),
-                                  answer as 'yes' | 'no'
+                                   answer
                                 )}
                                 sx={{ width: 80 }}
                               />
                               <IconButton
                                 size="small"
-                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, answer as 'yes' | 'no')}
+                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, answer)}
                                 sx={{ 
                                   bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
                                   color: 'white',
@@ -293,7 +280,7 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
                     </TableRow>
                   ))
                 ) : question.type === 'options' && question.options ? (
-                  question.options.map((option: any) => (
+                  question.options.map((option) => (
                     <TableRow key={option.id}>
                       <TableCell>
                         <Typography fontWeight="medium">

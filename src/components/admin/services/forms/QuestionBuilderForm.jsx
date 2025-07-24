@@ -27,33 +27,20 @@ import {
   Edit,
 } from '@mui/icons-material';
 
-interface QuestionOption {
-  id: string;
-  text: string;
-}
+// QuestionOption structure: { id, text }
+// Question structure: { id, text, type, options }
+// QuestionBuilderFormProps: { data, onUpdate }
 
-interface Question {
-  id: string;
-  text: string;
-  type: 'yes_no' | 'options';
-  options?: QuestionOption[];
-}
-
-interface QuestionBuilderFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
-
-const QuestionBuilderForm: React.FC<QuestionBuilderFormProps> = ({
+const QuestionBuilderForm = ({
   data,
   onUpdate,
 }) => {
-  const [questions, setQuestions] = useState<Question[]>(data.questions || []);
+  const [questions, setQuestions] = useState(data.questions || []);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [newQuestion, setNewQuestion] = useState({
     text: '',
-    type: 'yes_no' as 'yes_no' | 'options',
-    options: [] as QuestionOption[],
+    type: 'yes_no',
+    options: [],
   });
   const [newOption, setNewOption] = useState('');
 
@@ -73,7 +60,7 @@ const QuestionBuilderForm: React.FC<QuestionBuilderFormProps> = ({
     });
   };
 
-  const handleDeleteQuestion = (id: string) => {
+  const handleDeleteQuestion = (id) => {
     const updatedQuestions = questions.filter(q => q.id !== id);
     setQuestions(updatedQuestions);
     onUpdate({ questions: updatedQuestions });
@@ -93,7 +80,7 @@ const QuestionBuilderForm: React.FC<QuestionBuilderFormProps> = ({
     }
   };
 
-  const handleDeleteOption = (optionId: string) => {
+  const handleDeleteOption = (optionId) => {
     setNewQuestion({
       ...newQuestion,
       options: (newQuestion.options || []).filter(opt => opt.id !== optionId),
@@ -184,7 +171,7 @@ const QuestionBuilderForm: React.FC<QuestionBuilderFormProps> = ({
                 label="Question Type"
                 onChange={(e) => setNewQuestion({ 
                   ...newQuestion, 
-                  type: e.target.value as 'yes_no' | 'options',
+                  type: e.target.value,
                   options: e.target.value === 'yes_no' ? [] : newQuestion.options 
                 })}
               >

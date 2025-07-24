@@ -40,13 +40,28 @@ export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
   editData,
 }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [serviceData, setServiceData] = useState(editData || {
+  const [serviceData, setServiceData] = useState({
     nickname: '',
     description: '',
     packages: [],
     questions: [],
     pricing: {},
   });
+
+  // Update service data when editData changes
+  React.useEffect(() => {
+    if (editData) {
+      setServiceData(editData);
+    } else {
+      setServiceData({
+        nickname: '',
+        description: '',
+        packages: [],
+        questions: [],
+        pricing: {},
+      });
+    }
+  }, [editData, open]);
 
   const handleNext = () => {
     if (activeStep === steps.length - 1) {

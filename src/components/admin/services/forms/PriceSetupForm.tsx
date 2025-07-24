@@ -14,8 +14,11 @@ import {
   RadioGroup,
   FormControlLabel,
   Tooltip,
+  IconButton,
+  Popover,
 } from '@mui/material';
-import { Info } from '@mui/icons-material';
+import { Info, MoreVert } from '@mui/icons-material';
+import { Popover as PopoverUI, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
 
 interface PriceRule {
   questionId: string;
@@ -36,6 +39,13 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
   onUpdate,
 }) => {
   const [priceRules, setPriceRules] = useState<PriceRule[]>(data.pricing?.rules || []);
+  const [popoverAnchor, setPopoverAnchor] = useState<{
+    element: HTMLElement | null;
+    questionId: string;
+    packageId: string;
+    answer?: 'yes' | 'no';
+    optionId?: string;
+  }>({ element: null, questionId: '', packageId: '' });
   const packages = data.packages || [];
   const questions = data.questions || [];
 
@@ -132,25 +142,55 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
     );
   }
 
-  // Group questions by type for better display
-  const groupedQuestions: Array<{question: any, options: Array<{id: string, text: string, answer?: string}>}> = [];
-  
-  questions.forEach((question: any) => {
-    if (question.type === 'yes_no') {
-      groupedQuestions.push({
-        question,
-        options: [
-          { id: 'yes', text: 'Yes', answer: 'yes' },
-          { id: 'no', text: 'No', answer: 'no' }
-        ]
-      });
-    } else if (question.type === 'options' && question.options) {
-      groupedQuestions.push({
-        question,
-        options: question.options.map((opt: any) => ({ id: opt.id, text: opt.text }))
-      });
+  const handlePopoverOpen = (
+    event: React.MouseEvent<HTMLElement>,
+    questionId: string,
+    packageId: string,
+    answer?: 'yes' | 'no',
+    optionId?: string
+  ) => {
+    setPopoverAnchor({ 
+      element: event.currentTarget, 
+      questionId, 
+      packageId, 
+      answer, 
+      optionId 
+    });
+  };
+
+  const handlePopoverClose = () => {
+    setPopoverAnchor({ element: null, questionId: '', packageId: '' });
+  };
+
+  const handlePriceTypeSelect = (priceType: string) => {
+    updatePriceRule(
+      popoverAnchor.questionId,
+      popoverAnchor.packageId,
+      'priceType',
+      priceType,
+      popoverAnchor.answer,
+      popoverAnchor.optionId
+    );
+    handlePopoverClose();
+  };
+
+  const getPriceTypeIcon = (priceType: string) => {
+    switch (priceType) {
+      case 'upcharge': return '+';
+      case 'discount': return '-';
+      case 'bid_in_person': return '?';
+      default: return '○';
     }
-  });
+  };
+
+  const getPriceTypeColor = (priceType: string) => {
+    switch (priceType) {
+      case 'upcharge': return 'success.main';
+      case 'discount': return 'warning.main';
+      case 'bid_in_person': return 'info.main';
+      default: return 'grey.400';
+    }
+  };
 
   return (
     <Box>
@@ -166,144 +206,222 @@ const PriceSetupForm: React.FC<PriceSetupFormProps> = ({
           mb: 3
         }}
       >
-        What type of property do you have?
+        Price Setup
       </Typography>
       
-      <TableContainer component={Paper} variant="outlined">
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell sx={{ bgcolor: 'grey.50', fontWeight: 'bold', minWidth: 200 }}>
-                {/* Empty cell for question labels */}
-              </TableCell>
-              {packages.map((pkg) => (
-                <TableCell key={pkg.id} align="center" sx={{ bgcolor: 'grey.50', minWidth: 200 }}>
-                  <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                    {pkg.name}
-                  </Typography>
-                </TableCell>
-              ))}
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {groupedQuestions.map(({ question, options }) => (
-              options.map((option, optionIndex) => (
-                <TableRow key={`${question.id}-${option.id}`}>
-                  <TableCell>
-                    <Typography fontWeight="medium">
-                      For: "{option.text}":
-                    </Typography>
+      {questions.map((question: any) => (
+        <Box key={question.id} mb={4}>
+          <Typography 
+            variant="h6" 
+            gutterBottom 
+            sx={{ 
+              fontWeight: 'bold',
+              color: 'primary.main',
+              mb: 2
+            }}
+          >
+            {question.text}
+          </Typography>
+          
+          <TableContainer component={Paper} variant="outlined">
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ bgcolor: 'grey.50', fontWeight: 'bold', minWidth: 200 }}>
+                    Options
                   </TableCell>
-                  {packages.map((pkg) => {
-                    const rule = getPriceRule(
-                      question.id, 
-                      pkg.id, 
-                      option.answer as 'yes' | 'no', 
-                      option.answer ? undefined : option.id
-                    );
-                    
-                    return (
-                      <TableCell key={pkg.id} align="center">
-                        <Box display="flex" alignItems="center" gap={1} justifyContent="center">
-                          <Box display="flex" alignItems="center" gap={1}>
-                            <Typography variant="body2">$</Typography>
-                            <TextField
-                              size="small"
-                              type="number"
-                              value={rule?.value || 0}
-                              onChange={(e) => updatePriceRule(
-                                question.id, 
-                                pkg.id, 
-                                'value', 
-                                Number(e.target.value),
-                                option.answer as 'yes' | 'no',
-                                option.answer ? undefined : option.id
-                              )}
-                              sx={{ width: 80 }}
-                            />
-                            <Box 
-                              sx={{ 
-                                bgcolor: rule?.priceType === 'ignore' ? 'grey.200' : 'success.main',
-                                borderRadius: '50%',
-                                width: 24,
-                                height: 24,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center'
-                              }}
-                            >
-                              <Typography variant="caption" color="white" fontWeight="bold">
-                                ○
-                              </Typography>
-                            </Box>
-                          </Box>
-                        </Box>
-                        
-                        <Box mt={1}>
-                          <RadioGroup
-                            value={rule?.priceType || 'ignore'}
-                            onChange={(e) => updatePriceRule(
-                              question.id, 
-                              pkg.id, 
-                              'priceType', 
-                              e.target.value,
-                              option.answer as 'yes' | 'no',
-                              option.answer ? undefined : option.id
-                            )}
-                            row
-                          >
-                            <Tooltip title="Add upcharge to base price">
-                              <FormControlLabel
-                                value="upcharge"
-                                control={<Radio size="small" />}
-                                label={
-                                  <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Info fontSize="small" />
-                                    <Typography variant="caption">Upcharge</Typography>
-                                  </Box>
-                                }
-                              />
-                            </Tooltip>
-                            <Tooltip title="Apply discount to base price">
-                              <FormControlLabel
-                                value="discount"
-                                control={<Radio size="small" />}
-                                label={
-                                  <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Info fontSize="small" />
-                                    <Typography variant="caption">Discount</Typography>
-                                  </Box>
-                                }
-                              />
-                            </Tooltip>
-                            <FormControlLabel
-                              value="ignore"
-                              control={<Radio size="small" />}
-                              label={<Typography variant="caption">Ignore</Typography>}
-                            />
-                            <Tooltip title="Requires custom pricing">
-                              <FormControlLabel
-                                value="bid_in_person"
-                                control={<Radio size="small" />}
-                                label={
-                                  <Box display="flex" alignItems="center" gap={0.5}>
-                                    <Info fontSize="small" />
-                                    <Typography variant="caption">Bid In Person</Typography>
-                                  </Box>
-                                }
-                              />
-                            </Tooltip>
-                          </RadioGroup>
-                        </Box>
-                      </TableCell>
-                    );
-                  })}
+                  {packages.map((pkg) => (
+                    <TableCell key={pkg.id} align="center" sx={{ bgcolor: 'grey.50', minWidth: 200 }}>
+                      <Typography variant="subtitle1" fontWeight="bold" color="primary">
+                        {pkg.name}
+                      </Typography>
+                    </TableCell>
+                  ))}
                 </TableRow>
-              ))
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
+              </TableHead>
+              <TableBody>
+                {question.type === 'yes_no' ? (
+                  ['yes', 'no'].map((answer) => (
+                    <TableRow key={answer}>
+                      <TableCell>
+                        <Typography fontWeight="medium">
+                          If {answer}
+                        </Typography>
+                      </TableCell>
+                      {packages.map((pkg) => {
+                        const rule = getPriceRule(question.id, pkg.id, answer as 'yes' | 'no');
+                        
+                        return (
+                          <TableCell key={pkg.id} align="center">
+                            <Box display="flex" alignItems="center" gap={1} justifyContent="center">
+                              <Typography variant="body2">$</Typography>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={rule?.value || 0}
+                                onChange={(e) => updatePriceRule(
+                                  question.id, 
+                                  pkg.id, 
+                                  'value', 
+                                  Number(e.target.value),
+                                  answer as 'yes' | 'no'
+                                )}
+                                sx={{ width: 80 }}
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, answer as 'yes' | 'no')}
+                                sx={{ 
+                                  bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                  color: 'white',
+                                  width: 24,
+                                  height: 24,
+                                  '&:hover': {
+                                    bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                    opacity: 0.8
+                                  }
+                                }}
+                              >
+                                <Typography variant="caption" fontWeight="bold">
+                                  {getPriceTypeIcon(rule?.priceType || 'ignore')}
+                                </Typography>
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))
+                ) : question.type === 'options' && question.options ? (
+                  question.options.map((option: any) => (
+                    <TableRow key={option.id}>
+                      <TableCell>
+                        <Typography fontWeight="medium">
+                          {option.text}
+                        </Typography>
+                      </TableCell>
+                      {packages.map((pkg) => {
+                        const rule = getPriceRule(question.id, pkg.id, undefined, option.id);
+                        
+                        return (
+                          <TableCell key={pkg.id} align="center">
+                            <Box display="flex" alignItems="center" gap={1} justifyContent="center">
+                              <Typography variant="body2">$</Typography>
+                              <TextField
+                                size="small"
+                                type="number"
+                                value={rule?.value || 0}
+                                onChange={(e) => updatePriceRule(
+                                  question.id, 
+                                  pkg.id, 
+                                  'value', 
+                                  Number(e.target.value),
+                                  undefined,
+                                  option.id
+                                )}
+                                sx={{ width: 80 }}
+                              />
+                              <IconButton
+                                size="small"
+                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, undefined, option.id)}
+                                sx={{ 
+                                  bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                  color: 'white',
+                                  width: 24,
+                                  height: 24,
+                                  '&:hover': {
+                                    bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                    opacity: 0.8
+                                  }
+                                }}
+                              >
+                                <Typography variant="caption" fontWeight="bold">
+                                  {getPriceTypeIcon(rule?.priceType || 'ignore')}
+                                </Typography>
+                              </IconButton>
+                            </Box>
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))
+                ) : null}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Box>
+      ))}
+
+      <Popover
+        open={Boolean(popoverAnchor.element)}
+        anchorEl={popoverAnchor.element}
+        onClose={handlePopoverClose}
+        anchorOrigin={{
+          vertical: 'bottom',
+          horizontal: 'center',
+        }}
+        transformOrigin={{
+          vertical: 'top',
+          horizontal: 'center',
+        }}
+      >
+        <Box p={2}>
+          <Typography variant="subtitle2" gutterBottom>
+            Select Price Type
+          </Typography>
+          <RadioGroup
+            value={getPriceRule(
+              popoverAnchor.questionId,
+              popoverAnchor.packageId,
+              popoverAnchor.answer,
+              popoverAnchor.optionId
+            )?.priceType || 'ignore'}
+            onChange={(e) => handlePriceTypeSelect(e.target.value)}
+          >
+            <FormControlLabel
+              value="upcharge"
+              control={<Radio size="small" />}
+              label={
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Typography variant="body2">Upcharge</Typography>
+                  <Tooltip title="Add upcharge to base price">
+                    <Info fontSize="small" />
+                  </Tooltip>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value="discount"
+              control={<Radio size="small" />}
+              label={
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Typography variant="body2">Discount</Typography>
+                  <Tooltip title="Apply discount to base price">
+                    <Info fontSize="small" />
+                  </Tooltip>
+                </Box>
+              }
+            />
+            <FormControlLabel
+              value="ignore"
+              control={<Radio size="small" />}
+              label={<Typography variant="body2">Ignore</Typography>}
+            />
+            <FormControlLabel
+              value="bid_in_person"
+              control={<Radio size="small" />}
+              label={
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  <Typography variant="body2">Bid In Person</Typography>
+                  <Tooltip title="Requires custom pricing">
+                    <Info fontSize="small" />
+                  </Tooltip>
+                </Box>
+              }
+            />
+          </RadioGroup>
+        </Box>
+      </Popover>
     </Box>
   );
 };

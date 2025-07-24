@@ -1,0 +1,25 @@
+import { configureStore } from '@reduxjs/toolkit';
+import { servicesApi } from './api/servicesApi';
+import { locationsApi } from './api/locationsApi';
+import { bookingApi } from './api/bookingApi';
+import servicesSlice from './slices/servicesSlice';
+import locationsSlice from './slices/locationsSlice';
+import bookingSlice from './slices/bookingSlice';
+
+export const store = configureStore({
+  reducer: {
+    services: servicesSlice,
+    locations: locationsSlice,
+    booking: bookingSlice,
+    [servicesApi.reducerPath]: servicesApi.reducer,
+    [locationsApi.reducerPath]: locationsApi.reducer,
+    [bookingApi.reducerPath]: bookingApi.reducer,
+  },
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware()
+      .concat(servicesApi.middleware)
+      .concat(locationsApi.middleware)
+      .concat(bookingApi.middleware),
+});
+
+export default store;

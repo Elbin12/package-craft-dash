@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -13,12 +14,13 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
   TextField,
-  Chip,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add,
@@ -26,118 +28,104 @@ import {
   Delete,
   LocationOn,
 } from '@mui/icons-material';
+import { 
+  useGetLocationsQuery, 
+  useCreateLocationMutation, 
+  useUpdateLocationMutation, 
+  useDeleteLocationMutation 
+} from '../../store/api/locationsApi';
+import {
+  setDialogOpen,
+  setEditingLocation,
+  setFormData,
+  resetFormData,
+} from '../../store/slices/locationsSlice';
 
-interface Location {
-  id: string;
-  name: string;
-  address: string;
-  lat: number;
-  lng: number;
-  tripSurcharge: number;
-  createdAt: string;
-  status: 'active' | 'inactive';
-}
+const LocationsManagement = () => {
+  const dispatch = useDispatch();
+  const { 
+    dialogOpen, 
+    editingLocation, 
+    formData 
+  } = useSelector((state) => state.locations);
 
-const LocationsManagement: React.FC = () => {
-  const [locations, setLocations] = useState<Location[]>([
-    {
-      id: '1',
-      name: 'Downtown District',
-      address: '123 Main St, Downtown, City',
-      lat: 40.7128,
-      lng: -74.0060,
-      tripSurcharge: 15.00,
-      createdAt: '2024-01-15',
-      status: 'active'
-    },
-    {
-      id: '2',
-      name: 'Suburban Area',
-      address: '456 Oak Avenue, Suburbs, City',
-      lat: 40.7589,
-      lng: -73.9851,
-      tripSurcharge: 25.00,
-      createdAt: '2024-01-10',
-      status: 'active'
-    }
-  ]);
-  
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingLocation, setEditingLocation] = useState<Location | null>(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    lat: 0,
-    lng: 0,
-    tripSurcharge: 0,
-  });
+  const { data: locations = [], isLoading, error } = useGetLocationsQuery();
+  const [createLocation] = useCreateLocationMutation();
+  const [updateLocation] = useUpdateLocationMutation();
+  const [deleteLocation] = useDeleteLocationMutation();
 
-  const handleOpenDialog = (location?: Location) => {
+  const handleOpenDialog = (location = null) => {
     if (location) {
-      setEditingLocation(location);
-      setFormData({
+      dispatch(setEditingLocation(location));
+      dispatch(setFormData({
         name: location.name,
         address: location.address,
-        lat: location.lat,
-        lng: location.lng,
-        tripSurcharge: location.tripSurcharge,
-      });
+        lat: location.lat.toString(),
+        lng: location.lng.toString(),
+        tripSurcharge: location.tripSurcharge.toString(),
+      }));
     } else {
-      setEditingLocation(null);
-      setFormData({
-        name: '',
-        address: '',
-        lat: 0,
-        lng: 0,
-        tripSurcharge: 0,
-      });
+      dispatch(setEditingLocation(null));
+      dispatch(resetFormData());
     }
-    setDialogOpen(true);
+    dispatch(setDialogOpen(true));
   };
 
   const handleCloseDialog = () => {
-    setDialogOpen(false);
-    setEditingLocation(null);
-    setFormData({
-      name: '',
-      address: '',
-      lat: 0,
-      lng: 0,
-      tripSurcharge: 0,
-    });
+    dispatch(setDialogOpen(false));
+    dispatch(setEditingLocation(null));
+    dispatch(resetFormData());
   };
 
-  const handleSaveLocation = () => {
-    if (editingLocation) {
-      // Update existing location
-      setLocations(locations.map(loc => 
-        loc.id === editingLocation.id 
-          ? { ...loc, ...formData }
-          : loc
-      ));
-    } else {
-      // Create new location
-      const newLocation: Location = {
-        id: Date.now().toString(),
+  const handleSaveLocation = async () => {
+    try {
+      const locationData = {
         ...formData,
-        createdAt: new Date().toISOString().split('T')[0],
-        status: 'active'
+        lat: parseFloat(formData.lat),
+        lng: parseFloat(formData.lng),
+        tripSurcharge: parseFloat(formData.tripSurcharge),
       };
-      setLocations([...locations, newLocation]);
+
+      if (editingLocation) {
+        await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
+      } else {
+        await createLocation(locationData).unwrap();
+      }
+      handleCloseDialog();
+    } catch (error) {
+      console.error('Failed to save location:', error);
     }
-    handleCloseDialog();
   };
 
-  const handleDeleteLocation = (id: string) => {
-    setLocations(locations.filter(location => location.id !== id));
+  const handleDeleteLocation = async (id) => {
+    try {
+      await deleteLocation(id).unwrap();
+    } catch (error) {
+      console.error('Failed to delete location:', error);
+    }
   };
 
-  const handleFormChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-    const value = field === 'lat' || field === 'lng' || field === 'tripSurcharge' 
-      ? Number(event.target.value) 
-      : event.target.value;
-    setFormData({ ...formData, [field]: value });
+  const handleFormChange = (field, value) => {
+    dispatch(setFormData({ [field]: value }));
   };
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography color="error">
+          Error loading locations: {error.message || 'Unknown error'}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -178,8 +166,8 @@ const LocationsManagement: React.FC = () => {
                 {locations.map((location) => (
                   <TableRow key={location.id}>
                     <TableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <LocationOn color="primary" />
+                      <Box display="flex" alignItems="center">
+                        <LocationOn color="primary" sx={{ mr: 1 }} />
                         <Typography variant="subtitle2" fontWeight="bold">
                           {location.name}
                         </Typography>
@@ -192,17 +180,20 @@ const LocationsManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {location.lat.toFixed(4)}, {location.lng.toFixed(4)}
-                      </Typography>
-                    </TableCell>
-                    <TableCell>
-                      <Typography variant="subtitle2" color="primary">
-                        ${location.tripSurcharge.toFixed(2)}
+                        {typeof location.lat === 'number' ? location.lat.toFixed(4) : location.lat}, {typeof location.lng === 'number' ? location.lng.toFixed(4) : location.lng}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={location.status} 
+                        label={`$${typeof location.tripSurcharge === 'number' ? location.tripSurcharge.toFixed(2) : location.tripSurcharge}`} 
+                        size="small" 
+                        color="primary"
+                        variant="outlined"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={location.status || 'active'} 
                         size="small"
                         color={location.status === 'active' ? 'success' : 'default'}
                       />
@@ -233,69 +224,65 @@ const LocationsManagement: React.FC = () => {
       </Card>
 
       {/* Add/Edit Location Dialog */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="sm"
+        fullWidth
+      >
         <DialogTitle>
           {editingLocation ? 'Edit Location' : 'Add New Location'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
             <TextField
+              fullWidth
               label="Location Name"
-              fullWidth
               value={formData.name}
-              onChange={handleFormChange('name')}
-              placeholder="e.g., Downtown District"
+              onChange={(e) => handleFormChange('name', e.target.value)}
             />
-            
             <TextField
-              label="Address"
               fullWidth
+              label="Address"
+              value={formData.address}
+              onChange={(e) => handleFormChange('address', e.target.value)}
               multiline
               rows={2}
-              value={formData.address}
-              onChange={handleFormChange('address')}
-              placeholder="Full address with Google Places integration"
-              helperText="In production, this would use Google Places Autocomplete"
             />
-            
-            <Box display="flex" gap={2}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
+                fullWidth
                 label="Latitude"
                 type="number"
                 value={formData.lat}
-                onChange={handleFormChange('lat')}
-                fullWidth
+                onChange={(e) => handleFormChange('lat', e.target.value)}
                 inputProps={{ step: 'any' }}
               />
               <TextField
+                fullWidth
                 label="Longitude"
                 type="number"
                 value={formData.lng}
-                onChange={handleFormChange('lng')}
-                fullWidth
+                onChange={(e) => handleFormChange('lng', e.target.value)}
                 inputProps={{ step: 'any' }}
               />
             </Box>
-            
             <TextField
+              fullWidth
               label="Trip Surcharge ($)"
               type="number"
               value={formData.tripSurcharge}
-              onChange={handleFormChange('tripSurcharge')}
-              fullWidth
+              onChange={(e) => handleFormChange('tripSurcharge', e.target.value)}
               inputProps={{ step: '0.01', min: 0 }}
-              helperText="Additional charge for trips to this location"
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancel</Button>
-          <Button 
-            onClick={handleSaveLocation} 
-            variant="contained"
-            disabled={!formData.name.trim() || !formData.address.trim()}
-          >
-            {editingLocation ? 'Update' : 'Create'} Location
+          <Button onClick={handleCloseDialog}>
+            Cancel
+          </Button>
+          <Button onClick={handleSaveLocation} variant="contained">
+            {editingLocation ? 'Update' : 'Add'} Location
           </Button>
         </DialogActions>
       </Dialog>

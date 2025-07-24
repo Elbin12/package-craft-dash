@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
   Typography,
@@ -19,6 +20,7 @@ import {
   DialogContent,
   DialogActions,
   DialogContentText,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add,
@@ -26,84 +28,93 @@ import {
   Delete,
   Visibility,
 } from '@mui/icons-material';
-import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard';
+import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard.jsx';
+import { 
+  useGetServicesQuery, 
+  useCreateServiceMutation, 
+  useUpdateServiceMutation, 
+  useDeleteServiceMutation 
+} from '../../store/api/servicesApi';
+import {
+  setWizardOpen,
+  setEditingService,
+  setDeleteConfirmOpen,
+  setServiceToDelete,
+  clearEditingService,
+} from '../../store/slices/servicesSlice';
 
-interface Service {
-  id: string;
-  nickname: string;
-  description: string;
-  packages: any[];
-  questions: any[];
-  createdAt: string;
-  status: 'active' | 'inactive';
-}
+const ServicesManagement = () => {
+  const dispatch = useDispatch();
+  const { 
+    wizardOpen, 
+    editingService, 
+    deleteConfirmOpen, 
+    serviceToDelete 
+  } = useSelector((state) => state.services);
 
-const ServicesManagement: React.FC = () => {
-  const [services, setServices] = useState<Service[]>([
-    {
-      id: '1',
-      nickname: 'Premium House Cleaning',
-      description: 'Complete house cleaning service with premium supplies',
-      packages: [
-        { id: '1', name: 'Basic', basePrice: 100 },
-        { id: '2', name: 'Premium', basePrice: 150 }
-      ],
-      questions: [
-        { id: '1', text: 'Do you have pets?', type: 'yes_no' },
-        { id: '2', text: 'How many bedrooms?', type: 'options' }
-      ],
-      createdAt: '2024-01-15',
-      status: 'active'
-    }
-  ]);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [editingService, setEditingService] = useState<Service | null>(null);
-  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
-  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
+  const { data: services = [], isLoading, error } = useGetServicesQuery();
+  const [createService] = useCreateServiceMutation();
+  const [updateService] = useUpdateServiceMutation();
+  const [deleteService] = useDeleteServiceMutation();
 
-  const handleCreateService = (serviceData: any) => {
-    if (editingService) {
-      // Update existing service
-      setServices(services.map(service => 
-        service.id === editingService.id 
-          ? { ...service, ...serviceData }
-          : service
-      ));
-      setEditingService(null);
-    } else {
-      // Create new service
-      const newService: Service = {
-        id: Date.now().toString(),
-        ...serviceData,
-        createdAt: new Date().toISOString().split('T')[0],
-        status: 'active'
-      };
-      setServices([...services, newService]);
+  const handleCreateService = async (serviceData) => {
+    try {
+      if (editingService) {
+        await updateService({ id: editingService.id, ...serviceData }).unwrap();
+      } else {
+        await createService(serviceData).unwrap();
+      }
+      dispatch(clearEditingService());
+      dispatch(setWizardOpen(false));
+    } catch (error) {
+      console.error('Failed to save service:', error);
     }
   };
 
-  const handleEditService = (service: Service) => {
-    setEditingService(service);
-    setWizardOpen(true);
+  const handleEditService = (service) => {
+    dispatch(setEditingService(service));
+    dispatch(setWizardOpen(true));
   };
 
-  const handleDeleteConfirm = (id: string) => {
-    setServiceToDelete(id);
-    setDeleteConfirmOpen(true);
+  const handleDeleteConfirm = (id) => {
+    dispatch(setServiceToDelete(id));
+    dispatch(setDeleteConfirmOpen(true));
   };
 
-  const handleDeleteService = () => {
+  const handleDeleteService = async () => {
     if (serviceToDelete) {
-      setServices(services.filter(service => service.id !== serviceToDelete));
-      setServiceToDelete(null);
-      setDeleteConfirmOpen(false);
+      try {
+        await deleteService(serviceToDelete).unwrap();
+        dispatch(setServiceToDelete(null));
+      } catch (error) {
+        console.error('Failed to delete service:', error);
+      }
     }
+    dispatch(setDeleteConfirmOpen(false));
   };
 
   const handleCloseWizard = () => {
-    setWizardOpen(false);
-    setEditingService(null);
+    dispatch(setWizardOpen(false));
+    dispatch(clearEditingService());
   };
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box>
+        <Typography color="error">
+          Error loading services: {error.message || 'Unknown error'}
+        </Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -119,7 +130,7 @@ const ServicesManagement: React.FC = () => {
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => setWizardOpen(true)}
+          onClick={() => dispatch(setWizardOpen(true))}
         >
           Create New Service
         </Button>
@@ -150,7 +161,7 @@ const ServicesManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" color="text.secondary">
-                        {service.description.length > 50 
+                        {service.description && service.description.length > 50 
                           ? `${service.description.substring(0, 50)}...`
                           : service.description
                         }
@@ -158,7 +169,7 @@ const ServicesManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`${service.packages.length} packages`} 
+                        label={`${service.packages?.length || 0} packages`} 
                         size="small" 
                         color="primary"
                         variant="outlined"
@@ -166,7 +177,7 @@ const ServicesManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`${service.questions.length} questions`} 
+                        label={`${service.questions?.length || 0} questions`} 
                         size="small" 
                         color="secondary"
                         variant="outlined"
@@ -174,7 +185,7 @@ const ServicesManagement: React.FC = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={service.status} 
+                        label={service.status || 'active'} 
                         size="small"
                         color={service.status === 'active' ? 'success' : 'default'}
                       />
@@ -217,7 +228,7 @@ const ServicesManagement: React.FC = () => {
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={() => setDeleteConfirmOpen(false)}
+        onClose={() => dispatch(setDeleteConfirmOpen(false))}
       >
         <DialogTitle>Delete Service</DialogTitle>
         <DialogContent>
@@ -226,7 +237,7 @@ const ServicesManagement: React.FC = () => {
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteConfirmOpen(false)}>
+          <Button onClick={() => dispatch(setDeleteConfirmOpen(false))}>
             Cancel
           </Button>
           <Button onClick={handleDeleteService} color="error" variant="contained">

@@ -8,13 +8,13 @@ import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
 
 // Import pages
-import Index from "./pages/Index";
-import NotFound from "./pages/NotFound";
-import { AdminLayout } from './components/layouts/AdminLayout';
-import { AdminDashboard } from './pages/admin/AdminDashboard';
-import ServicesManagement from './pages/admin/ServicesManagement';
-import LocationsManagement from './pages/admin/LocationsManagement';
-import { BookingWizard } from './components/user/BookingWizard';
+import Index from "./pages/Index.jsx";
+import NotFound from "./pages/NotFound.jsx";
+import { AdminLayout } from './components/layouts/AdminLayout.jsx';
+import { AdminDashboard } from './pages/admin/AdminDashboard.jsx';
+import ServicesManagement from './pages/admin/ServicesManagement.jsx';
+import LocationsManagement from './pages/admin/LocationsManagement.jsx';
+import { BookingWizard } from './components/user/BookingWizard.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({

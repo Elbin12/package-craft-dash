@@ -157,3 +157,5 @@ export const AdminDashboard = () => {
     </Box>
   );
 };
+
+export default AdminDashboard;

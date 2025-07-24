@@ -11,7 +11,7 @@ import { CssBaseline } from '@mui/material';
 import Index from "./pages/Index.jsx";
 import NotFound from "./pages/NotFound.jsx";
 import { AdminLayout } from './components/layouts/AdminLayout.jsx';
-import { AdminDashboard } from './pages/admin/AdminDashboard.jsx';
+import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
 import { BookingWizard } from './components/user/BookingWizard.jsx';
@@ -50,33 +50,35 @@ const theme = createTheme({
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/" element={<Index />} />
-            <Route path="/booking" element={<BookingWizard />} />
-            
-            {/* Admin Routes */}
-            <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-            <Route path="/admin/services" element={<AdminLayout><ServicesManagement /></AdminLayout>} />
-            <Route path="/admin/locations" element={<AdminLayout><LocationsManagement /></AdminLayout>} />
-            <Route path="/admin/questions" element={<AdminLayout><div>Questions Coming Soon</div></AdminLayout>} />
-            <Route path="/admin/settings" element={<AdminLayout><div>Settings Coming Soon</div></AdminLayout>} />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
-  </QueryClientProvider>
-);
+function App() {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/" element={<Index />} />
+              <Route path="/booking" element={<BookingWizard />} />
+              
+              {/* Admin Routes */}
+              <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
+              <Route path="/admin/services" element={<AdminLayout><ServicesManagement /></AdminLayout>} />
+              <Route path="/admin/locations" element={<AdminLayout><LocationsManagement /></AdminLayout>} />
+              <Route path="/admin/questions" element={<AdminLayout><div>Questions Coming Soon</div></AdminLayout>} />
+              <Route path="/admin/settings" element={<AdminLayout><div>Settings Coming Soon</div></AdminLayout>} />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
+  );
+}
 
 export default App;

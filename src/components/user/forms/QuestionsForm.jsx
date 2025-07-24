@@ -11,12 +11,9 @@ import {
   Radio,
 } from '@mui/material';
 
-interface QuestionsFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// QuestionsFormProps: { data, onUpdate }
 
-const QuestionsForm: React.FC<QuestionsFormProps> = ({
+export const QuestionsForm = ({
   data,
   onUpdate,
 }) => {
@@ -33,7 +30,7 @@ const QuestionsForm: React.FC<QuestionsFormProps> = ({
     );
   }
 
-  const handleAnswerChange = (questionId: string, answer: any) => {
+  const handleAnswerChange = (questionId, answer) => {
     onUpdate({
       questionAnswers: {
         ...data.questionAnswers,
@@ -70,7 +67,7 @@ const QuestionsForm: React.FC<QuestionsFormProps> = ({
       </Typography>
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-        {questions.map((question: any, index: number) => (
+        {questions.map((question, index) => (
           <Card key={question.id}>
             <CardContent>
               <FormControl component="fieldset" fullWidth>
@@ -98,7 +95,7 @@ const QuestionsForm: React.FC<QuestionsFormProps> = ({
                       />
                     </>
                   ) : (
-                    question.options?.map((option: any) => (
+                    question.options?.map((option) => (
                       <FormControlLabel
                         key={option.id}
                         value={option.id}

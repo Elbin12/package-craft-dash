@@ -20,12 +20,9 @@ import {
   Receipt 
 } from '@mui/icons-material';
 
-interface CheckoutSummaryProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// CheckoutSummaryProps: { data, onUpdate }
 
-const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
+export const CheckoutSummary = ({
   data,
   onUpdate,
 }) => {
@@ -39,7 +36,7 @@ const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
 
     // Mock pricing calculations based on answers
     Object.entries(data.questionAnswers).forEach(([questionId, answer]) => {
-      const question = data.selectedService?.questions?.find((q: any) => q.id === questionId);
+      const question = data.selectedService?.questions?.find((q) => q.id === questionId);
       if (!question) return;
 
       // Mock pricing logic
@@ -164,7 +161,7 @@ const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
                   <Typography variant="h6">Your Answers</Typography>
                 </Box>
                 <List dense>
-                  {data.selectedService.questions.map((question: any) => {
+                  {data.selectedService.questions.map((question) => {
                     const answer = data.questionAnswers[question.id];
                     let displayAnswer = 'Not answered';
                     
@@ -172,7 +169,7 @@ const CheckoutSummary: React.FC<CheckoutSummaryProps> = ({
                       if (question.type === 'yes_no') {
                         displayAnswer = answer === 'yes' ? 'Yes' : 'No';
                       } else {
-                        const option = question.options?.find((opt: any) => opt.id === answer);
+                        const option = question.options?.find((opt) => opt.id === answer);
                         displayAnswer = option?.text || 'Unknown option';
                       }
                     }

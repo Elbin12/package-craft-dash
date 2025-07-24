@@ -67,16 +67,13 @@ const mockServices = [
   }
 ];
 
-interface ServiceSelectionFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// ServiceSelectionFormProps: { data, onUpdate }
 
-const ServiceSelectionForm: React.FC<ServiceSelectionFormProps> = ({
+export const ServiceSelectionForm = ({
   data,
   onUpdate,
 }) => {
-  const handleServiceSelect = (service: any) => {
+  const handleServiceSelect = (service) => {
     onUpdate({
       selectedService: service,
       selectedPackage: null, // Reset package selection

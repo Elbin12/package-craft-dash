@@ -5,16 +5,13 @@ import {
   Typography,
 } from '@mui/material';
 
-interface UserInfoFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// UserInfoFormProps: { data, onUpdate }
 
-const UserInfoForm: React.FC<UserInfoFormProps> = ({
+export const UserInfoForm = ({
   data,
   onUpdate,
 }) => {
-  const handleChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (field) => (event) => {
     onUpdate({
       userInfo: {
         ...data.userInfo,

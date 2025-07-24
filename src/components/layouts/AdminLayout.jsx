@@ -28,9 +28,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 
 const drawerWidth = 280;
 
-interface AdminLayoutProps {
-  children: React.ReactNode;
-}
+// AdminLayout component props: { children }
 
 const menuItems = [
   { text: 'Dashboard', icon: Dashboard, path: '/admin' },
@@ -40,7 +38,7 @@ const menuItems = [
   { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
-export const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
+export const AdminLayout = ({ children }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
   const [mobileOpen, setMobileOpen] = useState(false);

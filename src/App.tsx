@@ -12,6 +12,9 @@ import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import { AdminLayout } from './components/layouts/AdminLayout';
 import { AdminDashboard } from './pages/admin/AdminDashboard';
+import ServicesManagement from './pages/admin/ServicesManagement';
+import LocationsManagement from './pages/admin/LocationsManagement';
+import { BookingWizard } from './components/user/BookingWizard';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -58,11 +61,12 @@ const App = () => (
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Index />} />
+            <Route path="/booking" element={<BookingWizard />} />
             
             {/* Admin Routes */}
             <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-            <Route path="/admin/services" element={<AdminLayout><div>Services Coming Soon</div></AdminLayout>} />
-            <Route path="/admin/locations" element={<AdminLayout><div>Locations Coming Soon</div></AdminLayout>} />
+            <Route path="/admin/services" element={<AdminLayout><ServicesManagement /></AdminLayout>} />
+            <Route path="/admin/locations" element={<AdminLayout><LocationsManagement /></AdminLayout>} />
             <Route path="/admin/questions" element={<AdminLayout><div>Questions Coming Soon</div></AdminLayout>} />
             <Route path="/admin/settings" element={<AdminLayout><div>Settings Coming Soon</div></AdminLayout>} />
             

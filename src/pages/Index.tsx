@@ -34,6 +34,7 @@ const Index = () => {
             <Button
               variant="contained"
               size="large"
+              onClick={() => navigate('/booking')}
               sx={{
                 background: 'var(--gradient-primary)',
                 px: 4,

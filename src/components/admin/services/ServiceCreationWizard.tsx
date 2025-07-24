@@ -30,15 +30,17 @@ interface ServiceCreationWizardProps {
   open: boolean;
   onClose: () => void;
   onComplete: (serviceData: any) => void;
+  editData?: any;
 }
 
 export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
   open,
   onClose,
   onComplete,
+  editData,
 }) => {
   const [activeStep, setActiveStep] = useState(0);
-  const [serviceData, setServiceData] = useState({
+  const [serviceData, setServiceData] = useState(editData || {
     nickname: '',
     description: '',
     packages: [],
@@ -122,7 +124,7 @@ export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Create New Service</Typography>
+          <Typography variant="h6">{editData ? 'Edit Service' : 'Create New Service'}</Typography>
           <IconButton onClick={onClose}>
             <Close />
           </IconButton>
@@ -155,7 +157,7 @@ export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
               </Button>
               <Box sx={{ flex: '1 1 auto' }} />
               <Button onClick={handleNext} variant="contained">
-                {activeStep === steps.length - 1 ? 'Create Service' : 'Next'}
+                {activeStep === steps.length - 1 ? (editData ? 'Update Service' : 'Create Service') : 'Next'}
               </Button>
             </Box>
           </CardContent>

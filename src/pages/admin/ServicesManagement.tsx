@@ -14,6 +14,11 @@ import {
   TableRow,
   Paper,
   Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  DialogContentText,
 } from '@mui/material';
 import {
   Add,
@@ -52,19 +57,52 @@ const ServicesManagement: React.FC = () => {
     }
   ]);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [serviceToDelete, setServiceToDelete] = useState<string | null>(null);
 
   const handleCreateService = (serviceData: any) => {
-    const newService: Service = {
-      id: Date.now().toString(),
-      ...serviceData,
-      createdAt: new Date().toISOString().split('T')[0],
-      status: 'active'
-    };
-    setServices([...services, newService]);
+    if (editingService) {
+      // Update existing service
+      setServices(services.map(service => 
+        service.id === editingService.id 
+          ? { ...service, ...serviceData }
+          : service
+      ));
+      setEditingService(null);
+    } else {
+      // Create new service
+      const newService: Service = {
+        id: Date.now().toString(),
+        ...serviceData,
+        createdAt: new Date().toISOString().split('T')[0],
+        status: 'active'
+      };
+      setServices([...services, newService]);
+    }
   };
 
-  const handleDeleteService = (id: string) => {
-    setServices(services.filter(service => service.id !== id));
+  const handleEditService = (service: Service) => {
+    setEditingService(service);
+    setWizardOpen(true);
+  };
+
+  const handleDeleteConfirm = (id: string) => {
+    setServiceToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteService = () => {
+    if (serviceToDelete) {
+      setServices(services.filter(service => service.id !== serviceToDelete));
+      setServiceToDelete(null);
+      setDeleteConfirmOpen(false);
+    }
+  };
+
+  const handleCloseWizard = () => {
+    setWizardOpen(false);
+    setEditingService(null);
   };
 
   return (
@@ -146,13 +184,17 @@ const ServicesManagement: React.FC = () => {
                       <IconButton size="small" color="primary">
                         <Visibility />
                       </IconButton>
-                      <IconButton size="small" color="primary">
+                      <IconButton 
+                        size="small" 
+                        color="primary"
+                        onClick={() => handleEditService(service)}
+                      >
                         <Edit />
                       </IconButton>
                       <IconButton 
                         size="small" 
                         color="error"
-                        onClick={() => handleDeleteService(service.id)}
+                        onClick={() => handleDeleteConfirm(service.id)}
                       >
                         <Delete />
                       </IconButton>
@@ -167,9 +209,31 @@ const ServicesManagement: React.FC = () => {
 
       <ServiceCreationWizard
         open={wizardOpen}
-        onClose={() => setWizardOpen(false)}
+        onClose={handleCloseWizard}
         onComplete={handleCreateService}
+        editData={editingService}
       />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+      >
+        <DialogTitle>Delete Service</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this service? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)}>
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteService} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

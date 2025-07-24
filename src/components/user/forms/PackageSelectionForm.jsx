@@ -25,12 +25,9 @@ const mockFeatures = [
   { id: '5', name: 'Satisfaction Guarantee', description: '100% satisfaction guaranteed' },
 ];
 
-interface PackageSelectionFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
+// PackageSelectionFormProps: { data, onUpdate }
 
-const PackageSelectionForm: React.FC<PackageSelectionFormProps> = ({
+export const PackageSelectionForm = ({
   data,
   onUpdate,
 }) => {
@@ -47,14 +44,14 @@ const PackageSelectionForm: React.FC<PackageSelectionFormProps> = ({
     );
   }
 
-  const handlePackageSelect = (packageItem: any) => {
+  const handlePackageSelect = (packageItem) => {
     onUpdate({
       selectedPackage: packageItem,
       questionAnswers: {}, // Reset answers when package changes
     });
   };
 
-  const getPackageFeatures = (packageId: string) => {
+  const getPackageFeatures = (packageId) => {
     // Mock feature assignment based on package
     if (packageId === '1') return ['1', '4']; // Basic package
     if (packageId === '2') return ['1', '2', '3', '4', '5']; // Premium package
@@ -80,12 +77,12 @@ const PackageSelectionForm: React.FC<PackageSelectionFormProps> = ({
       <RadioGroup
         value={data.selectedPackage?.id || ''}
         onChange={(e) => {
-          const packageItem = data.selectedService.packages.find((p: any) => p.id === e.target.value);
+          const packageItem = data.selectedService.packages.find((p) => p.id === e.target.value);
           if (packageItem) handlePackageSelect(packageItem);
         }}
       >
         <Box sx={{ display: 'grid', gap: 3 }}>
-          {data.selectedService.packages.map((packageItem: any) => {
+          {data.selectedService.packages.map((packageItem) => {
             const packageFeatures = getPackageFeatures(packageItem.id);
             const includedFeatures = mockFeatures.filter(f => packageFeatures.includes(f.id));
             

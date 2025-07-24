@@ -26,14 +26,9 @@ const steps = [
   'Price Setup'
 ];
 
-interface ServiceCreationWizardProps {
-  open: boolean;
-  onClose: () => void;
-  onComplete: (serviceData: any) => void;
-  editData?: any;
-}
+// ServiceCreationWizardProps: { open, onClose, onComplete, editData }
 
-export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
+export const ServiceCreationWizard = ({
   open,
   onClose,
   onComplete,
@@ -88,11 +83,11 @@ export const ServiceCreationWizard: React.FC<ServiceCreationWizardProps> = ({
     });
   };
 
-  const updateServiceData = (stepData: any) => {
+  const updateServiceData = (stepData) => {
     setServiceData((prev) => ({ ...prev, ...stepData }));
   };
 
-  const getStepContent = (step: number) => {
+  const getStepContent = (step) => {
     switch (step) {
       case 0:
         return (

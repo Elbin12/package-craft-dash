@@ -16,7 +16,14 @@ export const store = configureStore({
     [bookingApi.reducerPath]: bookingApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware()
+    getDefaultMiddleware({
+      serializableCheck: {
+        ignoredActions: [
+          'persist/PERSIST',
+          'persist/REHYDRATE',
+        ],
+      },
+    })
       .concat(servicesApi.middleware)
       .concat(locationsApi.middleware)
       .concat(bookingApi.middleware),

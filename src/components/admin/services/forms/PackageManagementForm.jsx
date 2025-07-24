@@ -24,31 +24,16 @@ import {
   Close,
 } from '@mui/icons-material';
 
-interface Package {
-  id: string;
-  name: string;
-  basePrice: number;
-  order: number;
-  features: string[];
-}
+// Package structure: { id, name, basePrice, order, features }
+// Feature structure: { id, name, description }
+// PackageManagementFormProps: { data, onUpdate }
 
-interface Feature {
-  id: string;
-  name: string;
-  description: string;
-}
-
-interface PackageManagementFormProps {
-  data: any;
-  onUpdate: (data: any) => void;
-}
-
-const PackageManagementForm: React.FC<PackageManagementFormProps> = ({
+const PackageManagementForm = ({
   data,
   onUpdate,
 }) => {
-  const [packages, setPackages] = useState<Package[]>(data.packages || []);
-  const [features, setFeatures] = useState<Feature[]>(data.features || []);
+  const [packages, setPackages] = useState(data.packages || []);
+  const [features, setFeatures] = useState(data.features || []);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({ name: '', basePrice: 0, order: 1 });
   const [newFeatureName, setNewFeatureName] = useState('');
@@ -66,7 +51,7 @@ const PackageManagementForm: React.FC<PackageManagementFormProps> = ({
     setNewPackage({ name: '', basePrice: 0, order: packages.length + 1 });
   };
 
-  const handleDeletePackage = (id: string) => {
+  const handleDeletePackage = (id) => {
     const updatedPackages = packages.filter(pkg => pkg.id !== id);
     setPackages(updatedPackages);
     onUpdate({ packages: updatedPackages, features });
@@ -86,7 +71,7 @@ const PackageManagementForm: React.FC<PackageManagementFormProps> = ({
     setNewFeatureName('');
   };
 
-  const handleDeleteFeature = (id: string) => {
+  const handleDeleteFeature = (id) => {
     const updatedFeatures = features.filter(feature => feature.id !== id);
     const updatedPackages = packages.map(pkg => ({
       ...pkg,
@@ -97,7 +82,7 @@ const PackageManagementForm: React.FC<PackageManagementFormProps> = ({
     onUpdate({ packages: updatedPackages, features: updatedFeatures });
   };
 
-  const handleFeatureToggle = (packageId: string, featureId: string) => {
+  const handleFeatureToggle = (packageId, featureId) => {
     const updatedPackages = packages.map(pkg => {
       if (pkg.id === packageId) {
         const hasFeature = pkg.features.includes(featureId);
@@ -114,7 +99,7 @@ const PackageManagementForm: React.FC<PackageManagementFormProps> = ({
     onUpdate({ packages: updatedPackages, features });
   };
 
-  const isFeatureIncluded = (packageId: string, featureId: string) => {
+  const isFeatureIncluded = (packageId, featureId) => {
     const pkg = packages.find(p => p.id === packageId);
     return pkg?.features.includes(featureId) || false;
   };

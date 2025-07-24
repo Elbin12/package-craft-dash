@@ -43,7 +43,7 @@ const dashboardItems = [
   },
 ];
 
-export const AdminDashboard: React.FC = () => {
+export const AdminDashboard = () => {
   const navigate = useNavigate();
 
   return (

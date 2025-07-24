@@ -29,12 +29,13 @@ import {
   Visibility,
 } from '@mui/icons-material';
 import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard.jsx';
-import { 
-  useGetServicesQuery, 
-  useCreateServiceMutation, 
-  useUpdateServiceMutation, 
-  useDeleteServiceMutation 
-} from '../../store/api/servicesApi';
+// Temporarily comment out RTK Query to test Redux connection
+// import { 
+//   useGetServicesQuery, 
+//   useCreateServiceMutation, 
+//   useUpdateServiceMutation, 
+//   useDeleteServiceMutation 
+// } from '../../store/api/servicesApi';
 import {
   setWizardOpen,
   setEditingService,
@@ -52,17 +53,22 @@ const ServicesManagement = () => {
     serviceToDelete 
   } = useSelector((state) => state.services);
 
-  const { data: services = [], isLoading, error } = useGetServicesQuery();
-  const [createService] = useCreateServiceMutation();
-  const [updateService] = useUpdateServiceMutation();
-  const [deleteService] = useDeleteServiceMutation();
+  // Temporarily use mock data instead of RTK Query
+  const services = [];
+  const isLoading = false;
+  const error = null;
+  
+  // Mock mutation functions
+  const createService = () => Promise.resolve();
+  const updateService = () => Promise.resolve();
+  const deleteService = () => Promise.resolve();
 
   const handleCreateService = async (serviceData) => {
     try {
       if (editingService) {
-        await updateService({ id: editingService.id, ...serviceData }).unwrap();
+        await updateService({ id: editingService.id, ...serviceData });
       } else {
-        await createService(serviceData).unwrap();
+        await createService(serviceData);
       }
       dispatch(clearEditingService());
       dispatch(setWizardOpen(false));
@@ -84,7 +90,7 @@ const ServicesManagement = () => {
   const handleDeleteService = async () => {
     if (serviceToDelete) {
       try {
-        await deleteService(serviceToDelete).unwrap();
+        await deleteService(serviceToDelete);
         dispatch(setServiceToDelete(null));
       } catch (error) {
         console.error('Failed to delete service:', error);

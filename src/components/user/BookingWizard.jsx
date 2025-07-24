@@ -24,27 +24,18 @@ const steps = [
   'Review & Submit'
 ];
 
-interface BookingData {
-  userInfo: {
-    firstName: string;
-    phone: string;
-    email: string;
-    address: string;
-  };
-  selectedService: any | null;
-  selectedPackage: any | null;
-  questionAnswers: Record<string, any>;
-  pricing: {
-    basePrice: number;
-    tripSurcharge: number;
-    questionAdjustments: number;
-    totalPrice: number;
-  };
-}
+// BookingData structure:
+// {
+//   userInfo: { firstName, phone, email, address },
+//   selectedService: object,
+//   selectedPackage: object,
+//   questionAnswers: object,
+//   pricing: { basePrice, tripSurcharge, questionAdjustments, totalPrice }
+// }
 
-export const BookingWizard: React.FC = () => {
+export const BookingWizard = () => {
   const [activeStep, setActiveStep] = useState(0);
-  const [bookingData, setBookingData] = useState<BookingData>({
+  const [bookingData, setBookingData] = useState({
     userInfo: {
       firstName: '',
       phone: '',
@@ -102,11 +93,11 @@ export const BookingWizard: React.FC = () => {
     });
   };
 
-  const updateBookingData = (stepData: Partial<BookingData>) => {
+  const updateBookingData = (stepData) => {
     setBookingData((prev) => ({ ...prev, ...stepData }));
   };
 
-  const isStepComplete = (step: number) => {
+  const isStepComplete = (step) => {
     switch (step) {
       case 0:
         return Object.values(bookingData.userInfo).every(value => value.trim() !== '');
@@ -115,7 +106,7 @@ export const BookingWizard: React.FC = () => {
       case 2:
         return bookingData.selectedPackage !== null;
       case 3:
-        return bookingData.selectedService?.questions?.every((q: any) => 
+        return bookingData.selectedService?.questions?.every((q) => 
           bookingData.questionAnswers[q.id] !== undefined
         ) ?? true;
       default:
@@ -123,7 +114,7 @@ export const BookingWizard: React.FC = () => {
     }
   };
 
-  const getStepContent = (step: number) => {
+  const getStepContent = (step) => {
     switch (step) {
       case 0:
         return (

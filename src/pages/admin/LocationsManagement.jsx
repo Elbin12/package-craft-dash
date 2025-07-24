@@ -29,12 +29,12 @@ import {
   LocationOn,
 } from '@mui/icons-material';
 // Temporarily removed RTK Query imports
-// import { 
-//   useGetLocationsQuery, 
-//   useCreateLocationMutation, 
-//   useUpdateLocationMutation, 
-//   useDeleteLocationMutation 
-// } from '../../store/api/locationsApi';
+import { 
+  useGetLocationsQuery, 
+  useCreateLocationMutation, 
+  useUpdateLocationMutation, 
+  useDeleteLocationMutation 
+} from '../../store/api/locationsApi';
 import {
   setDialogOpen,
   setEditingLocation,
@@ -51,14 +51,14 @@ const LocationsManagement = () => {
   } = useSelector((state) => state.locations);
 
   // Temporarily disable RTK Query to test basic Redux
-  // const { data: locations = [], isLoading, error } = useGetLocationsQuery();
-  // const [createLocation] = useCreateLocationMutation();
-  // const [updateLocation] = useUpdateLocationMutation();
-  // const [deleteLocation] = useDeleteLocationMutation();
+  const { data: locations = [], isLoading, error } = useGetLocationsQuery();
+  const [createLocation] = useCreateLocationMutation();
+  const [updateLocation] = useUpdateLocationMutation();
+  const [deleteLocation] = useDeleteLocationMutation();
   
-  const locations = [];
-  const isLoading = false;
-  const error = null;
+  // const locations = [];
+  // const isLoading = false;
+  // const error = null;
 
   const handleOpenDialog = (location = null) => {
     if (location) {
@@ -86,18 +86,18 @@ const LocationsManagement = () => {
   const handleSaveLocation = async () => {
     try {
       console.log('Handle save location:', formData);
-      // const locationData = {
-      //   ...formData,
-      //   lat: parseFloat(formData.lat),
-      //   lng: parseFloat(formData.lng),
-      //   tripSurcharge: parseFloat(formData.tripSurcharge),
-      // };
+      const locationData = {
+        ...formData,
+        lat: parseFloat(formData.lat),
+        lng: parseFloat(formData.lng),
+        tripSurcharge: parseFloat(formData.tripSurcharge),
+      };
 
-      // if (editingLocation) {
-      //   await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
-      // } else {
-      //   await createLocation(locationData).unwrap();
-      // }
+      if (editingLocation) {
+        await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
+      } else {
+        await createLocation(locationData).unwrap();
+      }
       handleCloseDialog();
     } catch (error) {
       console.error('Failed to save location:', error);
@@ -107,7 +107,7 @@ const LocationsManagement = () => {
   const handleDeleteLocation = async (id) => {
     try {
       console.log('Handle delete location:', id);
-      // await deleteLocation(id).unwrap();
+      await deleteLocation(id).unwrap();
     } catch (error) {
       console.error('Failed to delete location:', error);
     }

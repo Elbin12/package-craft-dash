@@ -5,12 +5,14 @@ import { bookingApi } from './api/bookingApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
 import bookingSlice from './slices/bookingSlice';
+import authSlice from './slices/authSlice';
 
 export const store = configureStore({
   reducer: {
     services: servicesSlice,
     locations: locationsSlice,
     booking: bookingSlice,
+    auth: authSlice,
     [servicesApi.reducerPath]: servicesApi.reducer,
     [locationsApi.reducerPath]: locationsApi.reducer,
     [bookingApi.reducerPath]: bookingApi.reducer,

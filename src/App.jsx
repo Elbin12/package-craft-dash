@@ -17,6 +17,7 @@ import AdminDashboard from './pages/admin/AdminDashboard.jsx';
 import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
 import { BookingWizard } from './components/user/BookingWizard.jsx';
+import UserLogin from './pages/admin/userLogin.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -71,6 +72,7 @@ function App() {
               <Route path="/booking" element={<BookingWizard />} />
               
               {/* Admin Routes */}
+              <Route path="/admin/login" element={<UserLogin />} />
               <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
               <Route path="/admin/services" element={<AdminLayout><ServicesManagement /></AdminLayout>} />
               <Route path="/admin/locations" element={<AdminLayout><LocationsManagement /></AdminLayout>} />

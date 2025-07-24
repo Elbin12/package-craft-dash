@@ -30,12 +30,12 @@ import {
 } from '@mui/icons-material';
 import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard.jsx';
 // Temporarily removed RTK Query imports
-// import { 
-//   useGetServicesQuery, 
-//   useCreateServiceMutation, 
-//   useUpdateServiceMutation, 
-//   useDeleteServiceMutation 
-// } from '../../store/api/servicesApi';
+import { 
+  useGetServicesQuery, 
+  useCreateServiceMutation, 
+  useUpdateServiceMutation, 
+  useDeleteServiceMutation 
+} from '../../store/api/servicesApi';
 import {
   setWizardOpen,
   setEditingService,
@@ -60,23 +60,23 @@ const ServicesManagement = () => {
   console.log('ServicesManagement: useSelector worked');
 
   // Temporarily disable RTK Query to test basic Redux
-  // const { data: services = [], isLoading, error } = useGetServicesQuery();
-  // const [createService] = useCreateServiceMutation();
-  // const [updateService] = useUpdateServiceMutation();
-  // const [deleteService] = useDeleteServiceMutation();
+  const { data: services = [], isLoading, error } = useGetServicesQuery();
+  const [createService] = useCreateServiceMutation();
+  const [updateService] = useUpdateServiceMutation();
+  const [deleteService] = useDeleteServiceMutation();
   
-  const services = [];
-  const isLoading = false;
-  const error = null;
+  // const services = [];
+  // const isLoading = false;
+  // const error = null;
 
   const handleCreateService = async (serviceData) => {
     try {
       console.log('Handle create/update service:', serviceData);
-      // if (editingService) {
-      //   await updateService({ id: editingService.id, ...serviceData }).unwrap();
-      // } else {
-      //   await createService(serviceData).unwrap();
-      // }
+      if (editingService) {
+        await updateService({ id: editingService.id, ...serviceData }).unwrap();
+      } else {
+        await createService(serviceData).unwrap();
+      }
       handleCloseWizard();
     } catch (error) {
       console.error('Failed to save service:', error);
@@ -96,7 +96,7 @@ const ServicesManagement = () => {
   const handleDeleteService = async () => {
     try {
       console.log('Handle delete service:', serviceToDelete);
-      // await deleteService(serviceToDelete.id).unwrap();
+      await deleteService(serviceToDelete.id).unwrap();
       dispatch(setDeleteConfirmOpen(false));
       dispatch(setServiceToDelete(null));
     } catch (error) {

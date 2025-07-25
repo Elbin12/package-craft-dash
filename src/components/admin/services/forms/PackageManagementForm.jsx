@@ -5,7 +5,7 @@ import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
 import { Check, X, Plus, Trash2 } from 'lucide-react';
-import { useCreatePackageMutation } from '../../../../store/api/packagesApi';
+import { useCreatePackageMutation, useDeletePackageMutation } from '../../../../store/api/packagesApi';
 import { useCreateFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
 
@@ -57,9 +57,14 @@ const PackageManagementForm = ({
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [selectedPackage, setSelectedPackage] = useState(null);
+
+
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [updateFeatureStatus] = useUpdateFeatureStatusMutation();
+  const [deletePackage] = useDeletePackageMutation();
 
   const validatePackage = () => {
     const newErrors = {};
@@ -140,11 +145,24 @@ const PackageManagementForm = ({
     }
   };
 
-  const handleDeletePackage = (id) => {
-    const updatedPackages = packages.filter(pkg => pkg.id !== id);
-    setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages });
+  const handleConfirmDeletePackage = async () => {
+    if (!selectedPackage) return;
+
+    try {
+      await deletePackage(selectedPackage.id).unwrap();
+      const updatedPackages = packages.filter(pkg => pkg.id !== selectedPackage?.id);
+      setPackages(updatedPackages);
+      onUpdate({ packages: updatedPackages });
+      setDeleteConfirmOpen(false);
+      setSelectedPackage(null);
+    } catch (error) {
+      console.error('Failed to delete package:', error);
+      setErrors({
+        general: error?.data?.message || error?.data?.detail || 'Failed to delete package. Please try again.'
+      });
+    }
   };
+
 
   const handleDeleteFeature = (id) => {
     const updatedFeatures = features.filter(feat => feat.id !== id);
@@ -247,7 +265,10 @@ const PackageManagementForm = ({
                           <Button
                             variant="ghost"
                             size="sm"
-                            onClick={() => handleDeletePackage(pkg.id)}
+                            onClick={() => {
+                              setSelectedPackage(pkg);
+                              setDeleteConfirmOpen(true);
+                            }}
                             className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                           >
                             <Trash2 className="h-3 w-3" />
@@ -354,6 +375,31 @@ const PackageManagementForm = ({
           </CardContent>
         </Card>
       )}
+
+      {/* Add Package Dialog */}
+      <CustomModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Delete Package"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Are you sure you want to delete <span className='text-xl text-[#4E4FBB]'>{selectedPackage?.name}</span> package? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeletePackage}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CustomModal>
+
 
       {/* Custom Modal */}
       <CustomModal

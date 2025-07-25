@@ -42,15 +42,11 @@ export const ServiceCreationWizard = ({
   onClose,
   onComplete,
   editData,
-}) => {
-  const [activeStep, setActiveStep] = useState(0);
-  const [serviceData, setServiceData] = useState({
-    name: '',
-    description: '',
-    packages: [],
-    questions: [],
-    pricing: {},
-  }); 
+  serviceData,
+  activeStep,
+  setActiveStep,
+  setServiceData,
+}) => { 
   
   const [savedSteps, setSavedSteps] = useState({
     0: false,

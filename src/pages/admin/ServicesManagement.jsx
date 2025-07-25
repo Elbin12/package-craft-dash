@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
@@ -54,6 +54,15 @@ const ServicesManagement = () => {
     serviceToDelete 
   } = useSelector((state) => {
     return state.services;
+  });
+
+  const [activeStep, setActiveStep] = useState(0);
+  const [serviceData, setServiceData] = useState({
+    name: '',
+    description: '',
+    packages: [],
+    questions: [],
+    pricing: {},
   });
 
   // Temporarily disable RTK Query to test basic Redux
@@ -123,6 +132,8 @@ const handleEditService = async (service) => {
   const handleCloseWizard = () => {
     dispatch(setWizardOpen(false));
     dispatch(clearEditingService());
+    setActiveStep(0);
+    setServiceData(null);
   };
 
   if (isLoading) {
@@ -250,6 +261,10 @@ const handleEditService = async (service) => {
         onClose={handleCloseWizard}
         onComplete={handleCreateService}
         editData={editingService}
+        serviceData={serviceData}
+        setServiceData={setServiceData}
+        setActiveStep={setActiveStep}
+        activeStep={activeStep}
       />
 
       {/* Delete Confirmation Dialog */}

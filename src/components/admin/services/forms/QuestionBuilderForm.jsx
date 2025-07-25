@@ -22,14 +22,17 @@ import {
   Chip,
   Alert,
   CircularProgress,
+  Tooltip,
 } from '@mui/material';
 import {
   Add,
+  Block,
   Delete,
   Edit,
+  Restore,
 } from '@mui/icons-material';
-import { useCreateQuestionMutation } from '../../../../store/api/questionsApi';
-import { useCreateQuestionOptionMutation } from '../../../../store/api/questionOptionsApi';
+import { useCreateQuestionMutation, useDeleteQuestionMutation, useUpdateQuestionMutation } from '../../../../store/api/questionsApi';
+import { useCreateQuestionOptionMutation, useDeleteQuestionOptionMutation, useUpdateQuestionOptionMutation } from '../../../../store/api/questionOptionsApi';
 
 const QuestionBuilderForm = ({
   data,
@@ -49,18 +52,27 @@ const QuestionBuilderForm = ({
   const [isLoading, setIsLoading] = useState(false);
   const [optionInputs, setOptionInputs] = useState({});
 
+  const [editingOptionId, setEditingOptionId] = useState(null);
+  const [editingOptionText, setEditingOptionText] = useState('');
+
+  const [editingQuestionId, setEditingQuestionId] = useState(null);
+  const [editingQuestionText, setEditingQuestionText] = useState('');
+
+  const [openConfirmModal, setOpenConfirmModal] = useState(false);
+  const [selectedQuestion, setSelectedQuestion] = useState(null);
+
   const [createQuestion] = useCreateQuestionMutation();
   const [createQuestionOption] = useCreateQuestionOptionMutation();
+  const [updateQuestionOption] = useUpdateQuestionOptionMutation();
+  const [deleteQuestionOption] = useDeleteQuestionOptionMutation();
+  const [updateQuestion] = useUpdateQuestionMutation();
+  const [deleteQuestion] = useDeleteQuestionMutation();
 
   const validateQuestion = () => {
     const newErrors = {};
     
     if (!newQuestion.question_text || newQuestion.question_text.trim().length < 5) {
       newErrors.question_text = 'Question text must be at least 5 characters';
-    }
-    
-    if (newQuestion.question_type === 'options' && (!newQuestion.options || newQuestion.options.length < 2)) {
-      newErrors.options = 'Multiple choice questions must have at least 2 options';
     }
     
     setErrors(newErrors);
@@ -104,7 +116,8 @@ const QuestionBuilderForm = ({
 
   const handleAddOptionToQuestion = async (questionId, optionText) => {
     if (!optionText.trim()) return;
-
+    console.log(questionId, optionText, 'Adding option to question');
+    
     try {
       const payload = {
         question: questionId,
@@ -130,36 +143,70 @@ const QuestionBuilderForm = ({
     }
   };
 
+  const handleToggleQuestionActive = async (id, currentStatus) => {
+    try {
+      await deleteQuestion(id).unwrap();
 
-  const handleDeleteQuestion = (id) => {
-    const updatedQuestions = questions.filter(q => q.id !== id);
-    setQuestions(updatedQuestions);
-    onUpdate({ questions: updatedQuestions });
-  };
+      const updatedQuestions = questions.map((q) =>
+        q.id === id ? { ...q, is_active: !currentStatus } : q
+      );
 
-  const handleAddOption = () => {
-    if (newOption.trim()) {
-      const option = {
-        option_text: newOption.trim(),
-        order: (newQuestion.options || []).length + 1,
-      };
-      setNewQuestion({
-        ...newQuestion,
-        options: [...(newQuestion.options || []), option],
+      setQuestions(updatedQuestions);
+      onUpdate({ questions: updatedQuestions });
+    } catch (error) {
+      console.error('Failed to toggle question active status:', error);
+      setErrors({
+        general:
+          error?.data?.message ||
+          error?.data?.detail ||
+          'Failed to update question status. Please try again.',
       });
-      setNewOption('');
-      if (errors.options) {
-        setErrors(prev => ({ ...prev, options: '' }));
-      }
     }
   };
 
-  const handleDeleteOption = (optionIndex) => {
-    const updatedOptions = (newQuestion.options || []).filter((_, index) => index !== optionIndex);
-    setNewQuestion({
-      ...newQuestion,
-      options: updatedOptions,
-    });
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteQuestion(selectedQuestion?.id).unwrap();
+      const updatedQuestions = questions.filter(q => q.id !== selectedQuestion?.id);
+      setQuestions(updatedQuestions);
+      onUpdate({ questions: updatedQuestions });
+      setOpenConfirmModal(false);
+      setSelectedQuestion(null);
+    } catch (error) {
+      console.error('Failed to permanently delete question:', error);
+      setErrors({
+        general:
+          error?.data?.message ||
+          error?.data?.detail ||
+          'Failed to delete question permanently. Please try again.',
+      });
+      setOpenConfirmModal(false);
+    }
+  };
+
+  const confirmHardDelete = (question) => {
+    setSelectedQuestion(question);
+    setOpenConfirmModal(true);
+  };
+
+  const handleDeleteOptionFromQuestion = async (questionId, optionId) => {
+    try {
+      await deleteQuestionOption(optionId).unwrap();
+
+      const updatedQuestions = questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              options: q.options.filter((opt) => opt.id !== optionId),
+            }
+          : q
+      );
+
+      setQuestions(updatedQuestions);
+      onUpdate({ questions: updatedQuestions });
+    } catch (err) {
+      console.error('Failed to delete option:', err);
+    }
   };
 
   return (
@@ -203,10 +250,83 @@ const QuestionBuilderForm = ({
             <Card key={question.id}>
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="start">
-                  <Box sx={{ flex: 1 }}>
-                    <Typography variant="h6" gutterBottom>
-                      {question.question_text}
-                    </Typography>
+                  <Box sx={{ flex: 1, alignItems: 'center' }}>
+                    {editingQuestionId === question.id ? (
+                      <TextField
+                        size="small"  
+                        variant="standard"
+                        value={editingQuestionText}
+                        onChange={(e) => setEditingQuestionText(e.target.value)}
+                        onKeyDown={async (e) => {
+                          if (e.key === 'Enter' && editingQuestionText.trim()) {
+                            try {
+                              const updated = await updateQuestion({
+                                id: question.id,
+                                question_text: editingQuestionText.trim(),
+                                question_type: question.question_type,
+                                order: question.order,
+                                service: data.id,
+                              }).unwrap();
+
+                              const updatedQuestions = questions.map((q) =>
+                                q.id === question.id ? { ...q, ...updated } : q
+                              );
+                              setQuestions(updatedQuestions);
+                              onUpdate({ questions: updatedQuestions });
+                            } catch (err) {
+                              console.error('Failed to update question text:', err);
+                            } finally {
+                              setEditingQuestionId(null);
+                            }
+                          } else if (e.key === 'Escape') {
+                            setEditingQuestionId(null);
+                          }
+                        }}
+                        onBlur={() => setEditingQuestionId(null)}
+                        autoFocus
+                        sx={{
+                          pb: 1,
+                          input: {
+                            borderBottom: '2px solid #1976d2',
+                            paddingBottom: '4px',
+                          },
+                          '& .MuiInput-underline:before': {
+                            borderBottom: 'none',
+                          },
+                          '& .MuiInput-underline:after': {
+                            borderBottom: '2px solid #1976d2',
+                          },
+                        }}
+                      />
+                    ) : (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="h6" fontSize={26} gutterBottom>{question.question_text}</Typography>
+                        <Box
+                          component="span"
+                          sx={{
+                            px: 1.2,
+                            py: 0.5,
+                            borderRadius: 2,
+                            backgroundColor: question.is_active ? '#E8F5E9' : '#F5F5F5',
+                            color: question.is_active ? '#388E3C' : '#9E9E9E',
+                            fontSize: '12px',
+                            display: 'inline-block',
+                          }}
+                        >
+                          {question.is_active ? 'Active' : 'Disabled'}
+                        </Box>
+
+                        <IconButton
+                          size="small"
+                          onClick={() => {
+                            setEditingQuestionId(question.id);
+                            setEditingQuestionText(question.question_text);
+                          }}
+                        >
+                          <Edit sx={{ fontSize: '16px', color: '#1976d2' }} />
+                        </IconButton>
+                      </Box>
+                    )}
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <Chip 
                         label={question.question_type === 'yes_no' ? 'Yes/No' : 'Multiple Options'} 
@@ -227,7 +347,71 @@ const QuestionBuilderForm = ({
 
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
                           {(question.options || []).map((option, index) => (
-                            <Chip key={index} label={option.option_text} variant="outlined" size="small" />
+                            <Box key={option.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5, border: '1px solid #e0e0e0', padding: 0.5, borderRadius: 1 }}>
+                              {editingOptionId === option.id ? (
+                                <TextField
+                                  size="small"
+                                  value={editingOptionText}
+                                  onChange={(e) => setEditingOptionText(e.target.value)}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === 'Enter' && editingOptionText.trim()) {
+                                      try {
+                                        const result = await updateQuestionOption({
+                                          id: option.id,
+                                          option_text: editingOptionText.trim(),
+                                          question: question.id,
+                                        }).unwrap();
+
+                                        const updatedQuestions = questions.map((q) =>
+                                          q.id === question.id
+                                            ? {
+                                                ...q,
+                                                options: q.options.map((opt) =>
+                                                  opt.id === option.id ? result : opt
+                                                ),
+                                              }
+                                            : q
+                                        );
+
+                                        setQuestions(updatedQuestions);
+                                        setEditingOptionId(null);
+                                      } catch (err) {
+                                        console.error('Failed to update option:', err);
+                                      }
+                                    } else if (e.key === 'Escape') {
+                                      setEditingOptionId(null);
+                                    }
+                                  }}
+                                  onBlur={() => setEditingOptionId(null)}
+                                  autoFocus
+                                />
+                              ) : (
+                                <>
+                                  <p className='text-sm'> {option.option_text}</p>
+                                  <div className='flex justify-center'>
+                                    <IconButton
+                                    size="small"
+                                    onClick={() => {
+                                      setEditingOptionId(option.id);
+                                      setEditingOptionText(option.option_text);
+                                    }}
+                                    sx={{ p: 0 }}
+                                  >
+                                    <Edit sx={{ fontSize: '14px', color:"#9CCA6D" }} />
+                                  </IconButton>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() =>
+                                      handleDeleteOptionFromQuestion(question.id, option.id)
+                                    }
+                                    sx={{ p: 0 }}
+                                  >
+                                    <Delete sx={{ fontSize: '14px', color:'#BE4B4B' }} />
+                                  </IconButton>
+                                  </div>
+                                </>
+                              )}
+                            </Box>
                           ))}
                         </Box>
 
@@ -292,15 +476,53 @@ const QuestionBuilderForm = ({
                       </Box>
                     )}
                   </Box>
-                  <IconButton onClick={() => handleDeleteQuestion(question.id)}>
-                    <Delete />
+                  <Tooltip title={question.is_active ? 'Disable question' : 'Enable question'}>
+                    <IconButton onClick={() => handleToggleQuestionActive(question.id, question.is_active)}>
+                      {question.is_active ? (
+                        <Block sx={{ color: '#BE4B4B' }} />
+                      ) : (
+                        <Restore sx={{ color: '#4CAF50' }} />
+                      )}
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Permanently delete">
+                  <IconButton
+                    onClick={() => confirmHardDelete(question)}
+                    
+                  >
+                    <Delete sx={{ color:'#D32F2F' }} />
                   </IconButton>
+                </Tooltip>
                 </Box>
               </CardContent>
             </Card>
           ))}
         </Box>
       )}
+
+      {/* Add Question Dialog */}
+      <Dialog
+        open={openConfirmModal}
+        onClose={() => setOpenConfirmModal(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to permanently delete <span className='text-2xl text-[#4E4FBB]'>{selectedQuestion?.question_text}</span> question?
+            <br />
+            This action <strong>cannot be undone</strong>.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenConfirmModal(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleConfirmDelete} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
 
       {/* Add Question Dialog */}
       <Dialog open={questionDialogOpen} onClose={() => setQuestionDialogOpen(false)} maxWidth="md" fullWidth>
@@ -347,50 +569,7 @@ const QuestionBuilderForm = ({
               </Typography>
             )}
 
-            {newQuestion.question_type === 'options' && (
-              <Box>
-                <Typography variant="subtitle1" gutterBottom>
-                  Options
-                </Typography>
-                <Box display="flex" gap={1} mb={2}>
-                  <TextField
-                    label="Add Option"
-                    value={newOption}
-                    onChange={(e) => setNewOption(e.target.value)}
-                    onKeyPress={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        handleAddOption();
-                      }
-                    }}
-                    sx={{ flex: 1 }}
-                  />
-                  <Button
-                    variant="outlined"
-                    onClick={handleAddOption}
-                    disabled={!newOption.trim()}
-                  >
-                    Add
-                  </Button>
-                </Box>
-                
-                <List>
-                  {(newQuestion.options || []).map((option, index) => (
-                    <ListItem key={index} divider>
-                      <ListItemText 
-                        primary={option.option_text} 
-                        secondary={`Order: ${option.order}`}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton onClick={() => handleDeleteOption(index)}>
-                          <Delete />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              </Box>
-            )}
+            
           </Box>
         </DialogContent>
         <DialogActions>

@@ -58,7 +58,7 @@ const ServiceDetailsForm = ({
           label="Service Name"
           variant="outlined"
           fullWidth
-          value={data.name || ''}
+          value={data?.name || ''}
           onChange={handleChange('name')}
           onBlur={handleBlur('name')}
           placeholder="e.g., Premium Cleaning Service"
@@ -73,7 +73,7 @@ const ServiceDetailsForm = ({
           fullWidth
           multiline
           rows={4}
-          value={data.description || ''}
+          value={data?.description || ''}
           onChange={handleChange('description')}
           onBlur={handleBlur('description')}
           placeholder="Describe what this service includes..."

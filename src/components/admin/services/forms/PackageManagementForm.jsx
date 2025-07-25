@@ -16,6 +16,12 @@ const PackageManagementForm = ({
 }) => {
   const [packages, setPackages] = useState(data.packages || []);
   const [features, setFeatures] = useState(data.features || []);
+
+  // Sync with prop changes
+  React.useEffect(() => {
+    setPackages(data.packages || []);
+    setFeatures(data.features || []);
+  }, [data.packages, data.features]);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({ name: '', base_price: '' });
   const [newFeature, setNewFeature] = useState('');
@@ -176,13 +182,15 @@ const PackageManagementForm = ({
       )}
 
       <div className="flex gap-2">
+        <Button 
+          disabled={!data.id}
+          onClick={() => setPackageDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Package
+        </Button>
+        
         <Dialog open={packageDialogOpen} onOpenChange={setPackageDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!data.id}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Package
-            </Button>
-          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Package</DialogTitle>

@@ -168,7 +168,7 @@ const ServicesManagement = () => {
                   <TableRow key={service.id}>
                     <TableCell>
                       <Typography variant="subtitle2" fontWeight="bold">
-                        {service.nickname}
+                        {service.name}
                       </Typography>
                     </TableCell>
                     <TableCell>
@@ -197,12 +197,12 @@ const ServicesManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={service.status || 'active'} 
+                        label={service.is_active ? 'active' : 'inactive'} 
                         size="small"
-                        color={service.status === 'active' ? 'success' : 'default'}
+                        color={service.is_active ? 'success' : 'default'}
                       />
                     </TableCell>
-                    <TableCell>{service.createdAt}</TableCell>
+                    <TableCell>{new Date(service.created_at).toLocaleDateString()}</TableCell>
                     <TableCell align="right">
                       <IconButton size="small" color="primary">
                         <Visibility />

@@ -69,15 +69,36 @@ export const ServiceCreationWizard = ({
   const [createQuestion] = useCreateQuestionMutation();
   // Update service data when editData changes
   React.useEffect(() => {
-    if (editData) {
-      setServiceData(editData);
-    } else {
+    if (editData && open) {
+      setServiceData({
+        id: editData.id,
+        name: editData.name || '',
+        description: editData.description || '',
+        packages: editData.packages || [],
+        features: editData.features || [],
+        questions: editData.questions || [],
+        pricing: editData.pricing || {},
+      });
+      setSavedSteps({
+        0: true,
+        1: true,
+        2: true,
+        3: true,
+      });
+    } else if (!editData && open) {
       setServiceData({
         name: '',
         description: '',
         packages: [],
+        features: [],
         questions: [],
         pricing: {},
+      });
+      setSavedSteps({
+        0: false,
+        1: false,
+        2: false,
+        3: false,
       });
     }
   }, [editData, open]);

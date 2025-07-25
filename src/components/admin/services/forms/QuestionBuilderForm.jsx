@@ -42,10 +42,12 @@ const QuestionBuilderForm = ({
     question_type: 'yes_no',
     order: 1,
     options: [],
+    showOptionInput: false,
   });
   const [errors, setErrors] = useState({});
   const [newOption, setNewOption] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [optionInputs, setOptionInputs] = useState({});
 
   const [createQuestion] = useCreateQuestionMutation();
   const [createQuestionOption] = useCreateQuestionOptionMutation();
@@ -79,28 +81,7 @@ const QuestionBuilderForm = ({
       
       const questionResult = await createQuestion(questionPayload).unwrap();
       
-      // If it's a multiple choice question, create the options
-      if (newQuestion.question_type === 'options' && newQuestion.options.length > 0) {
-        const createdOptions = [];
-        for (const option of newQuestion.options) {
-          try {
-            const optionPayload = {
-              question: questionResult.id,
-              question_id: questionResult.id,
-              option_text: option.option_text,
-              order: option.order,
-            };
-            
-            const optionResult = await createQuestionOption(optionPayload).unwrap();
-            createdOptions.push(optionResult);
-          } catch (optionError) {
-            console.error('Failed to create option:', optionError);
-          }
-        }
-        questionResult.options = createdOptions;
-      }
-      
-      const updatedQuestions = [...questions, questionResult];
+      const updatedQuestions = [...questions, {...questionResult, options: []}];
       setQuestions(updatedQuestions);
       onUpdate({ questions: updatedQuestions });
       setQuestionDialogOpen(false);
@@ -120,6 +101,35 @@ const QuestionBuilderForm = ({
       setIsLoading(false);
     }
   };
+
+  const handleAddOptionToQuestion = async (questionId, optionText) => {
+    if (!optionText.trim()) return;
+
+    try {
+      const payload = {
+        question: questionId,
+        question_id: questionId,
+        option_text: optionText.trim(),
+        order: 1, // or calculate based on length of existing options
+      };
+      const optionResult = await createQuestionOption(payload).unwrap();
+
+      const updatedQuestions = questions.map((q) =>
+        q.id === questionId
+          ? {
+              ...q,
+              options: [...(q.options || []), optionResult],
+            }
+          : q
+      );
+
+      setQuestions(updatedQuestions);
+      onUpdate({ questions: updatedQuestions });
+    } catch (err) {
+      console.error('Failed to add option', err);
+    }
+  };
+
 
   const handleDeleteQuestion = (id) => {
     const updatedQuestions = questions.filter(q => q.id !== id);
@@ -209,16 +219,76 @@ const QuestionBuilderForm = ({
                         variant="outlined"
                       />
                     </Box>
-                    {question.question_type === 'options' && question.options && (
+                    {question.question_type === 'options' && (
                       <Box>
                         <Typography variant="subtitle2" gutterBottom>
                           Options:
                         </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                          {question.options.map((option, index) => (
+
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 1 }}>
+                          {(question.options || []).map((option, index) => (
                             <Chip key={index} label={option.option_text} variant="outlined" size="small" />
                           ))}
                         </Box>
+
+                        {/* Add Option Inline Input UI */}
+                        {question.showOptionInput ? (
+                          <Box display="flex" gap={1} alignItems="center" mb={2}>
+                            <TextField
+                              size="small"
+                              label="New Option"
+                              value={optionInputs[question.id] || ''}
+                              onChange={(e) =>
+                                setOptionInputs((prev) => ({
+                                  ...prev,
+                                  [question.id]: e.target.value,
+                                }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  handleAddOptionToQuestion(question.id, optionInputs[question.id]);
+                                  setOptionInputs((prev) => ({ ...prev, [question.id]: '' }));
+                                }
+                              }}
+                            />
+                            <Button
+                              onClick={() => {
+                                handleAddOptionToQuestion(question.id, optionInputs[question.id]);
+                                setOptionInputs((prev) => ({ ...prev, [question.id]: '' }));
+                              }}
+                              disabled={!optionInputs[question.id]?.trim()}
+                              variant="outlined"
+                            >
+                              Add
+                            </Button>
+                            <IconButton
+                              size="small"
+                              onClick={() => {
+                                const updated = questions.map((q) =>
+                                  q.id === question.id ? { ...q, showOptionInput: false } : q
+                                );
+                                setQuestions(updated);
+                              }}
+                            >
+                              <Delete fontSize="small" />
+                            </IconButton>
+                          </Box>
+                        ) : (
+                          <Button
+                            size="small"
+                            variant="text"
+                            startIcon={<Add />}
+                            onClick={() => {
+                              const updated = questions.map((q) =>
+                                q.id === question.id ? { ...q, showOptionInput: true } : q
+                              );
+                              setQuestions(updated);
+                            }}
+                          >
+                            Add Option
+                          </Button>
+                        )}
                       </Box>
                     )}
                   </Box>

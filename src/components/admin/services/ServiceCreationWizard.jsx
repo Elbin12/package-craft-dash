@@ -12,13 +12,21 @@ import {
   DialogTitle,
   DialogContent,
   IconButton,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import ServiceDetailsForm from './forms/ServiceDetailsForm';
 import PackageManagementForm from './forms/PackageManagementForm';
 import QuestionBuilderForm from './forms/QuestionBuilderForm';
 import PriceSetupForm from './forms/PriceSetupForm';
-import { useCreateServiceMutation } from '../../../store/api/servicesApi';
+import { 
+  useCreateServiceMutation, 
+  useUpdateServiceMutation 
+} from '../../../store/api/servicesApi';
+import { useCreatePackageMutation } from '../../../store/api/packagesApi';
+import { useCreateFeatureMutation } from '../../../store/api/featuresApi';
+import { useCreateQuestionMutation } from '../../../store/api/questionsApi';
 
 const steps = [
   'Service Details',
@@ -51,7 +59,14 @@ export const ServiceCreationWizard = ({
     3: false,
   });
 
-  const [createService, { data, isLoading, isSuccess, isError, error }] = useCreateServiceMutation();
+  const [stepErrors, setStepErrors] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [createService] = useCreateServiceMutation();
+  const [updateService] = useUpdateServiceMutation();
+  const [createPackage] = useCreatePackageMutation();
+  const [createFeature] = useCreateFeatureMutation();
+  const [createQuestion] = useCreateQuestionMutation();
   // Update service data when editData changes
   React.useEffect(() => {
     if (editData) {
@@ -67,51 +82,132 @@ export const ServiceCreationWizard = ({
     }
   }, [editData, open]);
 
-  const handleNext = async () => {
-      try {
-        switch (activeStep) {
-          case 0:
-            if (!savedSteps[0]) {
-              const result = await createService(serviceData).unwrap();
-              setServiceData((prev) => ({ ...prev, id: result.id }));
-              setSavedSteps((prev) => ({ ...prev, 0: true }));
-            }
-            break;
-
-          case 1:
-            if (!savedSteps[1]) {
-              await createPackagesAPI(serviceData.id, serviceData.packages);
-              setSavedSteps((prev) => ({ ...prev, 1: true }));
-            }
-            break;
-
-          case 2:
-            if (!savedSteps[2]) {
-              await createQuestionsAPI(serviceData.id, serviceData.questions);
-              setSavedSteps((prev) => ({ ...prev, 2: true }));
-            }
-            break;
-
-          case 3:
-            if (!savedSteps[3]) {
-              await createPricingAPI(serviceData.id, serviceData.pricing);
-              setSavedSteps((prev) => ({ ...prev, 3: true }));
-            }
-            onComplete(serviceData); // Notify parent
-            handleReset();
-            onClose(); // Close wizard
-            return;
-
-          default:
-            break;
+  const validateStep = (step) => {
+    switch (step) {
+      case 0:
+        if (!serviceData.name || !serviceData.description) {
+          setStepErrors({ 0: 'Name and description are required' });
+          return false;
         }
+        break;
+      case 1:
+        if (!serviceData.packages || serviceData.packages.length === 0) {
+          setStepErrors({ 1: 'At least one package is required' });
+          return false;
+        }
+        break;
+      case 2:
+        // Questions are optional
+        break;
+      case 3:
+        // Pricing validation can be added here
+        break;
+    }
+    setStepErrors({});
+    return true;
+  };
 
-        setActiveStep((prev) => prev + 1); // Move to next step after success
-      } catch (error) {
-        console.error("Step failed:", error);
-        // Optionally show error to user
+  const handleNext = async () => {
+    if (!validateStep(activeStep)) {
+      return;
+    }
+
+    setIsLoading(true);
+    setStepErrors({});
+
+    try {
+      switch (activeStep) {
+        case 0:
+          if (!savedSteps[0]) {
+            const servicePayload = {
+              name: serviceData.name,
+              description: serviceData.description
+            };
+            
+            let result;
+            if (editData) {
+              result = await updateService({ id: editData.id, ...servicePayload }).unwrap();
+            } else {
+              result = await createService(servicePayload).unwrap();
+            }
+            
+            setServiceData((prev) => ({ ...prev, id: result.id }));
+            setSavedSteps((prev) => ({ ...prev, 0: true }));
+          }
+          break;
+
+        case 1:
+          if (!savedSteps[1]) {
+            // Create packages and their features
+            for (const packageData of serviceData.packages) {
+              const packagePayload = {
+                service: serviceData.id,
+                name: packageData.name,
+                base_price: packageData.base_price
+              };
+              
+              const packageResult = await createPackage(packagePayload).unwrap();
+              
+              // Create features for this package
+              if (packageData.features) {
+                for (const feature of packageData.features) {
+                  await createFeature({
+                    service: serviceData.id,
+                    name: feature.name,
+                    description: feature.description
+                  }).unwrap();
+                }
+              }
+            }
+            setSavedSteps((prev) => ({ ...prev, 1: true }));
+          }
+          break;
+
+        case 2:
+          if (!savedSteps[2]) {
+            // Create questions
+            for (const question of serviceData.questions) {
+              const questionPayload = {
+                service: serviceData.id,
+                question_text: question.question_text,
+                question_type: question.question_type,
+                order: question.order
+              };
+              
+              if (question.options) {
+                questionPayload.options = question.options;
+              }
+              
+              await createQuestion(questionPayload).unwrap();
+            }
+            setSavedSteps((prev) => ({ ...prev, 2: true }));
+          }
+          break;
+
+        case 3:
+          if (!savedSteps[3]) {
+            // Final step - pricing setup is already handled in packages
+            setSavedSteps((prev) => ({ ...prev, 3: true }));
+          }
+          onComplete(serviceData);
+          handleReset();
+          onClose();
+          return;
+
+        default:
+          break;
       }
-    };
+
+      setActiveStep((prev) => prev + 1);
+    } catch (error) {
+      console.error("Step failed:", error);
+      setStepErrors({ 
+        [activeStep]: error?.data?.message || error?.data?.detail || 'An error occurred. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
   const handleBack = () => {
@@ -127,6 +223,13 @@ export const ServiceCreationWizard = ({
       questions: [],
       pricing: {},
     });
+    setSavedSteps({
+      0: false,
+      1: false,
+      2: false,
+      3: false,
+    });
+    setStepErrors({});
   };
 
   const updateServiceData = (stepData) => {
@@ -199,6 +302,11 @@ export const ServiceCreationWizard = ({
             </Stepper>
 
             <Box sx={{ minHeight: '400px' }}>
+              {stepErrors[activeStep] && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {stepErrors[activeStep]}
+                </Alert>
+              )}
               {getStepContent(activeStep)}
             </Box>
 
@@ -212,7 +320,12 @@ export const ServiceCreationWizard = ({
                 Back
               </Button>
               <Box sx={{ flex: '1 1 auto' }} />
-              <Button onClick={handleNext} variant="contained">
+              <Button 
+                onClick={handleNext} 
+                variant="contained"
+                disabled={isLoading}
+                startIcon={isLoading ? <CircularProgress size={20} /> : null}
+              >
                 {activeStep === steps.length - 1 ? (editData ? 'Update Service' : 'Create Service') : 'Next'}
               </Button>
             </Box>

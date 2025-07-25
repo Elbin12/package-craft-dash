@@ -33,76 +33,49 @@ const PackageManagementForm = ({
   onUpdate,
 }) => {
   const [packages, setPackages] = useState(data.packages || []);
-  const [features, setFeatures] = useState(data.features || []);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
-  const [newPackage, setNewPackage] = useState({ name: '', basePrice: 0, order: 1 });
-  const [newFeatureName, setNewFeatureName] = useState('');
+  const [newPackage, setNewPackage] = useState({ name: '', base_price: '', features: [] });
+  const [errors, setErrors] = useState({});
+
+  const validatePackage = () => {
+    const newErrors = {};
+    
+    if (!newPackage.name || newPackage.name.trim().length < 3) {
+      newErrors.name = 'Package name must be at least 3 characters';
+    }
+    
+    if (!newPackage.base_price || isNaN(newPackage.base_price) || parseFloat(newPackage.base_price) <= 0) {
+      newErrors.base_price = 'Base price must be a valid positive number';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
 
   const handleAddPackage = () => {
+    if (!validatePackage()) return;
+    
     const packageToAdd = {
       ...newPackage,
+      base_price: parseFloat(newPackage.base_price),
       id: Date.now().toString(),
-      features: [],
+      features: newPackage.features || [],
     };
     const updatedPackages = [...packages, packageToAdd];
     setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages, features });
+    onUpdate({ packages: updatedPackages });
     setPackageDialogOpen(false);
-    setNewPackage({ name: '', basePrice: 0, order: packages.length + 1 });
+    setNewPackage({ name: '', base_price: '', features: [] });
+    setErrors({});
   };
 
   const handleDeletePackage = (id) => {
     const updatedPackages = packages.filter(pkg => pkg.id !== id);
     setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages, features });
+    onUpdate({ packages: updatedPackages });
   };
 
-  const handleAddFeature = () => {
-    if (!newFeatureName.trim()) return;
-    
-    const featureToAdd = {
-      id: Date.now().toString(),
-      name: newFeatureName,
-      description: '',
-    };
-    const updatedFeatures = [...features, featureToAdd];
-    setFeatures(updatedFeatures);
-    onUpdate({ packages, features: updatedFeatures });
-    setNewFeatureName('');
-  };
-
-  const handleDeleteFeature = (id) => {
-    const updatedFeatures = features.filter(feature => feature.id !== id);
-    const updatedPackages = packages.map(pkg => ({
-      ...pkg,
-      features: pkg.features.filter(featureId => featureId !== id)
-    }));
-    setFeatures(updatedFeatures);
-    setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages, features: updatedFeatures });
-  };
-
-  const handleFeatureToggle = (packageId, featureId) => {
-    const updatedPackages = packages.map(pkg => {
-      if (pkg.id === packageId) {
-        const hasFeature = pkg.features.includes(featureId);
-        return {
-          ...pkg,
-          features: hasFeature 
-            ? pkg.features.filter(id => id !== featureId)
-            : [...pkg.features, featureId]
-        };
-      }
-      return pkg;
-    });
-    setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages, features });
-  };
-
-  const isFeatureIncluded = (packageId, featureId) => {
-    const pkg = packages.find(p => p.id === packageId);
-    return pkg?.features.includes(featureId) || false;
-  };
+  // Simplified feature management - features are part of packages now
 
   return (
     <Box>
@@ -142,10 +115,10 @@ const PackageManagementForm = ({
                         {pkg.name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        Target Hourly
+                        Base Price
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
-                        ${pkg.basePrice}
+                        ${pkg.base_price}
                       </Typography>
                       <IconButton 
                         size="small" 
@@ -163,57 +136,11 @@ const PackageManagementForm = ({
               </TableRow>
             </TableHead>
             <TableBody>
-              {features.map((feature) => (
-                <TableRow key={feature.id}>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <IconButton size="small" />
-                      <Typography>{feature.name}</Typography>
-                    </Box>
-                  </TableCell>
-                  {packages.map((pkg) => (
-                    <TableCell key={pkg.id} align="center">
-                      <IconButton
-                        onClick={() => handleFeatureToggle(pkg.id, feature.id)}
-                        color={isFeatureIncluded(pkg.id, feature.id) ? "success" : "default"}
-                      >
-                        {isFeatureIncluded(pkg.id, feature.id) ? <Check /> : <Close />}
-                      </IconButton>
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <IconButton 
-                      size="small" 
-                      onClick={() => handleDeleteFeature(feature.id)}
-                    >
-                      <Delete />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
               <TableRow>
                 <TableCell colSpan={packages.length + 2}>
-                  <Box display="flex" alignItems="center" gap={2}>
-                    <Button
-                      variant="outlined"
-                      startIcon={<Add />}
-                      onClick={handleAddFeature}
-                      disabled={!newFeatureName.trim()}
-                    >
-                      Add Line
-                    </Button>
-                    <TextField
-                      size="small"
-                      placeholder="Feature name"
-                      value={newFeatureName}
-                      onChange={(e) => setNewFeatureName(e.target.value)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          handleAddFeature();
-                        }
-                      }}
-                    />
-                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+                    Features will be managed in the next step of the wizard.
+                  </Typography>
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -230,27 +157,45 @@ const PackageManagementForm = ({
               label="Package Name"
               fullWidth
               value={newPackage.name}
-              onChange={(e) => setNewPackage({ ...newPackage, name: e.target.value })}
+              onChange={(e) => {
+                setNewPackage({ ...newPackage, name: e.target.value });
+                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+              }}
+              error={!!errors.name}
+              helperText={errors.name}
+              required
             />
             <TextField
               label="Base Price"
               type="number"
               fullWidth
-              value={newPackage.basePrice}
-              onChange={(e) => setNewPackage({ ...newPackage, basePrice: Number(e.target.value) })}
-            />
-            <TextField
-              label="Order"
-              type="number"
-              fullWidth
-              value={newPackage.order}
-              onChange={(e) => setNewPackage({ ...newPackage, order: Number(e.target.value) })}
+              value={newPackage.base_price}
+              onChange={(e) => {
+                setNewPackage({ ...newPackage, base_price: e.target.value });
+                if (errors.base_price) setErrors(prev => ({ ...prev, base_price: '' }));
+              }}
+              error={!!errors.base_price}
+              helperText={errors.base_price}
+              InputProps={{
+                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
+              }}
+              required
             />
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPackageDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddPackage} variant="contained">Add Package</Button>
+          <Button onClick={() => {
+            setPackageDialogOpen(false);
+            setErrors({});
+            setNewPackage({ name: '', base_price: '', features: [] });
+          }}>Cancel</Button>
+          <Button 
+            onClick={handleAddPackage} 
+            variant="contained"
+            disabled={!newPackage.name || !newPackage.base_price}
+          >
+            Add Package
+          </Button>
         </DialogActions>
       </Dialog>
     </Box>

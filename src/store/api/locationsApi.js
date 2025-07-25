@@ -1,16 +1,9 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { BASE_URL } from '../axios/axios';
-
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 
 export const locationsApi = createApi({
   reducerPath: 'locationsApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${BASE_URL}/locations`,
-    prepareHeaders: (headers) => {
-      // Add auth token if needed
-      return headers;
-    },
-  }),
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/locations/'}),
   tagTypes: ['Location'],
   endpoints: (builder) => ({
     getLocations: builder.query({
@@ -18,28 +11,28 @@ export const locationsApi = createApi({
       providesTags: ['Location'],
     }),
     getLocationById: builder.query({
-      query: (id) => `/${id}`,
+      query: (id) => `${id}/`,
       providesTags: (result, error, id) => [{ type: 'Location', id }],
     }),
     createLocation: builder.mutation({
       query: (locationData) => ({
         url: '',
         method: 'POST',
-        body: locationData,
+        data: locationData,
       }),
       invalidatesTags: ['Location'],
     }),
     updateLocation: builder.mutation({
       query: ({ id, ...locationData }) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'PUT',
-        body: locationData,
+        data: locationData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Location', id }],
     }),
     deleteLocation: builder.mutation({
       query: (id) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Location'],

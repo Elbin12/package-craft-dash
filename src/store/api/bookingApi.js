@@ -1,16 +1,9 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-import { BASE_URL } from '../axios/axios';
-
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 
 export const bookingApi = createApi({
   reducerPath: 'bookingApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${BASE_URL}/bookings`,
-    prepareHeaders: (headers) => {
-      // Add auth token if needed
-      return headers;
-    },
-  }),
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/bookings/'}),
   tagTypes: ['Booking'],
   endpoints: (builder) => ({
     getBookings: builder.query({
@@ -18,28 +11,28 @@ export const bookingApi = createApi({
       providesTags: ['Booking'],
     }),
     getBookingById: builder.query({
-      query: (id) => `/${id}`,
+      query: (id) => `${id}/`,
       providesTags: (result, error, id) => [{ type: 'Booking', id }],
     }),
     createBooking: builder.mutation({
       query: (bookingData) => ({
         url: '',
         method: 'POST',
-        body: bookingData,
+        data: bookingData,
       }),
       invalidatesTags: ['Booking'],
     }),
     updateBooking: builder.mutation({
       query: ({ id, ...bookingData }) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'PUT',
-        body: bookingData,
+        data: bookingData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Booking', id }],
     }),
     deleteBooking: builder.mutation({
       query: (id) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Booking'],

@@ -14,7 +14,7 @@ export const axiosBaseQuery =
   async ({ url, method, data, params }) => {
     try {
       const result = await axiosInstance({
-        url: baseUrl,
+        url: baseUrl + (url || ''),
         method,
         data,
         params,
@@ -83,8 +83,8 @@ axiosInstance.interceptors.response.use(
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         console.error('Refresh token failed:', refreshError);
-        store.dispatch(logout());
-        window.location.href = '/login';
+        // store.dispatch(logout());
+        // window.location.href = '/login';
         return Promise.reject(refreshError);
       }
     }

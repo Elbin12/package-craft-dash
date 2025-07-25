@@ -38,26 +38,48 @@ const QuestionBuilderForm = ({
   const [questions, setQuestions] = useState(data.questions || []);
   const [questionDialogOpen, setQuestionDialogOpen] = useState(false);
   const [newQuestion, setNewQuestion] = useState({
-    text: '',
-    type: 'yes_no',
+    question_text: '',
+    question_type: 'yes_no',
+    order: 1,
     options: [],
   });
+  const [errors, setErrors] = useState({});
   const [newOption, setNewOption] = useState('');
 
+  const validateQuestion = () => {
+    const newErrors = {};
+    
+    if (!newQuestion.question_text || newQuestion.question_text.trim().length < 5) {
+      newErrors.question_text = 'Question text must be at least 5 characters';
+    }
+    
+    if (newQuestion.question_type === 'options' && (!newQuestion.options || newQuestion.options.length < 2)) {
+      newErrors.options = 'Multiple choice questions must have at least 2 options';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
   const handleAddQuestion = () => {
+    if (!validateQuestion()) return;
+    
     const questionToAdd = {
       ...newQuestion,
       id: Date.now().toString(),
+      order: questions.length + 1,
     };
     const updatedQuestions = [...questions, questionToAdd];
     setQuestions(updatedQuestions);
     onUpdate({ questions: updatedQuestions });
     setQuestionDialogOpen(false);
     setNewQuestion({
-      text: '',
-      type: 'yes_no',
+      question_text: '',
+      question_type: 'yes_no',
+      order: 1,
       options: [],
     });
+    setErrors({});
   };
 
   const handleDeleteQuestion = (id) => {
@@ -69,21 +91,25 @@ const QuestionBuilderForm = ({
   const handleAddOption = () => {
     if (newOption.trim()) {
       const option = {
-        id: Date.now().toString(),
-        text: newOption.trim(),
+        option_text: newOption.trim(),
+        order: (newQuestion.options || []).length + 1,
       };
       setNewQuestion({
         ...newQuestion,
         options: [...(newQuestion.options || []), option],
       });
       setNewOption('');
+      if (errors.options) {
+        setErrors(prev => ({ ...prev, options: '' }));
+      }
     }
   };
 
-  const handleDeleteOption = (optionId) => {
+  const handleDeleteOption = (optionIndex) => {
+    const updatedOptions = (newQuestion.options || []).filter((_, index) => index !== optionIndex);
     setNewQuestion({
       ...newQuestion,
-      options: (newQuestion.options || []).filter(opt => opt.id !== optionId),
+      options: updatedOptions,
     });
   };
 
@@ -117,23 +143,28 @@ const QuestionBuilderForm = ({
                 <Box display="flex" justifyContent="space-between" alignItems="start">
                   <Box sx={{ flex: 1 }}>
                     <Typography variant="h6" gutterBottom>
-                      {question.text}
+                      {question.question_text}
                     </Typography>
                     <Box display="flex" alignItems="center" gap={1} mb={1}>
                       <Chip 
-                        label={question.type === 'yes_no' ? 'Yes/No' : 'Multiple Options'} 
+                        label={question.question_type === 'yes_no' ? 'Yes/No' : 'Multiple Options'} 
                         size="small"
-                        color={question.type === 'yes_no' ? 'primary' : 'secondary'}
+                        color={question.question_type === 'yes_no' ? 'primary' : 'secondary'}
+                      />
+                      <Chip 
+                        label={`Order: ${question.order}`} 
+                        size="small"
+                        variant="outlined"
                       />
                     </Box>
-                    {question.type === 'options' && question.options && (
+                    {question.question_type === 'options' && question.options && (
                       <Box>
                         <Typography variant="subtitle2" gutterBottom>
                           Options:
                         </Typography>
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                          {question.options.map((option) => (
-                            <Chip key={option.id} label={option.text} variant="outlined" size="small" />
+                          {question.options.map((option, index) => (
+                            <Chip key={index} label={option.option_text} variant="outlined" size="small" />
                           ))}
                         </Box>
                       </Box>
@@ -159,19 +190,27 @@ const QuestionBuilderForm = ({
               fullWidth
               multiline
               rows={2}
-              value={newQuestion.text}
-              onChange={(e) => setNewQuestion({ ...newQuestion, text: e.target.value })}
+              value={newQuestion.question_text}
+              onChange={(e) => {
+                setNewQuestion({ ...newQuestion, question_text: e.target.value });
+                if (errors.question_text) {
+                  setErrors(prev => ({ ...prev, question_text: '' }));
+                }
+              }}
               placeholder="e.g., Do you need additional cleaning supplies?"
+              error={!!errors.question_text}
+              helperText={errors.question_text}
+              required
             />
             
             <FormControl fullWidth>
               <InputLabel>Question Type</InputLabel>
               <Select
-                value={newQuestion.type}
+                value={newQuestion.question_type}
                 label="Question Type"
                 onChange={(e) => setNewQuestion({ 
                   ...newQuestion, 
-                  type: e.target.value,
+                  question_type: e.target.value,
                   options: e.target.value === 'yes_no' ? [] : newQuestion.options 
                 })}
               >
@@ -180,7 +219,13 @@ const QuestionBuilderForm = ({
               </Select>
             </FormControl>
 
-            {newQuestion.type === 'options' && (
+            {errors.options && (
+              <Typography color="error" variant="body2">
+                {errors.options}
+              </Typography>
+            )}
+
+            {newQuestion.question_type === 'options' && (
               <Box>
                 <Typography variant="subtitle1" gutterBottom>
                   Options
@@ -208,11 +253,14 @@ const QuestionBuilderForm = ({
                 </Box>
                 
                 <List>
-                  {(newQuestion.options || []).map((option) => (
-                    <ListItem key={option.id} divider>
-                      <ListItemText primary={option.text} />
+                  {(newQuestion.options || []).map((option, index) => (
+                    <ListItem key={index} divider>
+                      <ListItemText 
+                        primary={option.option_text} 
+                        secondary={`Order: ${option.order}`}
+                      />
                       <ListItemSecondaryAction>
-                        <IconButton onClick={() => handleDeleteOption(option.id)}>
+                        <IconButton onClick={() => handleDeleteOption(index)}>
                           <Delete />
                         </IconButton>
                       </ListItemSecondaryAction>
@@ -228,7 +276,7 @@ const QuestionBuilderForm = ({
           <Button 
             onClick={handleAddQuestion} 
             variant="contained"
-            disabled={!newQuestion.text.trim()}
+            disabled={!newQuestion.question_text.trim()}
           >
             Add Question
           </Button>

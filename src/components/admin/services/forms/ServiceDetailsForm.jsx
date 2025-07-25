@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   TextField,
@@ -11,8 +11,37 @@ const ServiceDetailsForm = ({
   data,
   onUpdate,
 }) => {
+  const [errors, setErrors] = useState({});
+
   const handleChange = (field) => (event) => {
-    onUpdate({ [field]: event.target.value });
+    const value = event.target.value;
+    onUpdate({ [field]: value });
+    
+    // Clear error when user starts typing
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+  };
+
+  const validateField = (field, value) => {
+    switch (field) {
+      case 'name':
+        if (!value || value.trim().length < 3) {
+          return 'Service name must be at least 3 characters';
+        }
+        break;
+      case 'description':
+        if (!value || value.trim().length < 10) {
+          return 'Description must be at least 10 characters';
+        }
+        break;
+    }
+    return '';
+  };
+
+  const handleBlur = (field) => (event) => {
+    const error = validateField(field, event.target.value);
+    setErrors(prev => ({ ...prev, [field]: error }));
   };
 
   return (
@@ -31,8 +60,11 @@ const ServiceDetailsForm = ({
           fullWidth
           value={data.name || ''}
           onChange={handleChange('name')}
+          onBlur={handleBlur('name')}
           placeholder="e.g., Premium Cleaning Service"
           required
+          error={!!errors.name}
+          helperText={errors.name}
         />
 
         <TextField
@@ -43,8 +75,11 @@ const ServiceDetailsForm = ({
           rows={4}
           value={data.description || ''}
           onChange={handleChange('description')}
+          onBlur={handleBlur('description')}
           placeholder="Describe what this service includes..."
           required
+          error={!!errors.description}
+          helperText={errors.description}
         />
       </Box>
     </Box>

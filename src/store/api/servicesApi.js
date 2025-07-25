@@ -11,28 +11,28 @@ export const servicesApi = createApi({
       providesTags: ['Service'],
     }),
     getServiceById: builder.query({
-      query: (id) => `/${id}`,
+      query: (id) => `${id}/`,
       providesTags: (result, error, id) => [{ type: 'Service', id }],
     }),
     createService: builder.mutation({
       query: (serviceData) => ({
         url: '',
         method: 'POST',
-        body: serviceData,
+        data: serviceData,
       }),
       invalidatesTags: ['Service'],
     }),
     updateService: builder.mutation({
       query: ({ id, ...serviceData }) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'PUT',
-        body: serviceData,
+        data: serviceData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
     }),
     deleteService: builder.mutation({
       query: (id) => ({
-        url: `/${id}`,
+        url: `${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Service'],

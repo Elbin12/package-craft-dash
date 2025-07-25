@@ -34,7 +34,8 @@ import {
   useGetServicesQuery, 
   useCreateServiceMutation, 
   useUpdateServiceMutation, 
-  useDeleteServiceMutation 
+  useDeleteServiceMutation, 
+  servicesApi
 } from '../../store/api/servicesApi';
 import {
   setWizardOpen,
@@ -45,19 +46,15 @@ import {
 } from '../../store/slices/servicesSlice';
 
 const ServicesManagement = () => {
-  console.log('ServicesManagement: Starting component');
   const dispatch = useDispatch();
-  console.log('ServicesManagement: useDispatch worked');
   const { 
     wizardOpen, 
     editingService, 
     deleteConfirmOpen, 
     serviceToDelete 
   } = useSelector((state) => {
-    console.log('ServicesManagement: useSelector state:', state);
     return state.services;
   });
-  console.log('ServicesManagement: useSelector worked');
 
   // Temporarily disable RTK Query to test basic Redux
   const { data: services = [], isLoading, error } = useGetServicesQuery();
@@ -75,7 +72,11 @@ const ServicesManagement = () => {
       if (editingService) {
         await updateService({ id: editingService.id, ...serviceData }).unwrap();
       } else {
-        await createService(serviceData).unwrap();
+        const result = await createService(serviceData).unwrap();
+
+        servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
+          draft.push(result);
+        });
       }
       handleCloseWizard();
     } catch (error) {

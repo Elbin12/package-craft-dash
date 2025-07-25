@@ -1,6 +1,6 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { BASE_URL } from '../axios/axios';
 
-const BASE_URL = 'http://localhost:3000/api'; // Replace with your backend URL
 
 export const locationsApi = createApi({
   reducerPath: 'locationsApi',

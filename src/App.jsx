@@ -54,8 +54,6 @@ const theme = createTheme({
 const queryClient = new QueryClient();
 
 function App() {
-  console.log('App: Redux store:', store);
-  console.log('App: Store state:', store.getState());
   
   return (
     <Provider store={store}>

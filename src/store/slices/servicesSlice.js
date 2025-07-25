@@ -7,6 +7,7 @@ const initialState = {
   editingService: null,
   deleteConfirmOpen: false,
   serviceToDelete: null,
+  saved: false,
 };
 
 const servicesSlice = createSlice({
@@ -46,6 +47,9 @@ const servicesSlice = createSlice({
     clearEditingService: (state) => {
       state.editingService = null;
     },
+    setSaved: (state, action) => {
+      state.saved = action.payload;
+    }
   },
 });
 
@@ -60,6 +64,7 @@ export const {
   updateService,
   removeService,
   clearEditingService,
+  setSaved
 } = servicesSlice.actions;
 
 export default servicesSlice.reducer;

@@ -26,11 +26,11 @@ const ServiceDetailsForm = ({
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         <TextField
-          label="Service Nickname"
+          label="Service Name"
           variant="outlined"
           fullWidth
-          value={data.nickname || ''}
-          onChange={handleChange('nickname')}
+          value={data.name || ''}
+          onChange={handleChange('name')}
           placeholder="e.g., Premium Cleaning Service"
           required
         />

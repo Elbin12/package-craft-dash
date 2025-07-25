@@ -1,17 +1,9 @@
-import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
-
-const BASE_URL = 'http://localhost:3000/api'; // Replace with your backend URL
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 
 export const servicesApi = createApi({
   reducerPath: 'servicesApi',
-  baseQuery: fetchBaseQuery({
-    baseUrl: `${BASE_URL}/services`,
-    prepareHeaders: (headers) => {
-      // Add auth token if needed
-      // headers.set('authorization', `Bearer ${token}`);
-      return headers;
-    },
-  }),
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/services/'}),
   tagTypes: ['Service'],
   endpoints: (builder) => ({
     getServices: builder.query({

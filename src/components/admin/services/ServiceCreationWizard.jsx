@@ -18,6 +18,7 @@ import ServiceDetailsForm from './forms/ServiceDetailsForm';
 import PackageManagementForm from './forms/PackageManagementForm';
 import QuestionBuilderForm from './forms/QuestionBuilderForm';
 import PriceSetupForm from './forms/PriceSetupForm';
+import { useCreateServiceMutation } from '../../../store/api/servicesApi';
 
 const steps = [
   'Service Details',
@@ -36,20 +37,28 @@ export const ServiceCreationWizard = ({
 }) => {
   const [activeStep, setActiveStep] = useState(0);
   const [serviceData, setServiceData] = useState({
-    nickname: '',
+    name: '',
     description: '',
     packages: [],
     questions: [],
     pricing: {},
+  }); 
+  
+  const [savedSteps, setSavedSteps] = useState({
+    0: false,
+    1: false,
+    2: false,
+    3: false,
   });
 
+  const [createService, { data, isLoading, isSuccess, isError, error }] = useCreateServiceMutation();
   // Update service data when editData changes
   React.useEffect(() => {
     if (editData) {
       setServiceData(editData);
     } else {
       setServiceData({
-        nickname: '',
+        name: '',
         description: '',
         packages: [],
         questions: [],
@@ -58,15 +67,52 @@ export const ServiceCreationWizard = ({
     }
   }, [editData, open]);
 
-  const handleNext = () => {
-    if (activeStep === steps.length - 1) {
-      onComplete(serviceData);
-      handleReset();
-      onClose();
-    } else {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
-    }
-  };
+  const handleNext = async () => {
+      try {
+        switch (activeStep) {
+          case 0:
+            if (!savedSteps[0]) {
+              const result = await createService(serviceData).unwrap();
+              setServiceData((prev) => ({ ...prev, id: result.id }));
+              setSavedSteps((prev) => ({ ...prev, 0: true }));
+            }
+            break;
+
+          case 1:
+            if (!savedSteps[1]) {
+              await createPackagesAPI(serviceData.id, serviceData.packages);
+              setSavedSteps((prev) => ({ ...prev, 1: true }));
+            }
+            break;
+
+          case 2:
+            if (!savedSteps[2]) {
+              await createQuestionsAPI(serviceData.id, serviceData.questions);
+              setSavedSteps((prev) => ({ ...prev, 2: true }));
+            }
+            break;
+
+          case 3:
+            if (!savedSteps[3]) {
+              await createPricingAPI(serviceData.id, serviceData.pricing);
+              setSavedSteps((prev) => ({ ...prev, 3: true }));
+            }
+            onComplete(serviceData); // Notify parent
+            handleReset();
+            onClose(); // Close wizard
+            return;
+
+          default:
+            break;
+        }
+
+        setActiveStep((prev) => prev + 1); // Move to next step after success
+      } catch (error) {
+        console.error("Step failed:", error);
+        // Optionally show error to user
+      }
+    };
+
 
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
@@ -75,7 +121,7 @@ export const ServiceCreationWizard = ({
   const handleReset = () => {
     setActiveStep(0);
     setServiceData({
-      nickname: '',
+      name: '',
       description: '',
       packages: [],
       questions: [],

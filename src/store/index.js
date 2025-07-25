@@ -5,6 +5,8 @@ import { bookingApi } from './api/bookingApi';
 import { packagesApi } from './api/packagesApi';
 import { featuresApi } from './api/featuresApi';
 import { questionsApi } from './api/questionsApi';
+import { packageFeaturesApi } from './api/packageFeaturesApi';
+import { questionOptionsApi } from './api/questionOptionsApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
 import bookingSlice from './slices/bookingSlice';
@@ -22,6 +24,8 @@ export const store = configureStore({
     [packagesApi.reducerPath]: packagesApi.reducer,
     [featuresApi.reducerPath]: featuresApi.reducer,
     [questionsApi.reducerPath]: questionsApi.reducer,
+    [packageFeaturesApi.reducerPath]: packageFeaturesApi.reducer,
+    [questionOptionsApi.reducerPath]: questionOptionsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -37,7 +41,9 @@ export const store = configureStore({
       .concat(bookingApi.middleware)
       .concat(packagesApi.middleware)
       .concat(featuresApi.middleware)
-      .concat(questionsApi.middleware),
+      .concat(questionsApi.middleware)
+      .concat(packageFeaturesApi.middleware)
+      .concat(questionOptionsApi.middleware),
 });
 
 export default store;

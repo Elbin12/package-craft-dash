@@ -20,16 +20,16 @@ import {
   ListItemText,
   ListItemSecondaryAction,
   Chip,
+  Alert,
+  CircularProgress,
 } from '@mui/material';
 import {
   Add,
   Delete,
   Edit,
 } from '@mui/icons-material';
-
-// QuestionOption structure: { id, text }
-// Question structure: { id, text, type, options }
-// QuestionBuilderFormProps: { data, onUpdate }
+import { useCreateQuestionMutation } from '../../../../store/api/questionsApi';
+import { useCreateQuestionOptionMutation } from '../../../../store/api/questionOptionsApi';
 
 const QuestionBuilderForm = ({
   data,
@@ -45,6 +45,10 @@ const QuestionBuilderForm = ({
   });
   const [errors, setErrors] = useState({});
   const [newOption, setNewOption] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [createQuestion] = useCreateQuestionMutation();
+  const [createQuestionOption] = useCreateQuestionOptionMutation();
 
   const validateQuestion = () => {
     const newErrors = {};
@@ -61,25 +65,60 @@ const QuestionBuilderForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAddQuestion = () => {
+  const handleAddQuestion = async () => {
     if (!validateQuestion()) return;
     
-    const questionToAdd = {
-      ...newQuestion,
-      id: Date.now().toString(),
-      order: questions.length + 1,
-    };
-    const updatedQuestions = [...questions, questionToAdd];
-    setQuestions(updatedQuestions);
-    onUpdate({ questions: updatedQuestions });
-    setQuestionDialogOpen(false);
-    setNewQuestion({
-      question_text: '',
-      question_type: 'yes_no',
-      order: 1,
-      options: [],
-    });
-    setErrors({});
+    setIsLoading(true);
+    try {
+      const questionPayload = {
+        service: data.id,
+        question_text: newQuestion.question_text.trim(),
+        question_type: newQuestion.question_type,
+        order: questions.length + 1,
+      };
+      
+      const questionResult = await createQuestion(questionPayload).unwrap();
+      
+      // If it's a multiple choice question, create the options
+      if (newQuestion.question_type === 'options' && newQuestion.options.length > 0) {
+        const createdOptions = [];
+        for (const option of newQuestion.options) {
+          try {
+            const optionPayload = {
+              question: questionResult.id,
+              question_id: questionResult.id,
+              option_text: option.option_text,
+              order: option.order,
+            };
+            
+            const optionResult = await createQuestionOption(optionPayload).unwrap();
+            createdOptions.push(optionResult);
+          } catch (optionError) {
+            console.error('Failed to create option:', optionError);
+          }
+        }
+        questionResult.options = createdOptions;
+      }
+      
+      const updatedQuestions = [...questions, questionResult];
+      setQuestions(updatedQuestions);
+      onUpdate({ questions: updatedQuestions });
+      setQuestionDialogOpen(false);
+      setNewQuestion({
+        question_text: '',
+        question_type: 'yes_no',
+        order: 1,
+        options: [],
+      });
+      setErrors({});
+    } catch (error) {
+      console.error('Failed to create question:', error);
+      setErrors({ 
+        general: error?.data?.message || error?.data?.detail || 'Failed to create question. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleDeleteQuestion = (id) => {
@@ -122,16 +161,29 @@ const QuestionBuilderForm = ({
         Create questions that will be used for dynamic pricing calculations.
       </Typography>
 
+      {errors.general && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {errors.general}
+        </Alert>
+      )}
+
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h6">Questions</Typography>
         <Button
           variant="contained"
           startIcon={<Add />}
           onClick={() => setQuestionDialogOpen(true)}
+          disabled={!data.id}
         >
           Add Question
         </Button>
       </Box>
+
+      {!data.id && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Please save the service details first before adding questions.
+        </Alert>
+      )}
 
       {questions.length === 0 ? (
         <Typography color="text.secondary">No questions created yet.</Typography>
@@ -272,11 +324,21 @@ const QuestionBuilderForm = ({
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setQuestionDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => {
+            setQuestionDialogOpen(false);
+            setErrors({});
+            setNewQuestion({
+              question_text: '',
+              question_type: 'yes_no',
+              order: 1,
+              options: [],
+            });
+          }}>Cancel</Button>
           <Button 
             onClick={handleAddQuestion} 
             variant="contained"
-            disabled={!newQuestion.question_text.trim()}
+            disabled={!newQuestion.question_text.trim() || isLoading}
+            startIcon={isLoading ? <CircularProgress size={20} /> : null}
           >
             Add Question
           </Button>

@@ -137,30 +137,9 @@ export const ServiceCreationWizard = ({
           break;
 
         case 1:
-          if (!savedSteps[1]) {
-            // Create packages and their features
-            for (const packageData of serviceData.packages) {
-              const packagePayload = {
-                service: serviceData.id,
-                name: packageData.name,
-                base_price: packageData.base_price
-              };
-              
-              const packageResult = await createPackage(packagePayload).unwrap();
-              
-              // Create features for this package
-              if (packageData.features) {
-                for (const feature of packageData.features) {
-                  await createFeature({
-                    service: serviceData.id,
-                    name: feature.name,
-                    description: feature.description
-                  }).unwrap();
-                }
-              }
-            }
-            setSavedSteps((prev) => ({ ...prev, 1: true }));
-          }
+          // Packages and features are created directly in the PackageManagementForm
+          // No API calls needed here
+          setSavedSteps((prev) => ({ ...prev, 1: true }));
           break;
 
         case 2:

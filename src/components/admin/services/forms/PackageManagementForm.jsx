@@ -1,31 +1,11 @@
 import React, { useState } from 'react';
-import {
-  Box,
-  Typography,
-  Button,
-  TextField,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Checkbox,
-  Alert,
-  CircularProgress,
-} from '@mui/material';
-import {
-  Add,
-  Delete,
-  Check,
-  Close,
-} from '@mui/icons-material';
+import { Card, CardContent, CardHeader, CardTitle } from "../../../ui/card";
+import { Button } from "../../../ui/button";
+import { Input } from "../../../ui/input";
+import { Label } from "../../../ui/label";
+import { Alert, AlertDescription } from "../../../ui/alert";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
+import { Check, X, Plus, Trash2 } from 'lucide-react';
 import { useCreatePackageMutation } from '../../../../store/api/packagesApi';
 import { useCreateFeatureMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
@@ -37,9 +17,8 @@ const PackageManagementForm = ({
   const [packages, setPackages] = useState(data.packages || []);
   const [features, setFeatures] = useState(data.features || []);
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
-  const [featureDialogOpen, setFeatureDialogOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({ name: '', base_price: '' });
-  const [newFeature, setNewFeature] = useState({ name: '' });
+  const [newFeature, setNewFeature] = useState('');
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
 
@@ -62,15 +41,34 @@ const PackageManagementForm = ({
     return Object.keys(newErrors).length === 0;
   };
 
-  const validateFeature = () => {
-    const newErrors = {};
-    
-    if (!newFeature.name || newFeature.name.trim().length < 3) {
-      newErrors.feature_name = 'Feature name must be at least 3 characters';
+  const handleAddFeatureInline = async () => {
+    if (!newFeature.trim() || newFeature.trim().length < 3) {
+      setErrors({ feature_name: 'Feature name must be at least 3 characters' });
+      return;
     }
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setIsLoading(true);
+    try {
+      const featurePayload = {
+        service: data.id,
+        name: newFeature.trim(),
+      };
+      
+      const result = await createFeature(featurePayload).unwrap();
+      
+      const updatedFeatures = [...features, result];
+      setFeatures(updatedFeatures);
+      onUpdate({ features: updatedFeatures });
+      setNewFeature('');
+      setErrors({});
+    } catch (error) {
+      console.error('Failed to create feature:', error);
+      setErrors({ 
+        general: error?.data?.message || error?.data?.detail || 'Failed to create feature. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleAddPackage = async () => {
@@ -107,33 +105,6 @@ const PackageManagementForm = ({
     }
   };
 
-  const handleAddFeature = async () => {
-    if (!validateFeature()) return;
-    
-    setIsLoading(true);
-    try {
-      const featurePayload = {
-        service: data.id,
-        name: newFeature.name.trim(),
-      };
-      
-      const result = await createFeature(featurePayload).unwrap();
-      
-      const updatedFeatures = [...features, result];
-      setFeatures(updatedFeatures);
-      onUpdate({ features: updatedFeatures });
-      setFeatureDialogOpen(false);
-      setNewFeature({ name: '' });
-      setErrors({});
-    } catch (error) {
-      console.error('Failed to create feature:', error);
-      setErrors({ 
-        general: error?.data?.message || error?.data?.detail || 'Failed to create feature. Please try again.' 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   const handleDeletePackage = (id) => {
     const updatedPackages = packages.filter(pkg => pkg.id !== id);
@@ -190,212 +161,211 @@ const PackageManagementForm = ({
   };
 
   return (
-    <Box>
-      <Typography variant="h6" gutterBottom>
-        Package & Feature Management
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Create packages for your service and assign features to them.
-      </Typography>
+    <div className="space-y-6">
+      <div>
+        <h3 className="text-lg font-semibold">Package & Feature Management</h3>
+        <p className="text-sm text-muted-foreground">
+          Create packages for your service and assign features to them.
+        </p>
+      </div>
 
       {errors.general && (
-        <Alert severity="error" sx={{ mb: 2 }}>
-          {errors.general}
+        <Alert>
+          <AlertDescription>{errors.general}</AlertDescription>
         </Alert>
       )}
 
-      <Box display="flex" gap={2} mb={3}>
-        <Button
-          variant="contained"
-          startIcon={<Add />}
-          onClick={() => setPackageDialogOpen(true)}
-          disabled={!data.id}
-        >
-          Add Package
-        </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Add />}
-          onClick={() => setFeatureDialogOpen(true)}
-          disabled={!data.id}
-        >
-          Add Feature
-        </Button>
-      </Box>
+      <div className="flex gap-2">
+        <Dialog open={packageDialogOpen} onOpenChange={setPackageDialogOpen}>
+          <DialogTrigger asChild>
+            <Button disabled={!data.id}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Package
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Add New Package</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="package-name">Package Name</Label>
+                <Input
+                  id="package-name"
+                  value={newPackage.name}
+                  onChange={(e) => {
+                    setNewPackage({ ...newPackage, name: e.target.value });
+                    if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+                  }}
+                  placeholder="e.g., Basic, Premium"
+                />
+                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+              </div>
+              <div>
+                <Label htmlFor="base-price">Base Price ($)</Label>
+                <Input
+                  id="base-price"
+                  type="number"
+                  value={newPackage.base_price}
+                  onChange={(e) => {
+                    setNewPackage({ ...newPackage, base_price: e.target.value });
+                    if (errors.base_price) setErrors(prev => ({ ...prev, base_price: '' }));
+                  }}
+                  placeholder="50"
+                />
+                {errors.base_price && <p className="text-sm text-destructive">{errors.base_price}</p>}
+              </div>
+              <Button 
+                onClick={handleAddPackage} 
+                disabled={!newPackage.name || !newPackage.base_price || isLoading}
+                className="w-full"
+              >
+                {isLoading ? 'Adding...' : 'Add Package'}
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
 
       {!data.id && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          Please save the service details first before adding packages and features.
+        <Alert>
+          <AlertDescription>
+            Please save the service details first before adding packages and features.
+          </AlertDescription>
         </Alert>
       )}
 
       {packages.length === 0 ? (
-        <Typography color="text.secondary">Please add at least one package to continue.</Typography>
+        <p className="text-muted-foreground">Please add at least one package to continue.</p>
       ) : (
-        <TableContainer component={Paper} variant="outlined">
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell sx={{ bgcolor: 'grey.50' }}>
-                  <Typography variant="subtitle2" fontWeight="bold">
-                    Features
-                  </Typography>
-                </TableCell>
-                {packages.map((pkg) => (
-                  <TableCell key={pkg.id} align="center" sx={{ bgcolor: 'grey.50' }}>
-                    <Box>
-                      <Typography variant="subtitle1" fontWeight="bold">
-                        {pkg.name}
-                      </Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        ${pkg.base_price}
-                      </Typography>
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeletePackage(pkg.id)}
-                        sx={{ mt: 1 }}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  </TableCell>
-                ))}
-                <TableCell sx={{ bgcolor: 'grey.50' }}>
-                  <IconButton size="small" />
-                </TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {features.map((feature) => (
-                <TableRow key={feature.id}>
-                  <TableCell>
-                    <Box display="flex" alignItems="center" justifyContent="space-between">
-                      <Typography variant="body2">
-                        {feature.name}
-                      </Typography>
-                      <IconButton 
-                        size="small" 
-                        onClick={() => handleDeleteFeature(feature.id)}
-                      >
-                        <Delete />
-                      </IconButton>
-                    </Box>
-                  </TableCell>
-                  {packages.map((pkg) => (
-                    <TableCell key={pkg.id} align="center">
-                      <Checkbox
-                        checked={isFeatureIncluded(pkg.id, feature.id)}
-                        onChange={(e) => handleFeatureToggle(pkg.id, feature.id, e.target.checked)}
-                      />
-                    </TableCell>
+        <Card>
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b bg-muted/50">
+                    <th className="text-left p-4 font-medium">
+                      {/* Empty header for features column */}
+                    </th>
+                    {packages.map((pkg, index) => (
+                      <th key={pkg.id} className="text-center p-4 min-w-[120px]">
+                        <div className="space-y-1">
+                          <div className="text-xs text-muted-foreground">Package {index + 1}</div>
+                          <div className="font-semibold">{pkg.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            Target Hourly ${pkg.base_price}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeletePackage(pkg.id)}
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      </th>
+                    ))}
+                    <th className="p-4 w-8">
+                      {/* Empty header for actions */}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {features.map((feature) => (
+                    <tr key={feature.id} className="border-b">
+                      <td className="p-4 flex items-center justify-between">
+                        <span className="font-medium">{feature.name}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteFeature(feature.id)}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      </td>
+                      {packages.map((pkg) => (
+                        <td key={pkg.id} className="p-4 text-center">
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleFeatureToggle(pkg.id, feature.id, true)}
+                              className={`h-8 w-8 p-0 ${
+                                isFeatureIncluded(pkg.id, feature.id)
+                                  ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                  : 'text-muted-foreground hover:text-emerald-600'
+                              }`}
+                            >
+                              <Check className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleFeatureToggle(pkg.id, feature.id, false)}
+                              className={`h-8 w-8 p-0 ${
+                                !isFeatureIncluded(pkg.id, feature.id)
+                                  ? 'text-red-600 bg-red-50 hover:bg-red-100'
+                                  : 'text-muted-foreground hover:text-red-600'
+                              }`}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </td>
+                      ))}
+                      <td className="p-4"></td>
+                    </tr>
                   ))}
-                  <TableCell />
-                </TableRow>
-              ))}
-              
-              {features.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={packages.length + 2}>
-                    <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                      No features created yet. Add features to assign them to packages.
-                    </Typography>
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+                  
+                  {/* Add Feature Row */}
+                  <tr className="border-b bg-muted/25">
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <Input
+                          value={newFeature}
+                          onChange={(e) => {
+                            setNewFeature(e.target.value);
+                            if (errors.feature_name) setErrors(prev => ({ ...prev, feature_name: '' }));
+                          }}
+                          placeholder="Add feature name..."
+                          className="text-sm"
+                          disabled={!data.id}
+                        />
+                        <Button
+                          onClick={handleAddFeatureInline}
+                          disabled={!newFeature.trim() || !data.id || isLoading}
+                          size="sm"
+                          variant="outline"
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                      {errors.feature_name && (
+                        <p className="text-xs text-destructive mt-1">{errors.feature_name}</p>
+                      )}
+                    </td>
+                    {packages.map((pkg) => (
+                      <td key={pkg.id} className="p-4"></td>
+                    ))}
+                    <td className="p-4"></td>
+                  </tr>
+                  
+                  {features.length === 0 && (
+                    <tr>
+                      <td colSpan={packages.length + 2} className="p-8 text-center text-muted-foreground">
+                        No features created yet. Add features using the input above.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
       )}
-
-      {/* Add Package Dialog */}
-      <Dialog open={packageDialogOpen} onClose={() => setPackageDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Package</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="Package Name"
-              fullWidth
-              value={newPackage.name}
-              onChange={(e) => {
-                setNewPackage({ ...newPackage, name: e.target.value });
-                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
-              }}
-              error={!!errors.name}
-              helperText={errors.name}
-              required
-            />
-            <TextField
-              label="Base Price"
-              type="number"
-              fullWidth
-              value={newPackage.base_price}
-              onChange={(e) => {
-                setNewPackage({ ...newPackage, base_price: e.target.value });
-                if (errors.base_price) setErrors(prev => ({ ...prev, base_price: '' }));
-              }}
-              error={!!errors.base_price}
-              helperText={errors.base_price}
-              InputProps={{
-                startAdornment: <Typography sx={{ mr: 1 }}>$</Typography>
-              }}
-              required
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setPackageDialogOpen(false);
-            setErrors({});
-            setNewPackage({ name: '', base_price: '' });
-          }}>Cancel</Button>
-          <Button 
-            onClick={handleAddPackage} 
-            variant="contained"
-            disabled={!newPackage.name || !newPackage.base_price || isLoading}
-            startIcon={isLoading ? <CircularProgress size={20} /> : null}
-          >
-            Add Package
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Add Feature Dialog */}
-      <Dialog open={featureDialogOpen} onClose={() => setFeatureDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add New Feature</DialogTitle>
-        <DialogContent>
-          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              label="Feature Name"
-              fullWidth
-              value={newFeature.name}
-              onChange={(e) => {
-                setNewFeature({ ...newFeature, name: e.target.value });
-                if (errors.feature_name) setErrors(prev => ({ ...prev, feature_name: '' }));
-              }}
-              error={!!errors.feature_name}
-              helperText={errors.feature_name}
-              placeholder="e.g., Screen Cleaning"
-              required
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => {
-            setFeatureDialogOpen(false);
-            setErrors({});
-            setNewFeature({ name: '' });
-          }}>Cancel</Button>
-          <Button 
-            onClick={handleAddFeature} 
-            variant="contained"
-            disabled={!newFeature.name || isLoading}
-            startIcon={isLoading ? <CircularProgress size={20} /> : null}
-          >
-            Add Feature
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Box>
+    </div>
   );
 };
 

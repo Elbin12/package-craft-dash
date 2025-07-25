@@ -84,19 +84,25 @@ const ServicesManagement = () => {
     }
   };
 
-  const handleEditService = async (service) => {
-    try {
-      // Fetch full service details with packages, features, and questions
-      const fullServiceData = await servicesApi.endpoints.getServiceById.initiate(service.id).unwrap();
-      dispatch(setEditingService(fullServiceData));
-      dispatch(setWizardOpen(true));
-    } catch (error) {
-      console.error('Failed to fetch service details:', error);
-      // Fallback to basic service data
-      dispatch(setEditingService(service));
-      dispatch(setWizardOpen(true));
-    }
-  };
+const handleEditService = async (service) => {
+  console.log(service, 'service from handleEditService');
+  
+  try {
+    const fullServiceData = await dispatch(
+      servicesApi.endpoints.getServiceById.initiate(service.id, { forceRefetch: true })
+    ).unwrap();
+
+    console.log(fullServiceData, 'from handleEditService');
+
+    dispatch(setEditingService(fullServiceData));
+    dispatch(setWizardOpen(true));
+  } catch (error) {
+    console.error('Failed to fetch service details:', error);
+    dispatch(setEditingService(service));
+    dispatch(setWizardOpen(true));
+  }
+};
+
 
   const handleDeleteConfirm = (service) => {
     dispatch(setServiceToDelete(service));
@@ -190,7 +196,7 @@ const ServicesManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`${service.packages?.length || 0} packages`} 
+                        label={`${service?.packages_count} packages`} 
                         size="small" 
                         color="primary"
                         variant="outlined"
@@ -198,7 +204,7 @@ const ServicesManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`${service.questions?.length || 0} questions`} 
+                        label={`${service?.questions_count} questions`} 
                         size="small" 
                         color="secondary"
                         variant="outlined"

@@ -30,6 +30,14 @@ export const featuresApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Feature', id }],
     }),
+    updateFeatureStatus: builder.mutation({
+      query: ({ id, ...featureData }) => ({
+        url: `${id}/`,
+        method: 'PATCH',
+        data: featureData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Feature', id }],
+    }),
     deleteFeature: builder.mutation({
       query: (id) => ({
         url: `${id}/`,
@@ -46,4 +54,5 @@ export const {
   useCreateFeatureMutation,
   useUpdateFeatureMutation,
   useDeleteFeatureMutation,
+  useUpdateFeatureStatusMutation,
 } = featuresApi;

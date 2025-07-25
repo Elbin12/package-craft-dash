@@ -36,12 +36,15 @@ const PriceSetupForm = ({
   const packages = data.packages || [];
   const questions = data.questions || [];
 
+  console.log(packages, questions, priceRules);
+  
+
   useEffect(() => {
     const rules = [];
     
     questions.forEach((question) => {
       packages.forEach((pkg) => {
-        if (question.type === 'yes_no') {
+        if (question.question_type === 'yes_no') {
           ['yes', 'no'].forEach((answer) => {
             const existingRule = priceRules.find(
               r => r.questionId === question.id && 
@@ -57,7 +60,7 @@ const PriceSetupForm = ({
               value: 0,
             });
           });
-        } else if (question.type === 'options' && question.options) {
+        } else if (question.question_type === 'options' && question.options) {
           question.options.forEach((option) => {
             const existingRule = priceRules.find(
               r => r.questionId === question.id && 
@@ -207,7 +210,7 @@ const PriceSetupForm = ({
               mb: 2
             }}
           >
-            {question.text}
+            {question.question_text}
           </Typography>
           
           <TableContainer component={Paper} variant="outlined">
@@ -227,7 +230,7 @@ const PriceSetupForm = ({
                 </TableRow>
               </TableHead>
               <TableBody>
-                {question.type === 'yes_no' ? (
+                {question.question_type === 'yes_no' ? (
                   ['yes', 'no'].map((answer) => (
                     <TableRow key={answer}>
                       <TableCell>
@@ -279,12 +282,12 @@ const PriceSetupForm = ({
                       })}
                     </TableRow>
                   ))
-                ) : question.type === 'options' && question.options ? (
+                ) : question.question_type === 'options' && question.options ? (
                   question.options.map((option) => (
                     <TableRow key={option.id}>
                       <TableCell>
                         <Typography fontWeight="medium">
-                          {option.text}
+                          {option.question_text}
                         </Typography>
                       </TableCell>
                       {packages.map((pkg) => {

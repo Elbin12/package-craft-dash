@@ -11,7 +11,7 @@ export const servicesApi = createApi({
       providesTags: ['Service'],
     }),
     getServiceById: builder.query({
-      query: (id) => `${id}/`,
+      query: (id) => ({ url: `${id}/` }),
       providesTags: (result, error, id) => [{ type: 'Service', id }],
     }),
     createService: builder.mutation({

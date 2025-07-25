@@ -4,11 +4,39 @@ import { Button } from "../../../ui/button";
 import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "../../../ui/dialog";
 import { Check, X, Plus, Trash2 } from 'lucide-react';
 import { useCreatePackageMutation } from '../../../../store/api/packagesApi';
-import { useCreateFeatureMutation } from '../../../../store/api/featuresApi';
+import { useCreateFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
+
+// Custom Modal Component
+const CustomModal = ({ isOpen, onClose, title, children }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div 
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{ zIndex: 9999 }}
+      onClick={onClose}
+    >
+      <div 
+        className="bg-white rounded-lg shadow-lg max-w-md w-full p-6"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-lg font-semibold">{title}</h2>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+};
 
 const PackageManagementForm = ({
   data,
@@ -22,6 +50,7 @@ const PackageManagementForm = ({
     setPackages(data.packages || []);
     setFeatures(data.features || []);
   }, [data.packages, data.features]);
+  
   const [packageDialogOpen, setPackageDialogOpen] = useState(false);
   const [newPackage, setNewPackage] = useState({ name: '', base_price: '' });
   const [newFeature, setNewFeature] = useState('');
@@ -30,7 +59,7 @@ const PackageManagementForm = ({
 
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
-  const [createPackageFeature] = useCreatePackageFeatureMutation();
+  const [updateFeatureStatus] = useUpdateFeatureStatusMutation();
 
   const validatePackage = () => {
     const newErrors = {};
@@ -111,7 +140,6 @@ const PackageManagementForm = ({
     }
   };
 
-
   const handleDeletePackage = (id) => {
     const updatedPackages = packages.filter(pkg => pkg.id !== id);
     setPackages(updatedPackages);
@@ -126,40 +154,37 @@ const PackageManagementForm = ({
 
   const handleFeatureToggle = async (packageId, featureId, isIncluded) => {
     try {
-      const payload = {
-        package: packageId,
-        feature: featureId,
-        is_included: isIncluded,
-      };
-      
-      await createPackageFeature(payload).unwrap();
+      console.log('isIncluded:', isIncluded, 'typeof:', typeof isIncluded);
+
+      const updatedFeature = await updateFeatureStatus({id:featureId, is_included:isIncluded}).unwrap();
       
       // Update local state
-      const updatedPackages = packages.map(pkg => {
-        if (pkg.id === packageId) {
-          const updatedFeatures = pkg.features || [];
-          if (isIncluded) {
-            if (!updatedFeatures.find(f => f.id === featureId)) {
-              const feature = features.find(f => f.id === featureId);
-              updatedFeatures.push(feature);
-            }
-          } else {
-            const index = updatedFeatures.findIndex(f => f.id === featureId);
-            if (index > -1) {
-              updatedFeatures.splice(index, 1);
-            }
+      const updatedPackages = packages.map((pkg) => {
+      if (pkg.id === packageId) {
+        let pkgFeatures = pkg.features || [];
+
+        if (isIncluded) {
+          // Add if not already included
+          if (!pkgFeatures.find((f) => f.id === featureId)) {
+            pkgFeatures = [...pkgFeatures, updatedFeature];
           }
-          return { ...pkg, features: updatedFeatures };
+        } else {
+          // Remove if exists
+          pkgFeatures = pkgFeatures.filter((f) => f.id !== featureId);
         }
-        return pkg;
-      });
-      
-      setPackages(updatedPackages);
-      onUpdate({ packages: updatedPackages });
-    } catch (error) {
-      console.error('Failed to update package feature:', error);
-    }
-  };
+
+        return { ...pkg, features: pkgFeatures };
+      }
+      return pkg;
+    });
+
+    setPackages(updatedPackages);
+    onUpdate({ packages: updatedPackages, features: updatedFeatures });
+  } catch (error) {
+    console.error("Failed to update package feature:", error);
+  }
+};
+
 
   const isFeatureIncluded = (packageId, featureId) => {
     const pkg = packages.find(p => p.id === packageId);
@@ -182,55 +207,13 @@ const PackageManagementForm = ({
       )}
 
       <div className="flex gap-2">
-        <Dialog open={packageDialogOpen} onOpenChange={setPackageDialogOpen}>
-          <DialogTrigger asChild>
-            <Button disabled={!data.id}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Package
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Package</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="package-name">Package Name</Label>
-                <Input
-                  id="package-name"
-                  value={newPackage.name}
-                  onChange={(e) => {
-                    setNewPackage({ ...newPackage, name: e.target.value });
-                    if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
-                  }}
-                  placeholder="e.g., Basic, Premium"
-                />
-                {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
-              </div>
-              <div>
-                <Label htmlFor="base-price">Base Price ($)</Label>
-                <Input
-                  id="base-price"
-                  type="number"
-                  value={newPackage.base_price}
-                  onChange={(e) => {
-                    setNewPackage({ ...newPackage, base_price: e.target.value });
-                    if (errors.base_price) setErrors(prev => ({ ...prev, base_price: '' }));
-                  }}
-                  placeholder="50"
-                />
-                {errors.base_price && <p className="text-sm text-destructive">{errors.base_price}</p>}
-              </div>
-              <Button 
-                onClick={handleAddPackage} 
-                disabled={!newPackage.name || !newPackage.base_price || isLoading}
-                className="w-full"
-              >
-                {isLoading ? 'Adding...' : 'Add Package'}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <Button 
+          disabled={!data.id}
+          onClick={() => setPackageDialogOpen(true)}
+        >
+          <Plus className="h-4 w-4 mr-2" />
+          Add Package
+        </Button>
       </div>
 
       {!data.id && (
@@ -371,6 +354,50 @@ const PackageManagementForm = ({
           </CardContent>
         </Card>
       )}
+
+      {/* Custom Modal */}
+      <CustomModal
+        isOpen={packageDialogOpen}
+        onClose={() => setPackageDialogOpen(false)}
+        title="Add New Package"
+      >
+        <div className="space-y-4">
+          <div>
+            <Label htmlFor="package-name">Package Name</Label>
+            <Input
+              id="package-name"
+              value={newPackage.name}
+              onChange={(e) => {
+                setNewPackage({ ...newPackage, name: e.target.value });
+                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+              }}
+              placeholder="e.g., Basic, Premium"
+            />
+            {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
+          </div>
+          <div>
+            <Label htmlFor="base-price">Base Price ($)</Label>
+            <Input
+              id="base-price"
+              type="number"
+              value={newPackage.base_price}
+              onChange={(e) => {
+                setNewPackage({ ...newPackage, base_price: e.target.value });
+                if (errors.base_price) setErrors(prev => ({ ...prev, base_price: '' }));
+              }}
+              placeholder="50"
+            />
+            {errors.base_price && <p className="text-sm text-destructive">{errors.base_price}</p>}
+          </div>
+          <Button 
+            onClick={handleAddPackage} 
+            disabled={!newPackage.name || !newPackage.base_price || isLoading}
+            className="w-full"
+          >
+            {isLoading ? 'Adding...' : 'Add Package'}
+          </Button>
+        </div>
+      </CustomModal>
     </div>
   );
 };

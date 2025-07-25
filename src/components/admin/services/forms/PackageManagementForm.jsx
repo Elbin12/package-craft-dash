@@ -182,15 +182,13 @@ const PackageManagementForm = ({
       )}
 
       <div className="flex gap-2">
-        <Button 
-          disabled={!data.id}
-          onClick={() => setPackageDialogOpen(true)}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Package
-        </Button>
-        
         <Dialog open={packageDialogOpen} onOpenChange={setPackageDialogOpen}>
+          <DialogTrigger asChild>
+            <Button disabled={!data.id}>
+              <Plus className="h-4 w-4 mr-2" />
+              Add Package
+            </Button>
+          </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add New Package</DialogTitle>

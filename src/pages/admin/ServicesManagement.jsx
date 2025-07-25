@@ -84,9 +84,18 @@ const ServicesManagement = () => {
     }
   };
 
-  const handleEditService = (service) => {
-    dispatch(setEditingService(service));
-    dispatch(setWizardOpen(true));
+  const handleEditService = async (service) => {
+    try {
+      // Fetch full service details with packages, features, and questions
+      const fullServiceData = await servicesApi.endpoints.getServiceById.initiate(service.id).unwrap();
+      dispatch(setEditingService(fullServiceData));
+      dispatch(setWizardOpen(true));
+    } catch (error) {
+      console.error('Failed to fetch service details:', error);
+      // Fallback to basic service data
+      dispatch(setEditingService(service));
+      dispatch(setWizardOpen(true));
+    }
   };
 
   const handleDeleteConfirm = (service) => {

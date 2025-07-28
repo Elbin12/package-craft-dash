@@ -18,6 +18,7 @@ import ServicesManagement from './pages/admin/ServicesManagement.jsx';
 import LocationsManagement from './pages/admin/LocationsManagement.jsx';
 import { BookingWizard } from './components/user/BookingWizard.jsx';
 import UserLogin from './pages/admin/userLogin.jsx';
+import AdminProtectedRoute from './pages/AdminProtectedRoute.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -71,11 +72,13 @@ function App() {
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<UserLogin />} />
-              <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
-              <Route path="/admin/services" element={<AdminLayout><ServicesManagement /></AdminLayout>} />
-              <Route path="/admin/locations" element={<AdminLayout><LocationsManagement /></AdminLayout>} />
-              <Route path="/admin/questions" element={<AdminLayout><div>Questions Coming Soon</div></AdminLayout>} />
-              <Route path="/admin/settings" element={<AdminLayout><div>Settings Coming Soon</div></AdminLayout>} />
+              <Route path="/admin" element={<AdminProtectedRoute>
+                <AdminLayout><AdminDashboard /></AdminLayout>
+              </AdminProtectedRoute>} />
+              <Route path="/admin/services" element={<AdminProtectedRoute><AdminLayout><ServicesManagement /></AdminLayout></AdminProtectedRoute>} />
+              <Route path="/admin/locations" element={<AdminProtectedRoute><AdminLayout><LocationsManagement /></AdminLayout></AdminProtectedRoute>} />
+              <Route path="/admin/questions" element={<AdminProtectedRoute><AdminLayout><div>Questions Coming Soon</div></AdminLayout></AdminProtectedRoute>} />
+              <Route path="/admin/settings" element={<AdminProtectedRoute><AdminLayout><div>Settings Coming Soon</div></AdminLayout></AdminProtectedRoute>} />
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />

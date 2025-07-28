@@ -76,21 +76,7 @@ const ServicesManagement = () => {
   // const error = null;
 
   const handleCreateService = async (serviceData) => {
-    try {
-      console.log('Handle create/update service:', serviceData);
-      if (editingService) {
-        await updateService({ id: editingService.id, ...serviceData }).unwrap();
-      } else {
-        const result = await createService(serviceData).unwrap();
-
-        servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
-          draft.push(result);
-        });
-      }
       handleCloseWizard();
-    } catch (error) {
-      console.error('Failed to save service:', error);
-    }
   };
 
 const handleEditService = async (service) => {

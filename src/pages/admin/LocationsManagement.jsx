@@ -66,8 +66,8 @@ const LocationsManagement = () => {
       dispatch(setFormData({
         name: location.name,
         address: location.address,
-        lat: location.lat.toString(),
-        lng: location.lng.toString(),
+        latitude: location.lat.toString(),
+        longitude: location.lng.toString(),
         tripSurcharge: location.tripSurcharge.toString(),
       }));
     } else {
@@ -88,8 +88,8 @@ const LocationsManagement = () => {
       console.log('Handle save location:', formData);
       const locationData = {
         ...formData,
-        lat: parseFloat(formData.lat),
-        lng: parseFloat(formData.lng),
+        latitude: parseFloat(formData.lat),
+        longitude: parseFloat(formData.lng),
         tripSurcharge: parseFloat(formData.tripSurcharge),
       };
 

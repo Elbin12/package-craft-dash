@@ -75,14 +75,15 @@ axiosInstance.interceptors.response.use(
         const newAccessToken = response.data.access;
         localStorage.setItem('access', newAccessToken);
 
-        const newRefreshToken = response.data.refresh;
-        localStorage.setItem('refresh', newRefreshToken);
+        // const newRefreshToken = response.data.refresh;
+        // localStorage.setItem('refresh', newRefreshToken);
 
         // Update the original request with new token and retry
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
         return axiosInstance(originalRequest);
       } catch (refreshError) {
         console.error('Refresh token failed:', refreshError);
+        localStorage.removeItem('access');
         // store.dispatch(logout());
         // window.location.href = '/login';
         return Promise.reject(refreshError);

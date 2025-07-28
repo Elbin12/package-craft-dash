@@ -37,6 +37,13 @@ export const questionsApi = createApi({
       }),
       invalidatesTags: ['Question'],
     }),
+    createQuestionPricing: builder.mutation({
+      query: (payload) => ({
+        url: 'bulk-pricing/', 
+        method: 'POST',
+        data: payload,
+      }),
+    }),
   }),
 });
 
@@ -46,4 +53,5 @@ export const {
   useCreateQuestionMutation,
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
+  useCreateQuestionPricingMutation
 } = questionsApi;

@@ -6,8 +6,10 @@ import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
 import { Check, X, Plus, Trash2 } from 'lucide-react';
 import { useCreatePackageMutation, useDeletePackageMutation } from '../../../../store/api/packagesApi';
-import { useCreateFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
-import { useCreatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
+import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
+import { useCreatePackageFeatureMutation, useUpdatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
+import { servicesApi, useGetServiceByIdQuery } from '../../../../store/api/servicesApi';
+import { useDispatch } from 'react-redux';
 
 // Custom Modal Component
 const CustomModal = ({ isOpen, onClose, title, children }) => {
@@ -60,10 +62,16 @@ const PackageManagementForm = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
+  const [featureToDelete, setFeatureToDelete] = useState(null);
+  const [featureDeleteConfirmOpen, setFeatureDeleteConfirmOpen] = useState(false);
+
+
+  const dispatch = useDispatch();
 
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
-  const [updateFeatureStatus] = useUpdateFeatureStatusMutation();
+  const [deleteFeature] = useDeleteFeatureMutation();
+  const [updateFeatureStatus] = useUpdatePackageFeatureMutation();
   const [deletePackage] = useDeletePackageMutation();
 
   const validatePackage = () => {
@@ -95,6 +103,9 @@ const PackageManagementForm = ({
       };
       
       const result = await createFeature(featurePayload).unwrap();
+
+      const new_data = await dispatch(servicesApi.endpoints.getServiceById.initiate(data.id, { forceRefetch: true })).unwrap();
+      onUpdate(new_data);
       
       const updatedFeatures = [...features, result];
       setFeatures(updatedFeatures);
@@ -124,12 +135,8 @@ const PackageManagementForm = ({
       
       const result = await createPackage(packagePayload).unwrap();
       
-      const packageToAdd = {
-        ...result,
-        features: [],
-      };
       
-      const updatedPackages = [...packages, packageToAdd];
+      const updatedPackages = [...packages, result];
       setPackages(updatedPackages);
       onUpdate({ packages: updatedPackages });
       setPackageDialogOpen(false);
@@ -163,41 +170,52 @@ const PackageManagementForm = ({
     }
   };
 
+  const confirmFeatureDelete = (feature) => {
+    setFeatureToDelete(feature);
+    setFeatureDeleteConfirmOpen(true);
+  };
 
-  const handleDeleteFeature = (id) => {
-    const updatedFeatures = features.filter(feat => feat.id !== id);
-    setFeatures(updatedFeatures);
-    onUpdate({ features: updatedFeatures });
+  const handleConfirmDeleteFeature = async () => {
+    try {
+      await deleteFeature(featureToDelete.id).unwrap();
+      const updatedFeatures = features.filter(feat => feat.id !== featureToDelete.id);
+      setFeatures(updatedFeatures);
+      onUpdate({ features: updatedFeatures });
+      setFeatureDeleteConfirmOpen(false);
+      setFeatureToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete feature:", error);
+      setErrors({
+        general: error?.data?.message || error?.data?.detail || 'Failed to delete feature. Please try again.'
+      });
+    }
   };
 
   const handleFeatureToggle = async (packageId, featureId, isIncluded) => {
     try {
-      console.log('isIncluded:', isIncluded, 'typeof:', typeof isIncluded);
+      const pkg = packages.find(p => p.id === packageId);
+      const id = pkg?.features?.find(f => f.feature === featureId)?.id
 
-      const updatedFeature = await updateFeatureStatus({id:featureId, is_included:isIncluded}).unwrap();
+      console.log('isIncluded:', isIncluded, 'typeof:', typeof isIncluded, id, pkg.features);
+      const updatedFeature = await updateFeatureStatus({id:id, is_included:isIncluded, feature:featureId, package:packageId}).unwrap();
       
       // Update local state
-      const updatedPackages = packages.map((pkg) => {
-      if (pkg.id === packageId) {
-        let pkgFeatures = pkg.features || [];
+      const updatedPackages = packages.map(pkg => {
+        if (pkg.id === packageId) {
+          const updatedFeatures = pkg.features.map(f => {
+            if (f.feature === featureId) {
+              return { ...f, is_included: isIncluded };
+            }
+            return f;
+          });
 
-        if (isIncluded) {
-          // Add if not already included
-          if (!pkgFeatures.find((f) => f.id === featureId)) {
-            pkgFeatures = [...pkgFeatures, updatedFeature];
-          }
-        } else {
-          // Remove if exists
-          pkgFeatures = pkgFeatures.filter((f) => f.id !== featureId);
+          return { ...pkg, features: updatedFeatures };
         }
-
-        return { ...pkg, features: pkgFeatures };
-      }
-      return pkg;
-    });
+        return pkg;
+      });
 
     setPackages(updatedPackages);
-    onUpdate({ packages: updatedPackages, features: updatedFeatures });
+    // onUpdate({ packages: updatedPackages, features: updatedFeatures });
   } catch (error) {
     console.error("Failed to update package feature:", error);
   }
@@ -206,7 +224,7 @@ const PackageManagementForm = ({
 
   const isFeatureIncluded = (packageId, featureId) => {
     const pkg = packages.find(p => p.id === packageId);
-    return pkg?.features?.some(f => f.id === featureId) || false;
+    return pkg?.features?.find(f => f.feature === featureId)?.is_included
   };
 
   return (
@@ -260,7 +278,7 @@ const PackageManagementForm = ({
                           <div className="text-xs text-muted-foreground">Package {index + 1}</div>
                           <div className="font-semibold">{pkg.name}</div>
                           <div className="text-sm text-muted-foreground">
-                            Target Hourly ${pkg.base_price}
+                            Base Price ${pkg.base_price}
                           </div>
                           <Button
                             variant="ghost"
@@ -289,7 +307,7 @@ const PackageManagementForm = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteFeature(feature.id)}
+                          onClick={() => confirmFeatureDelete(feature)}
                           className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
                         >
                           <Trash2 className="h-3 w-3" />
@@ -399,6 +417,32 @@ const PackageManagementForm = ({
           </div>
         </div>
       </CustomModal>
+
+      {/* Delete feature modal */}
+      <CustomModal
+        isOpen={featureDeleteConfirmOpen}
+        onClose={() => setFeatureDeleteConfirmOpen(false)}
+        title="Delete Feature"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-700">
+            Are you sure you want to delete feature{' '}
+            <span className='text-[#4E4FBB] font-medium'>{featureToDelete?.name}</span>? This action cannot be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button variant="ghost" onClick={() => setFeatureDeleteConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleConfirmDeleteFeature}
+            >
+              Delete
+            </Button>
+          </div>
+        </div>
+      </CustomModal>
+
 
 
       {/* Custom Modal */}

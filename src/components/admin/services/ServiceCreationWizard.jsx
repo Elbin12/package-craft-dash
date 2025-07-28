@@ -21,12 +21,15 @@ import PackageManagementForm from './forms/PackageManagementForm';
 import QuestionBuilderForm from './forms/QuestionBuilderForm';
 import PriceSetupForm from './forms/PriceSetupForm';
 import { 
+  servicesApi,
   useCreateServiceMutation, 
   useUpdateServiceMutation 
 } from '../../../store/api/servicesApi';
 import { useCreatePackageMutation } from '../../../store/api/packagesApi';
 import { useCreateFeatureMutation } from '../../../store/api/featuresApi';
 import { useCreateQuestionMutation } from '../../../store/api/questionsApi';
+import { useDispatch } from 'react-redux';
+import { setEditingService } from '../../../store/slices/servicesSlice';
 
 const steps = [
   'Service Details',
@@ -63,6 +66,9 @@ export const ServiceCreationWizard = ({
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [createQuestion] = useCreateQuestionMutation();
+
+  const dispatch = useDispatch();
+
   // Update service data when editData changes
   React.useEffect(() => {
     if (editData && open) {
@@ -114,7 +120,23 @@ export const ServiceCreationWizard = ({
         }
         break;
       case 2:
-        // Questions are optional
+
+      if(serviceData?.questions.length==0){
+        setStepErrors({ 2: 'At least one question is required' });
+        return false;
+      }
+        
+      if (serviceData.questions && serviceData.questions.length > 0) {
+        for (const question of serviceData.questions) {
+          if (
+            question.question_type === 'options' &&
+            (!question.options || question.options.length === 0)
+          ) {
+            setStepErrors({ 2: 'Each "option" type question must have at least one option.' });
+            return false;
+          }
+        }
+      }
         break;
       case 3:
         // Pricing validation can be added here
@@ -131,7 +153,6 @@ export const ServiceCreationWizard = ({
 
     setIsLoading(true);
     setStepErrors({});
-
     try {
       switch (activeStep) {
         case 0:
@@ -144,8 +165,17 @@ export const ServiceCreationWizard = ({
             let result;
             if (editData) {
               result = await updateService({ id: editData.id, ...servicePayload }).unwrap();
+              dispatch(
+                servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
+                  const index = draft.findIndex((item) => item.id === serviceData.id);
+                  if (index !== -1) {
+                    draft[index] = result;
+                  }
+                })
+              );
             } else {
               result = await createService(servicePayload).unwrap();
+              dispatch(setEditingService(result))
             }
             
             setServiceData((prev) => ({ ...prev, id: result.id }));
@@ -239,6 +269,7 @@ export const ServiceCreationWizard = ({
           <ServiceDetailsForm
             data={serviceData}
             onUpdate={updateServiceData}
+            setSavedSteps={setSavedSteps}
           />
         );
       case 1:
@@ -322,7 +353,7 @@ export const ServiceCreationWizard = ({
                 disabled={isLoading}
                 startIcon={isLoading ? <CircularProgress size={20} /> : null}
               >
-                {activeStep === steps.length - 1 ? (editData ? 'Update Service' : 'Create Service') : 'Next'}
+                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
               </Button>
             </Box>
           </CardContent>

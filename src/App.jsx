@@ -77,8 +77,8 @@ function App() {
               </AdminProtectedRoute>} />
               <Route path="/admin/services" element={<AdminProtectedRoute><AdminLayout><ServicesManagement /></AdminLayout></AdminProtectedRoute>} />
               <Route path="/admin/locations" element={<AdminProtectedRoute><AdminLayout><LocationsManagement /></AdminLayout></AdminProtectedRoute>} />
-              <Route path="/admin/questions" element={<AdminProtectedRoute><AdminLayout><div>Questions Coming Soon</div></AdminLayout></AdminProtectedRoute>} />
-              <Route path="/admin/settings" element={<AdminProtectedRoute><AdminLayout><div>Settings Coming Soon</div></AdminLayout></AdminProtectedRoute>} />
+              {/* <Route path="/admin/questions" element={<AdminProtectedRoute><AdminLayout><div>Questions Coming Soon</div></AdminLayout></AdminProtectedRoute>} />
+              <Route path="/admin/settings" element={<AdminProtectedRoute><AdminLayout><div>Settings Coming Soon</div></AdminLayout></AdminProtectedRoute>} /> */}
               
               {/* Catch-all route */}
               <Route path="*" element={<NotFound />} />

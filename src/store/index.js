@@ -11,6 +11,7 @@ import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
 import bookingSlice from './slices/bookingSlice';
 import authSlice from './slices/authSlice';
+import { createOptionPricingApi } from './api/optionPricing';
 
 export const store = configureStore({
   reducer: {
@@ -26,6 +27,7 @@ export const store = configureStore({
     [questionsApi.reducerPath]: questionsApi.reducer,
     [packageFeaturesApi.reducerPath]: packageFeaturesApi.reducer,
     [questionOptionsApi.reducerPath]: questionOptionsApi.reducer,
+    [createOptionPricingApi.reducerPath]: createOptionPricingApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -43,7 +45,8 @@ export const store = configureStore({
       .concat(featuresApi.middleware)
       .concat(questionsApi.middleware)
       .concat(packageFeaturesApi.middleware)
-      .concat(questionOptionsApi.middleware),
+      .concat(questionOptionsApi.middleware)
+      .concat(createOptionPricingApi.middleware),
 });
 
 export default store;

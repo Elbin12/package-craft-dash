@@ -16,76 +16,122 @@ import {
   Tooltip,
   IconButton,
   Popover,
+  Button,
 } from '@mui/material';
-import { Info, MoreVert } from '@mui/icons-material';
-import { Popover as PopoverUI, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { Info } from '@mui/icons-material';
+import { useCreateQuestionPricingMutation } from '../../../../store/api/questionsApi';
+import { useCreateOptionPricingMutation } from '../../../../store/api/optionPricing';
 
-// PriceRule structure: { questionId, packageId, optionId, answer, priceType, value }
-// PriceSetupFormProps: { data, onUpdate }
+const mapFromApiPricingType = (apiType) => {
+  switch (apiType) {
+    case 'upcharge_percent': return 'upcharge';
+    case 'discount_percent': return 'discount';
+    case 'fixed_price': return 'fixed';
+    case 'ignore':
+    default: return 'ignore';
+  }
+};
 
-const PriceSetupForm = ({
-  data,
-  onUpdate,
-}) => {
-  const [priceRules, setPriceRules] = useState(data.pricing?.rules || []);
-  const [popoverAnchor, setPopoverAnchor] = useState({ 
-    element: null, 
-    questionId: '', 
-    packageId: '' 
+
+const PriceSetupForm = ({ data }) => {
+  const [priceRules, setPriceRules] = useState(() => {
+    const allRules = [];
+
+    data.questions?.forEach((question) => {
+      question.pricing_rules?.forEach((rule) => {
+        if (question.question_type === 'yes_no') {
+          allRules.push({
+            questionId: question.id,
+            packageId: rule.package,
+            answer: 'yes',
+            priceType: mapFromApiPricingType(rule.yes_pricing_type),
+            value: parseFloat(rule.yes_value) || 0,
+          });
+        } else if (question.question_type === 'options' && question.options?.length) {
+          const matchedOption = question.options.find(opt => opt.id === rule.option);
+          if (matchedOption) {
+            allRules.push({
+              questionId: question.id,
+              packageId: rule.package,
+              optionId: matchedOption.id,
+              priceType: mapFromApiPricingType(rule.pricing_type),
+              value: parseFloat(rule.value) || 0,
+            });
+          }
+        }
+      });
+    });
+
+    return allRules;
   });
+
+
+  const [changedQuestions, setChangedQuestions] = useState({});
+  const [popoverAnchor, setPopoverAnchor] = useState({
+    element: null,
+    questionId: '',
+    packageId: '',
+    answer: undefined,
+    optionId: undefined,
+  });
+
   const packages = data.packages || [];
   const questions = data.questions || [];
 
-  console.log(packages, questions, priceRules);
-  
+  const [createQuestionPricing, { isLoading }] = useCreateQuestionPricingMutation();
+  const [createOptionPricing] = useCreateOptionPricingMutation();
+
 
   useEffect(() => {
     const rules = [];
-    
+
     questions.forEach((question) => {
       packages.forEach((pkg) => {
         if (question.question_type === 'yes_no') {
-          ['yes', 'no'].forEach((answer) => {
+          ['yes'].forEach((answer) => {
             const existingRule = priceRules.find(
-              r => r.questionId === question.id && 
-                   r.packageId === pkg.id && 
-                   r.answer === answer
+              (r) =>
+                r.questionId === question.id &&
+                r.packageId === pkg.id &&
+                r.answer === answer
             );
-            
-            rules.push(existingRule || {
-              questionId: question.id,
-              packageId: pkg.id,
-              answer: answer,
-              priceType: 'ignore',
-              value: 0,
-            });
+            rules.push(
+              existingRule || {
+                questionId: question.id,
+                packageId: pkg.id,
+                answer,
+                priceType: 'ignore',
+                value: 0,
+              }
+            );
           });
-        } else if (question.question_type === 'options' && question.options) {
+        } else if (
+          question.question_type === 'options' &&
+          question.options
+        ) {
           question.options.forEach((option) => {
             const existingRule = priceRules.find(
-              r => r.questionId === question.id && 
-                   r.packageId === pkg.id && 
-                   r.optionId === option.id
+              (r) =>
+                r.questionId === question.id &&
+                r.packageId === pkg.id &&
+                r.optionId === option.id
             );
-            
-            rules.push(existingRule || {
-              questionId: question.id,
-              packageId: pkg.id,
-              optionId: option.id,
-              priceType: 'ignore',
-              value: 0,
-            });
+            rules.push(
+              existingRule || {
+                questionId: question.id,
+                packageId: pkg.id,
+                optionId: option.id,
+                priceType: 'ignore',
+                value: 0,
+              }
+            );
           });
         }
       });
     });
-    
+
     setPriceRules(rules);
   }, [questions, packages]);
-
-  useEffect(() => {
-    onUpdate({ pricing: { rules: priceRules } });
-  }, [priceRules, onUpdate]);
 
   const updatePriceRule = (
     questionId,
@@ -95,42 +141,36 @@ const PriceSetupForm = ({
     answer,
     optionId
   ) => {
-    setPriceRules(prevRules =>
-      prevRules.map(rule => {
-        const matches = rule.questionId === questionId &&
-                       rule.packageId === packageId &&
-                       rule.answer === answer &&
-                       rule.optionId === optionId;
-        
+    setPriceRules((prevRules) =>
+      prevRules.map((rule) => {
+        const matches =
+          rule.questionId === questionId &&
+          rule.packageId === packageId &&
+          rule.answer === answer &&
+          rule.optionId === optionId;
+
         if (matches) {
           return { ...rule, [field]: value };
         }
         return rule;
       })
     );
+
+    setChangedQuestions((prev) => ({
+      ...prev,
+      [questionId]: true,
+    }));
   };
 
   const getPriceRule = (questionId, packageId, answer, optionId) => {
     return priceRules.find(
-      r => r.questionId === questionId && 
-           r.packageId === packageId &&
-           r.answer === answer &&
-           r.optionId === optionId
+      (r) =>
+        r.questionId === questionId &&
+        r.packageId === packageId &&
+        r.answer === answer &&
+        r.optionId === optionId
     );
   };
-
-  if (packages.length === 0 || questions.length === 0) {
-    return (
-      <Box>
-        <Typography variant="h6" gutterBottom>
-          Price Setup
-        </Typography>
-        <Typography color="text.secondary">
-          Please create at least one package and one question before setting up pricing.
-        </Typography>
-      </Box>
-    );
-  }
 
   const handlePopoverOpen = (
     event,
@@ -139,17 +179,23 @@ const PriceSetupForm = ({
     answer,
     optionId
   ) => {
-    setPopoverAnchor({ 
-      element: event.currentTarget, 
-      questionId, 
-      packageId, 
-      answer, 
-      optionId 
+    setPopoverAnchor({
+      element: event.currentTarget,
+      questionId,
+      packageId,
+      answer,
+      optionId,
     });
   };
 
   const handlePopoverClose = () => {
-    setPopoverAnchor({ element: null, questionId: '', packageId: '' });
+    setPopoverAnchor({
+      element: null,
+      questionId: '',
+      packageId: '',
+      answer: undefined,
+      optionId: undefined,
+    });
   };
 
   const handlePriceTypeSelect = (priceType) => {
@@ -182,98 +228,145 @@ const PriceSetupForm = ({
     }
   };
 
+  const mapToApiPricingType = (type) => {
+    switch (type) {
+      case 'upcharge': return 'upcharge_percent';
+      case 'discount': return 'discount_percent';
+      case 'fixed': return 'fixed_price';
+      case 'ignore':
+      case 'bid_in_person':
+      default:
+        return 'ignore';
+    }
+  };
+
+  const handleSave = async (questionId) => {
+    const question = questions.find(q => q.id === questionId);
+    const rulesToSave = priceRules.filter(r => r.questionId === questionId);
+
+    try {
+      if (question.question_type === 'yes_no') {
+        // Existing logic for yes/no
+        const pricing_rules = rulesToSave.map(rule => ({
+          package_id: rule.packageId,
+          pricing_type: mapToApiPricingType(rule.priceType),
+          value: rule.value?.toFixed(2) ?? '0.00',
+        }));
+
+        const payload = {
+          question_id: questionId,
+          pricing_rules,
+        };
+
+        await createQuestionPricing(payload).unwrap();
+      }
+
+      else if (question.question_type === 'options') {
+        // New logic for options
+        const options = question.options || [];
+
+        for (const opt of options) {
+          const optionRules = rulesToSave.filter(r => r.optionId === opt.id);
+
+          const pricing_rules = optionRules.map(rule => ({
+            package_id: rule.packageId,
+            pricing_type: mapToApiPricingType(rule.priceType),
+            value: rule.value?.toFixed(2) ?? '0.00',
+          }));
+
+          const payload = {
+            option_id: opt.id,
+            pricing_rules,
+          };
+
+          await createOptionPricing(payload).unwrap();
+        }
+      }
+
+      setChangedQuestions(prev => ({ ...prev, [questionId]: false }));
+      alert('Pricing saved successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save pricing. Please try again.');
+    }
+  };
+
+
   return (
     <Box>
-      <Typography 
-        variant="h6" 
-        gutterBottom 
-        sx={{ 
-          fontWeight: 'bold',
-          bgcolor: 'primary.main',
-          color: 'white',
-          p: 2,
-          borderRadius: 1,
-          mb: 3
-        }}
-      >
+      <Typography variant="h6" gutterBottom>
         Price Setup
       </Typography>
-      
+
       {questions.map((question) => (
         <Box key={question.id} mb={4}>
-          <Typography 
-            variant="h6" 
-            gutterBottom 
-            sx={{ 
-              fontWeight: 'bold',
-              color: 'primary.main',
-              mb: 2
-            }}
-          >
+          <Typography variant="subtitle1" fontWeight="bold" mb={2}>
             {question.question_text}
           </Typography>
-          
-          <TableContainer component={Paper} variant="outlined">
+
+          <TableContainer component={Paper}>
             <Table>
               <TableHead>
                 <TableRow>
-                  <TableCell sx={{ bgcolor: 'grey.50', fontWeight: 'bold', minWidth: 200 }}>
-                    Options
-                  </TableCell>
+                  <TableCell>Options</TableCell>
                   {packages.map((pkg) => (
-                    <TableCell key={pkg.id} align="center" sx={{ bgcolor: 'grey.50', minWidth: 200 }}>
-                      <Typography variant="subtitle1" fontWeight="bold" color="primary">
-                        {pkg.name}
-                      </Typography>
+                    <TableCell key={pkg.id} align="center">
+                      {pkg.name}
                     </TableCell>
                   ))}
                 </TableRow>
               </TableHead>
               <TableBody>
                 {question.question_type === 'yes_no' ? (
-                  ['yes', 'no'].map((answer) => (
+                  ['yes'].map((answer) => (
                     <TableRow key={answer}>
-                      <TableCell>
-                        <Typography fontWeight="medium">
-                          If {answer}
-                        </Typography>
-                      </TableCell>
+                      <TableCell>If {answer}</TableCell>
                       {packages.map((pkg) => {
-                        const rule = getPriceRule(question.id, pkg.id, answer);
-                        
+                        const rule = getPriceRule(
+                          question.id,
+                          pkg.id,
+                          answer,
+                          undefined
+                        );
                         return (
                           <TableCell key={pkg.id} align="center">
-                            <Box display="flex" alignItems="center" gap={1} justifyContent="center">
-                              <Typography variant="body2">$</Typography>
+                            <Box display="flex" alignItems="center" gap={1}>
                               <TextField
                                 size="small"
                                 type="number"
                                 value={rule?.value || 0}
-                                onChange={(e) => updatePriceRule(
-                                  question.id, 
-                                  pkg.id, 
-                                  'value', 
-                                  Number(e.target.value),
-                                   answer
-                                )}
+                                onChange={(e) =>
+                                  updatePriceRule(
+                                    question.id,
+                                    pkg.id,
+                                    'value',
+                                    Number(e.target.value),
+                                    answer
+                                  )
+                                }
                                 sx={{ width: 80 }}
                               />
                               <IconButton
                                 size="small"
-                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, answer)}
-                                sx={{ 
-                                  bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                onClick={(e) =>
+                                  handlePopoverOpen(
+                                    e,
+                                    question.id,
+                                    pkg.id,
+                                    answer
+                                  )
+                                }
+                                sx={{
+                                  bgcolor: getPriceTypeColor(
+                                    rule?.priceType || 'ignore'
+                                  ),
                                   color: 'white',
                                   width: 24,
                                   height: 24,
-                                  '&:hover': {
-                                    bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
-                                    opacity: 0.8
-                                  }
                                 }}
                               >
-                                <Typography variant="caption" fontWeight="bold">
-                                  {getPriceTypeIcon(rule?.priceType || 'ignore')}
+                                <Typography fontSize="small">
+                                  {getPriceTypeIcon(rule?.priceType)}
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -282,51 +375,59 @@ const PriceSetupForm = ({
                       })}
                     </TableRow>
                   ))
-                ) : question.question_type === 'options' && question.options ? (
+                ) : question.question_type === 'options' &&
+                  question.options ? (
                   question.options.map((option) => (
                     <TableRow key={option.id}>
-                      <TableCell>
-                        <Typography fontWeight="medium">
-                          {option.question_text}
-                        </Typography>
-                      </TableCell>
+                      <TableCell>{option.option_text}</TableCell>
                       {packages.map((pkg) => {
-                        const rule = getPriceRule(question.id, pkg.id, undefined, option.id);
-                        
+                        const rule = getPriceRule(
+                          question.id,
+                          pkg.id,
+                          undefined,
+                          option.id
+                        );
                         return (
                           <TableCell key={pkg.id} align="center">
-                            <Box display="flex" alignItems="center" gap={1} justifyContent="center">
-                              <Typography variant="body2">$</Typography>
+                            <Box display="flex" alignItems="center" gap={1}>
                               <TextField
                                 size="small"
                                 type="number"
                                 value={rule?.value || 0}
-                                onChange={(e) => updatePriceRule(
-                                  question.id, 
-                                  pkg.id, 
-                                  'value', 
-                                  Number(e.target.value),
-                                  undefined,
-                                  option.id
-                                )}
+                                onChange={(e) =>
+                                  updatePriceRule(
+                                    question.id,
+                                    pkg.id,
+                                    'value',
+                                    Number(e.target.value),
+                                    undefined,
+                                    option.id
+                                  )
+                                }
                                 sx={{ width: 80 }}
                               />
                               <IconButton
                                 size="small"
-                                onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, undefined, option.id)}
-                                sx={{ 
-                                  bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
+                                onClick={(e) =>
+                                  handlePopoverOpen(
+                                    e,
+                                    question.id,
+                                    pkg.id,
+                                    undefined,
+                                    option.id
+                                  )
+                                }
+                                sx={{
+                                  bgcolor: getPriceTypeColor(
+                                    rule?.priceType || 'ignore'
+                                  ),
                                   color: 'white',
                                   width: 24,
                                   height: 24,
-                                  '&:hover': {
-                                    bgcolor: getPriceTypeColor(rule?.priceType || 'ignore'),
-                                    opacity: 0.8
-                                  }
                                 }}
                               >
-                                <Typography variant="caption" fontWeight="bold">
-                                  {getPriceTypeIcon(rule?.priceType || 'ignore')}
+                                <Typography fontSize="small">
+                                  {getPriceTypeIcon(rule?.priceType)}
                                 </Typography>
                               </IconButton>
                             </Box>
@@ -339,6 +440,17 @@ const PriceSetupForm = ({
               </TableBody>
             </Table>
           </TableContainer>
+
+          <Box display="flex" justifyContent="flex-end" mt={1}>
+            <Button
+              variant="contained"
+              color="primary"
+              disabled={!changedQuestions[question.id] || isLoading}
+              onClick={() => handleSave(question.id)}
+            >
+              {isLoading ? 'Saving...' : 'Save'}
+            </Button>
+          </Box>
         </Box>
       ))}
 
@@ -346,69 +458,41 @@ const PriceSetupForm = ({
         open={Boolean(popoverAnchor.element)}
         anchorEl={popoverAnchor.element}
         onClose={handlePopoverClose}
-        anchorOrigin={{
-          vertical: 'bottom',
-          horizontal: 'center',
-        }}
-        transformOrigin={{
-          vertical: 'top',
-          horizontal: 'center',
-        }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'center' }}
       >
         <Box p={2}>
           <Typography variant="subtitle2" gutterBottom>
             Select Price Type
           </Typography>
           <RadioGroup
-            value={getPriceRule(
-              popoverAnchor.questionId,
-              popoverAnchor.packageId,
-              popoverAnchor.answer,
-              popoverAnchor.optionId
-            )?.priceType || 'ignore'}
+            value={
+              getPriceRule(
+                popoverAnchor.questionId,
+                popoverAnchor.packageId,
+                popoverAnchor.answer,
+                popoverAnchor.optionId
+              )?.priceType || 'ignore'
+            }
             onChange={(e) => handlePriceTypeSelect(e.target.value)}
           >
-            <FormControlLabel
-              value="upcharge"
-              control={<Radio size="small" />}
-              label={
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Typography variant="body2">Upcharge</Typography>
-                  <Tooltip title="Add upcharge to base price">
-                    <Info fontSize="small" />
-                  </Tooltip>
-                </Box>
-              }
-            />
-            <FormControlLabel
-              value="discount"
-              control={<Radio size="small" />}
-              label={
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Typography variant="body2">Discount</Typography>
-                  <Tooltip title="Apply discount to base price">
-                    <Info fontSize="small" />
-                  </Tooltip>
-                </Box>
-              }
-            />
-            <FormControlLabel
-              value="ignore"
-              control={<Radio size="small" />}
-              label={<Typography variant="body2">Ignore</Typography>}
-            />
-            <FormControlLabel
-              value="bid_in_person"
-              control={<Radio size="small" />}
-              label={
-                <Box display="flex" alignItems="center" gap={0.5}>
-                  <Typography variant="body2">Bid In Person</Typography>
-                  <Tooltip title="Requires custom pricing">
-                    <Info fontSize="small" />
-                  </Tooltip>
-                </Box>
-              }
-            />
+            {['upcharge', 'discount', 'ignore', 'bid_in_person'].map((type) => (
+              <FormControlLabel
+                key={type}
+                value={type}
+                control={<Radio size="small" />}
+                label={
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Typography variant="body2">
+                      {type.replace(/_/g, ' ')}
+                    </Typography>
+                    <Tooltip title={`Type: ${type}`}>
+                      <Info fontSize="small" />
+                    </Tooltip>
+                  </Box>
+                }
+              />
+            ))}
           </RadioGroup>
         </Box>
       </Popover>

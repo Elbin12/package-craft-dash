@@ -10,10 +10,12 @@ import {
 const ServiceDetailsForm = ({
   data,
   onUpdate,
+  setSavedSteps
 }) => {
   const [errors, setErrors] = useState({});
 
   const handleChange = (field) => (event) => {
+    setSavedSteps((prev) => ({ ...prev, 0: false }));
     const value = event.target.value;
     onUpdate({ [field]: value });
     

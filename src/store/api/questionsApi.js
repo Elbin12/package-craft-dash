@@ -30,6 +30,14 @@ export const questionsApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Question', id }],
     }),
+    updateQuestionStatus: builder.mutation({
+      query: ({ id, ...questionData }) => ({
+        url: `${id}/`,
+        method: 'PATCH',
+        data: questionData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Feature', id }],
+    }),
     deleteQuestion: builder.mutation({
       query: (id) => ({
         url: `${id}/`,
@@ -53,5 +61,6 @@ export const {
   useCreateQuestionMutation,
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
-  useCreateQuestionPricingMutation
+  useCreateQuestionPricingMutation,
+  useUpdateQuestionStatusMutation
 } = questionsApi;

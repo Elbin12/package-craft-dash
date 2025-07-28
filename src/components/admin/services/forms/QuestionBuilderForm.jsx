@@ -31,7 +31,7 @@ import {
   Edit,
   Restore,
 } from '@mui/icons-material';
-import { useCreateQuestionMutation, useDeleteQuestionMutation, useUpdateQuestionMutation } from '../../../../store/api/questionsApi';
+import { useCreateQuestionMutation, useDeleteQuestionMutation, useUpdateQuestionMutation, useUpdateQuestionStatusMutation } from '../../../../store/api/questionsApi';
 import { useCreateQuestionOptionMutation, useDeleteQuestionOptionMutation, useUpdateQuestionOptionMutation } from '../../../../store/api/questionOptionsApi';
 
 const QuestionBuilderForm = ({
@@ -67,6 +67,7 @@ const QuestionBuilderForm = ({
   const [deleteQuestionOption] = useDeleteQuestionOptionMutation();
   const [updateQuestion] = useUpdateQuestionMutation();
   const [deleteQuestion] = useDeleteQuestionMutation();
+  const [updateQuestionStatus] = useUpdateQuestionStatusMutation();
 
   const validateQuestion = () => {
     const newErrors = {};
@@ -145,7 +146,7 @@ const QuestionBuilderForm = ({
 
   const handleToggleQuestionActive = async (id, currentStatus) => {
     try {
-      await deleteQuestion(id).unwrap();
+      await updateQuestionStatus({id, is_active:!currentStatus}).unwrap();
 
       const updatedQuestions = questions.map((q) =>
         q.id === id ? { ...q, is_active: !currentStatus } : q

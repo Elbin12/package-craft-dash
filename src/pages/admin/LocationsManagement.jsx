@@ -33,13 +33,15 @@ import {
   useGetLocationsQuery, 
   useCreateLocationMutation, 
   useUpdateLocationMutation, 
-  useDeleteLocationMutation 
+  useDeleteLocationMutation, 
+  locationsApi
 } from '../../store/api/locationsApi';
 import {
   setDialogOpen,
   setEditingLocation,
   setFormData,
   resetFormData,
+  setLocations,
 } from '../../store/slices/locationsSlice';
 
 const LocationsManagement = () => {
@@ -56,9 +58,10 @@ const LocationsManagement = () => {
   const [updateLocation] = useUpdateLocationMutation();
   const [deleteLocation] = useDeleteLocationMutation();
   
-  // const locations = [];
-  // const isLoading = false;
-  // const error = null;
+  const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false);
+  const [locationToDelete, setLocationToDelete] = React.useState(null);
+
+  const [formErrors, setFormErrors] = React.useState({});
 
   const handleOpenDialog = (location = null) => {
     if (location) {
@@ -66,9 +69,9 @@ const LocationsManagement = () => {
       dispatch(setFormData({
         name: location.name,
         address: location.address,
-        latitude: location.lat.toString(),
-        longitude: location.lng.toString(),
-        tripSurcharge: location.tripSurcharge.toString(),
+        latitude: location.latitude.toString(),
+        longitude: location.longitude.toString(),
+        trip_surcharge: location.trip_surcharge.toString(),
       }));
     } else {
       dispatch(setEditingLocation(null));
@@ -85,33 +88,52 @@ const LocationsManagement = () => {
 
   const handleSaveLocation = async () => {
     try {
-      console.log('Handle save location:', formData);
+      setFormErrors({}); // Clear previous errors
+
       const locationData = {
         ...formData,
-        latitude: parseFloat(formData.lat),
-        longitude: parseFloat(formData.lng),
-        tripSurcharge: parseFloat(formData.tripSurcharge),
+        latitude: parseFloat(formData.latitude),
+        longitude: parseFloat(formData.longitude),
+        trip_surcharge: parseFloat(formData.trip_surcharge),
       };
 
       if (editingLocation) {
-        await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
+        const updatedLocation = await updateLocation({ id: editingLocation.id, ...locationData }).unwrap();
+        dispatch(
+          locationsApi.util.updateQueryData('getLocations', undefined, (draft) => {
+            const index = draft.findIndex((loc) => loc.id === updatedLocation.id);
+            if (index !== -1) {
+              draft[index] = updatedLocation;
+            }
+          })
+        );
       } else {
         await createLocation(locationData).unwrap();
       }
+
       handleCloseDialog();
     } catch (error) {
-      console.error('Failed to save location:', error);
+      if (error?.status === 400 && error?.data) {
+        setFormErrors(error.data);
+      } else {
+        console.error('Failed to save location:', error);
+      }
     }
   };
 
-  const handleDeleteLocation = async (id) => {
+
+  const confirmDeleteLocation = async () => {
+    if (!locationToDelete) return;
+
     try {
-      console.log('Handle delete location:', id);
-      await deleteLocation(id).unwrap();
+      await deleteLocation(locationToDelete.id).unwrap();
+      setDeleteDialogOpen(false);
+      setLocationToDelete(null);
     } catch (error) {
       console.error('Failed to delete location:', error);
     }
   };
+
 
   const handleFormChange = (field, value) => {
     dispatch(setFormData({ [field]: value }));
@@ -188,12 +210,12 @@ const LocationsManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2">
-                        {typeof location.lat === 'number' ? location.lat.toFixed(4) : location.lat}, {typeof location.lng === 'number' ? location.lng.toFixed(4) : location.lng}
+                        {typeof location?.latitude === 'number' ? location?.latitude.toFixed(4) : location?.latitude}, {typeof location?.longitude === 'number' ? location?.longitude.toFixed(4) : location?.longitude}
                       </Typography>
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`$${typeof location.tripSurcharge === 'number' ? location.tripSurcharge.toFixed(2) : location.tripSurcharge}`} 
+                        label={`$${typeof location?.trip_surcharge === 'number' ? location?.trip_surcharge.toFixed(2) : location?.trip_surcharge}`} 
                         size="small" 
                         color="primary"
                         variant="outlined"
@@ -201,12 +223,12 @@ const LocationsManagement = () => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={location.status || 'active'} 
+                        label={location?.status || 'active'} 
                         size="small"
-                        color={location.status === 'active' ? 'success' : 'default'}
+                        color={location?.status === 'active' ? 'success' : 'default'}
                       />
                     </TableCell>
-                    <TableCell>{location.createdAt}</TableCell>
+                    <TableCell>{new Date(location?.created_at).toLocaleDateString()}</TableCell>
                     <TableCell align="right">
                       <IconButton 
                         size="small" 
@@ -218,7 +240,10 @@ const LocationsManagement = () => {
                       <IconButton 
                         size="small" 
                         color="error"
-                        onClick={() => handleDeleteLocation(location.id)}
+                        onClick={() => {
+                          setLocationToDelete(location);
+                          setDeleteDialogOpen(true);
+                        }}
                       >
                         <Delete />
                       </IconButton>
@@ -230,6 +255,30 @@ const LocationsManagement = () => {
           </TableContainer>
         </CardContent>
       </Card>
+
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete{' '}
+            <strong>{locationToDelete?.name}</strong>?
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={confirmDeleteLocation}
+            color="error"
+            variant="contained"
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
 
       {/* Add/Edit Location Dialog */}
       <Dialog
@@ -248,6 +297,8 @@ const LocationsManagement = () => {
               label="Location Name"
               value={formData.name}
               onChange={(e) => handleFormChange('name', e.target.value)}
+              error={Boolean(formErrors.name)}
+              helperText={formErrors.name?.[0]}
             />
             <TextField
               fullWidth
@@ -256,32 +307,40 @@ const LocationsManagement = () => {
               onChange={(e) => handleFormChange('address', e.target.value)}
               multiline
               rows={2}
+              error={Boolean(formErrors.address)}
+              helperText={formErrors.address?.[0]}
             />
             <Box sx={{ display: 'flex', gap: 2 }}>
               <TextField
                 fullWidth
                 label="Latitude"
                 type="number"
-                value={formData.lat}
-                onChange={(e) => handleFormChange('lat', e.target.value)}
+                value={formData.latitude}
+                onChange={(e) => handleFormChange('latitude', e.target.value)}
                 inputProps={{ step: 'any' }}
+                error={Boolean(formErrors.latitude)}
+                helperText={formErrors.latitude?.[0]}
               />
               <TextField
                 fullWidth
                 label="Longitude"
                 type="number"
-                value={formData.lng}
-                onChange={(e) => handleFormChange('lng', e.target.value)}
+                value={formData.longitude}
+                onChange={(e) => handleFormChange('longitude', e.target.value)}
                 inputProps={{ step: 'any' }}
+                error={Boolean(formErrors.longitude)}
+                helperText={formErrors.longitude?.[0]}
               />
             </Box>
             <TextField
               fullWidth
               label="Trip Surcharge ($)"
               type="number"
-              value={formData.tripSurcharge}
-              onChange={(e) => handleFormChange('tripSurcharge', e.target.value)}
+              value={formData.trip_surcharge}
+              onChange={(e) => handleFormChange('trip_surcharge', e.target.value)}
               inputProps={{ step: '0.01', min: 0 }}
+              error={Boolean(formErrors.trip_surcharge)}
+              helperText={formErrors.trip_surcharge?.[0]}
             />
           </Box>
         </DialogContent>

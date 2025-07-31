@@ -21,6 +21,9 @@ import {
 import { Info } from '@mui/icons-material';
 import { useCreateQuestionPricingMutation } from '../../../../store/api/questionsApi';
 import { useCreateOptionPricingMutation } from '../../../../store/api/optionPricing';
+import { servicesApi } from '../../../../store/api/servicesApi';
+import { setEditingService } from '../../../../store/slices/servicesSlice';
+import { useDispatch } from 'react-redux';
 
 const mapFromApiPricingType = (apiType) => {
   switch (apiType) {
@@ -36,7 +39,7 @@ const mapFromApiPricingType = (apiType) => {
   }
 };
 
-const PriceSetupForm = ({ data }) => {
+const PriceSetupForm = ({ data, onUpdate }) => {
   const [priceRules, setPriceRules] = useState(() => {
     const allRules = [];
 
@@ -83,6 +86,7 @@ const PriceSetupForm = ({ data }) => {
   const [createQuestionPricing, { isLoading }] = useCreateQuestionPricingMutation();
   const [createOptionPricing] = useCreateOptionPricingMutation();
 
+  const dispatch = useDispatch();
   useEffect(() => {
     const rules = [];
 
@@ -297,6 +301,12 @@ const PriceSetupForm = ({ data }) => {
         }
       }
 
+      const fullServiceData = await dispatch(
+          servicesApi.endpoints.getServiceById.initiate(data.id, { forceRefetch: true })
+        ).unwrap();
+      // dispatch(setEditingService(fullServiceData));
+      onUpdate(fullServiceData)
+
       setChangedQuestions((prev) => ({ ...prev, [questionId]: false }));
       alert('Pricing saved successfully!');
     } catch (err) {
@@ -360,7 +370,7 @@ const PriceSetupForm = ({ data }) => {
                                     'value',
                                     Number(e.target.value),
                                     answer, // or undefined / option.id in options branch
-                                    option ? option.id : undefined
+                                    undefined
                                   );
                                 }}
                                 disabled={!isValueEditable(rule?.priceType)}
@@ -427,7 +437,7 @@ const PriceSetupForm = ({ data }) => {
                                     pkg.id,
                                     'value',
                                     Number(e.target.value),
-                                    answer, // or undefined / option.id in options branch
+                                    undefined,
                                     option ? option.id : undefined
                                   );
                                 }}

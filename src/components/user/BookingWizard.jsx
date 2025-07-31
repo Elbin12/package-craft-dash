@@ -16,6 +16,8 @@ import PackageSelectionForm from './forms/PackageSelectionForm';
 import QuestionsForm from './forms/QuestionsForm';
 import CheckoutSummary from './forms/CheckoutSummary';
 import { useCreateContactMutation, useUpdateContactMutation } from '../../store/api/user/contactsApi';
+import { useCreateQuoteMutation } from '../../store/api/user/quotesApi';
+import { useNavigate } from 'react-router-dom';
 
 const steps = [
   'Your Information',
@@ -61,7 +63,11 @@ export const BookingWizard = () => {
   const [createContact, { isLoading: creating }] = useCreateContactMutation();
   const [updateContact, { isLoading: updating }] = useUpdateContactMutation();
 
+  const [createQuote, { isLoading: creatingQuote }] = useCreateQuoteMutation();
+
   const isSavingContact = creating || updating;
+
+  const navigate = useNavigate();
 
   const handleNext = async () => {
     if (activeStep === 0) {
@@ -113,10 +119,51 @@ export const BookingWizard = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     console.log('Submitting booking:', bookingData);
     // Here you would submit to your API
-    alert('Booking submitted successfully!');
+    // guard
+    const contactId = bookingData.userInfo?.contactId;
+    const serviceId = bookingData.selectedService?.id;
+    const packageId = bookingData.selectedPackage?.id;
+    if (!contactId || !serviceId || !packageId) {
+      alert('Missing required booking info.');
+      return;
+    }
+    // build answers payload
+    const questions = bookingData.selectedService?.questions || [];
+    const answersPayload = questions.map((q) => {
+      const ans = bookingData.questionAnswers[q.id];
+      if (q.type === 'yes_no') {
+        return {
+          question_id: q.id,
+          yes_no_answer: ans === 'yes',
+        };
+      } else {
+        return {
+          question_id: q.id,
+          selected_option_id: ans,
+        };
+      }
+    });
+
+    const payload = {
+      contact_id: contactId,
+      service_id: serviceId,
+      package_id: packageId,
+      answers: answersPayload,
+    };
+
+    try {
+      const quoteResponse = await createQuote(payload).unwrap();
+      // redirect to summary/detail page, passing along the quote (or id)
+      if (quoteResponse?.id) {
+        navigate(`/quote/details/${quoteResponse.id}`);
+      }
+    } catch (err) {
+      console.error('Failed to create quote', err);
+      alert('Could not submit booking. Please try again.');
+    }
     handleReset();
   };
 
@@ -162,6 +209,13 @@ export const BookingWizard = () => {
         return bookingData.selectedService?.questions?.every((q) => 
           bookingData.questionAnswers[q.id] !== undefined
         ) ?? true;
+      case 4:
+        return (
+          Boolean(bookingData.selectedService && bookingData.selectedPackage) &&
+          (bookingData.selectedService?.questions?.every(
+            (q) => bookingData.questionAnswers[q.id] !== undefined
+          ) ?? true)
+        );
       default:
         return false;
     }
@@ -219,7 +273,7 @@ export const BookingWizard = () => {
         <CardContent>
           <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
             {steps.map((label, index) => (
-              <Step key={label} completed={index < activeStep || isStepComplete(index)}>
+              <Step key={label} completed={index < activeStep}>
                 <StepLabel>{label}</StepLabel>
               </Step>
             ))}

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -9,14 +9,13 @@ import {
   RadioGroup,
   FormControlLabel,
   Radio,
+  CircularProgress,
 } from '@mui/material';
+import { useGetServiceQuestionsQuery } from '../../../store/api/user/userServicesApi';
 
 // QuestionsFormProps: { data, onUpdate }
 
-export const QuestionsForm = ({
-  data,
-  onUpdate,
-}) => {
+export const QuestionsForm = ({ data, onUpdate }) => {
   if (!data.selectedService || !data.selectedPackage) {
     return (
       <Box>
@@ -30,16 +29,77 @@ export const QuestionsForm = ({
     );
   }
 
-  const handleAnswerChange = (questionId, answer) => {
-    onUpdate({
-      questionAnswers: {
-        ...data.questionAnswers,
-        [questionId]: answer,
-      },
-    });
-  };
+  const {
+    data: questionsRaw = [],
+    isLoading,
+    isError,
+    error,
+  } = useGetServiceQuestionsQuery(data.selectedService.id, {
+    skip: !data.selectedService?.id,
+  });
 
+  // Normalize API shape into internal shape once loaded
+  useEffect(() => {
+    if (!isLoading && !isError && questionsRaw) {
+      const normalized = [...questionsRaw] // copy before sorting
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .map((q) => ({
+          id: q.id,
+          text: q.question_text,
+          type: q.question_type === 'yes_no' ? 'yes_no' : 'options',
+          options:
+            q.question_type === 'options'
+              ? [...(q.options || [])] // copy before sorting
+                  .sort((o, p) => (o.order || 0) - (p.order || 0))
+                  .map((opt) => ({
+                    id: opt.id,
+                    text: opt.option_text,
+                  }))
+              : [],
+        }));
+
+      // only update if different to avoid loops
+      const existing = data.selectedService.questions || [];
+      const same =
+        JSON.stringify(
+          existing.map((q) => ({ id: q.id, text: q.text, type: q.type }))
+        ) ===
+        JSON.stringify(
+          normalized.map((q) => ({ id: q.id, text: q.text, type: q.type }))
+        );
+
+      if (!same) {
+        onUpdate({
+          selectedService: {
+            ...data.selectedService,
+            questions: normalized,
+          },
+        });
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionsRaw, isLoading, isError]);
+
+  // if there are no questions after fetching
   const questions = data.selectedService.questions || [];
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (isError) {
+    return (
+      <Box>
+        <Typography color="error">
+          Failed to load questions: {error?.message || 'Unknown error'}
+        </Typography>
+      </Box>
+    );
+  }
 
   if (questions.length === 0) {
     return (
@@ -53,6 +113,15 @@ export const QuestionsForm = ({
       </Box>
     );
   }
+
+  const handleAnswerChange = (questionId, answer) => {
+    onUpdate({
+      questionAnswers: {
+        ...data.questionAnswers,
+        [questionId]: answer,
+      },
+    });
+  };
 
   return (
     <Box>
@@ -76,23 +145,15 @@ export const QuestionsForm = ({
                     {index + 1}. {question.text}
                   </Typography>
                 </FormLabel>
-                
+
                 <RadioGroup
                   value={data.questionAnswers[question.id] || ''}
                   onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                 >
                   {question.type === 'yes_no' ? (
                     <>
-                      <FormControlLabel 
-                        value="yes" 
-                        control={<Radio />} 
-                        label="Yes" 
-                      />
-                      <FormControlLabel 
-                        value="no" 
-                        control={<Radio />} 
-                        label="No" 
-                      />
+                      <FormControlLabel value="yes" control={<Radio />} label="Yes" />
+                      <FormControlLabel value="no" control={<Radio />} label="No" />
                     </>
                   ) : (
                     question.options?.map((option) => (

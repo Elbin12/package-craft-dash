@@ -10,62 +10,91 @@ import {
   ListItemText,
   Chip,
   Paper,
+  CircularProgress,
 } from '@mui/material';
-import { 
-  Person, 
-  BusinessCenter, 
-  LocalOffer, 
+import {
+  Person,
+  BusinessCenter,
+  LocalOffer,
   QuestionAnswer,
   LocationOn,
-  Receipt 
+  Receipt,
 } from '@mui/icons-material';
+import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
 
 // CheckoutSummaryProps: { data, onUpdate }
 
-export const CheckoutSummary = ({
-  data,
-  onUpdate,
-}) => {
-  // Calculate pricing based on answers
+export const CheckoutSummary = ({ data, onUpdate }) => {
+  const [calculatePrice, { data: priceResp, isLoading, isError, error }] =
+    useCalculatePriceMutation();
+
+  // Build payload and call API when prerequisites are met
   useEffect(() => {
-    if (!data.selectedPackage) return;
+    const contactId = data.userInfo?.contactId;
+    const serviceId = data.selectedService?.id;
+    const packageId = data.selectedPackage?.id;
 
-    const basePrice = data.selectedPackage.basePrice;
-    const tripSurcharge = 15.00; // Mock trip surcharge
-    let questionAdjustments = 0;
+    if (!contactId || !serviceId || !packageId) return;
 
-    // Mock pricing calculations based on answers
-    Object.entries(data.questionAnswers).forEach(([questionId, answer]) => {
-      const question = data.selectedService?.questions?.find((q) => q.id === questionId);
-      if (!question) return;
+    // Ensure all questions (if any) are answered before calculating
+    const questions = data.selectedService?.questions || [];
+    const incomplete = questions.some((q) => data.questionAnswers[q.id] === undefined);
+    if (questions.length > 0 && incomplete) return;
 
-      // Mock pricing logic
-      if (questionId === '1' && answer === 'yes') { // Has pets
-        questionAdjustments += basePrice * 0.15; // 15% upcharge
-      }
-      if (questionId === '2') { // Bedroom count
-        if (answer === '2') questionAdjustments += 25; // 3-4 bedrooms
-        if (answer === '3') questionAdjustments += 50; // 5+ bedrooms
-      }
-      if (questionId === '3' && answer === 'yes') { // After hours
-        questionAdjustments += basePrice * 0.25; // 25% upcharge
-      }
-      if (questionId === '5' && answer === 'yes') { // Heavy stains
-        questionAdjustments += 30; // Fixed price
+    // Build answers array
+    const answersPayload = questions.map((q) => {
+      const ans = data.questionAnswers[q.id];
+      if (q.type === 'yes_no') {
+        return {
+          question_id: q.id,
+          yes_no_answer: ans === 'yes',
+        };
+      } else {
+        return {
+          question_id: q.id,
+          selected_option_id: ans,
+        };
       }
     });
 
-    const totalPrice = basePrice + tripSurcharge + questionAdjustments;
+    const payload = {
+      contact_id: contactId,
+      service_id: serviceId,
+      package_id: packageId,
+      answers: answersPayload,
+    };
 
-    onUpdate({
-      pricing: {
-        basePrice,
-        tripSurcharge,
-        questionAdjustments,
-        totalPrice,
-      },
-    });
-  }, [data.selectedPackage, data.questionAnswers, onUpdate]);
+    // Fire API (you could debounce if this re-runs too frequently)
+    calculatePrice(payload)
+      .unwrap()
+      .then((resp) => {
+        // normalize numeric strings to numbers
+        const basePrice = parseFloat(resp.base_price);
+        const tripSurcharge = parseFloat(resp.trip_surcharge);
+        const questionAdjustments = parseFloat(resp.question_adjustments);
+        const totalPrice = parseFloat(resp.total_price);
+
+        onUpdate({
+          pricing: {
+            basePrice,
+            tripSurcharge,
+            questionAdjustments,
+            totalPrice,
+          },
+          nearestLocation: resp.nearest_location,
+          distanceToLocation: resp.distance_to_location,
+        });
+      })
+      .catch((e) => {
+        console.error('Price calculation failed', e);
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    data.selectedPackage,
+    data.selectedService,
+    data.userInfo?.contactId,
+    data.questionAnswers,
+  ]);
 
   if (!data.selectedService || !data.selectedPackage) {
     return (
@@ -79,6 +108,9 @@ export const CheckoutSummary = ({
       </Box>
     );
   }
+
+  const pricing = data.pricing || {};
+  const hasQuestions = (data.selectedService.questions || []).length > 0;
 
   return (
     <Box>
@@ -101,28 +133,16 @@ export const CheckoutSummary = ({
               </Box>
               <List dense>
                 <ListItem>
-                  <ListItemText 
-                    primary="Name" 
-                    secondary={data.userInfo.firstName} 
-                  />
+                  <ListItemText primary="Name" secondary={data.userInfo.firstName} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
-                    primary="Phone" 
-                    secondary={data.userInfo.phone} 
-                  />
+                  <ListItemText primary="Phone" secondary={data.userInfo.phone} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
-                    primary="Email" 
-                    secondary={data.userInfo.email} 
-                  />
+                  <ListItemText primary="Email" secondary={data.userInfo.email} />
                 </ListItem>
                 <ListItem>
-                  <ListItemText 
-                    primary="Address" 
-                    secondary={data.userInfo.address} 
-                  />
+                  <ListItemText primary="Address" secondary={data.userInfo.address} />
                 </ListItem>
               </List>
             </CardContent>
@@ -141,20 +161,24 @@ export const CheckoutSummary = ({
               <Typography variant="body2" color="text.secondary" mb={2}>
                 {data.selectedService.description}
               </Typography>
-              
+
               <Box display="flex" alignItems="center" gap={1} mb={1}>
                 <LocalOffer color="secondary" />
                 <Typography variant="subtitle1">
                   Package: {data.selectedPackage.name}
                 </Typography>
-                <Chip label={`$${data.selectedPackage.basePrice}`} size="small" color="primary" />
+                <Chip
+                  label={`$${data.selectedPackage.basePrice}`}
+                  size="small"
+                  color="primary"
+                />
               </Box>
             </CardContent>
           </Card>
 
           {/* Answers */}
-          {data.selectedService.questions?.length > 0 && (
-            <Card>
+          {hasQuestions && (
+            <Card sx={{ mb: 3 }}>
               <CardContent>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>
                   <QuestionAnswer color="primary" />
@@ -164,8 +188,8 @@ export const CheckoutSummary = ({
                   {data.selectedService.questions.map((question) => {
                     const answer = data.questionAnswers[question.id];
                     let displayAnswer = 'Not answered';
-                    
-                    if (answer) {
+
+                    if (answer !== undefined) {
                       if (question.type === 'yes_no') {
                         displayAnswer = answer === 'yes' ? 'Yes' : 'No';
                       } else {
@@ -176,10 +200,7 @@ export const CheckoutSummary = ({
 
                     return (
                       <ListItem key={question.id}>
-                        <ListItemText 
-                          primary={question.text}
-                          secondary={displayAnswer}
-                        />
+                        <ListItemText primary={question.text} secondary={displayAnswer} />
                       </ListItem>
                     );
                   })}
@@ -197,35 +218,67 @@ export const CheckoutSummary = ({
               <Typography variant="h6">Pricing Summary</Typography>
             </Box>
 
+            {isLoading && (
+              <Box display="flex" justifyContent="center" mb={2}>
+                <CircularProgress size={24} />
+              </Box>
+            )}
+
+            {isError && (
+              <Typography color="error" sx={{ mb: 2 }}>
+                Failed to calculate price: {error?.message || 'Unknown'}
+              </Typography>
+            )}
+
             <Box mb={3}>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Base Price ({data.selectedPackage.name})</Typography>
-                <Typography>${data.pricing?.basePrice?.toFixed(2) || '0.00'}</Typography>
+                <Typography>
+                  ${pricing?.basePrice != null ? pricing.basePrice.toFixed(2) : '0.00'}
+                </Typography>
               </Box>
-              
+
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Trip Surcharge</Typography>
-                <Typography>${data.pricing?.tripSurcharge?.toFixed(2) || '0.00'}</Typography>
+                <Typography>
+                  ${pricing?.tripSurcharge != null ? pricing.tripSurcharge.toFixed(2) : '0.00'}
+                </Typography>
               </Box>
-              
-              {(data.pricing?.questionAdjustments || 0) !== 0 && (
+
+              {(pricing?.questionAdjustments || 0) !== 0 && (
                 <Box display="flex" justifyContent="space-between" mb={1}>
                   <Typography>Question-based Adjustments</Typography>
                   <Typography>
-                    {data.pricing.questionAdjustments > 0 ? '+' : ''}
-                    ${data.pricing.questionAdjustments.toFixed(2)}
+                    {pricing.questionAdjustments > 0 ? '+' : ''}
+                    ${pricing.questionAdjustments.toFixed(2)}
                   </Typography>
                 </Box>
               )}
-              
+
               <Divider sx={{ my: 2 }} />
-              
+
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="h6">Total Price</Typography>
                 <Typography variant="h6" color="primary">
-                  ${data.pricing?.totalPrice?.toFixed(2) || '0.00'}
+                  ${pricing?.totalPrice != null ? pricing.totalPrice.toFixed(2) : '0.00'}
                 </Typography>
               </Box>
+
+              {data.nearestLocation && (
+                <Box mt={2}>
+                  <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                    <LocationOn color="action" />
+                    <Typography variant="body2">
+                      Nearest Location: {data.nearestLocation}
+                    </Typography>
+                  </Box>
+                  {data.distanceToLocation != null && (
+                    <Typography variant="body2" color="text.secondary">
+                      Distance: {data.distanceToLocation}
+                    </Typography>
+                  )}
+                </Box>
+              )}
             </Box>
 
             <Typography variant="body2" color="text.secondary" align="center">

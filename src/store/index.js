@@ -14,6 +14,8 @@ import authSlice from './slices/authSlice';
 import { createOptionPricingApi } from './api/optionPricing';
 import { contactsApi } from './api/user/contactsApi';
 import { userServicesApi } from './api/user/userServicesApi';
+import { priceApi } from './api/user/priceApi';
+import { quotesApi } from './api/user/quotesApi';
 
 export const store = configureStore({
   reducer: {
@@ -31,7 +33,9 @@ export const store = configureStore({
     [questionOptionsApi.reducerPath]: questionOptionsApi.reducer,
     [createOptionPricingApi.reducerPath]: createOptionPricingApi.reducer,
     [contactsApi.reducerPath]: contactsApi.reducer,
-    [userServicesApi.reducerPath]: userServicesApi.reducer
+    [userServicesApi.reducerPath]: userServicesApi.reducer,
+    [priceApi.reducerPath]: priceApi.reducer,
+    [quotesApi.reducerPath]: quotesApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -53,6 +57,8 @@ export const store = configureStore({
       .concat(createOptionPricingApi.middleware)
       .concat(contactsApi.middleware)
       .concat(userServicesApi.middleware)
+      .concat(priceApi.middleware)
+      .concat(quotesApi.middleware)
 });
 
 export default store;

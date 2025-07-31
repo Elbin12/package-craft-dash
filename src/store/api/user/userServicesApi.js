@@ -14,8 +14,12 @@ export const userServicesApi = createApi({
           : ['UserService'],
     }),
     getServiceById: builder.query({
-      query: (id) => `${id}/`,
+      query: (id) => ({ url: `${id}/` }),
       providesTags: (result, error, id) => [{ type: 'UserService', id }],
+    }),
+    getServiceQuestions: builder.query({
+      query: (serviceId) => ({ url:`${serviceId}/questions/`}),
+      providesTags: (result, error, serviceId) => [{ type: 'ServiceQuestions', id: serviceId }],
     }),
   }),
 });
@@ -23,4 +27,5 @@ export const userServicesApi = createApi({
 export const {
   useGetServicesQuery,
   useGetServiceByIdQuery,
+  useGetServiceQuestionsQuery
 } = userServicesApi;

@@ -24,14 +24,17 @@ import { useCreateOptionPricingMutation } from '../../../../store/api/optionPric
 
 const mapFromApiPricingType = (apiType) => {
   switch (apiType) {
-    case 'upcharge_percent': return 'upcharge';
-    case 'discount_percent': return 'discount';
-    case 'fixed_price': return 'fixed';
+    case 'upcharge_percent':
+      return 'upcharge';
+    case 'discount_percent':
+      return 'discount';
+    case 'fixed_price':
+      return 'bid_in_person';
     case 'ignore':
-    default: return 'ignore';
+    default:
+      return 'ignore';
   }
 };
-
 
 const PriceSetupForm = ({ data }) => {
   const [priceRules, setPriceRules] = useState(() => {
@@ -48,7 +51,7 @@ const PriceSetupForm = ({ data }) => {
             value: parseFloat(rule.yes_value) || 0,
           });
         } else if (question.question_type === 'options' && question.options?.length) {
-          const matchedOption = question.options.find(opt => opt.id === rule.option);
+          const matchedOption = question.options.find((opt) => opt.id === rule.option);
           if (matchedOption) {
             allRules.push({
               questionId: question.id,
@@ -65,7 +68,6 @@ const PriceSetupForm = ({ data }) => {
     return allRules;
   });
 
-
   const [changedQuestions, setChangedQuestions] = useState({});
   const [popoverAnchor, setPopoverAnchor] = useState({
     element: null,
@@ -80,7 +82,6 @@ const PriceSetupForm = ({ data }) => {
 
   const [createQuestionPricing, { isLoading }] = useCreateQuestionPricingMutation();
   const [createOptionPricing] = useCreateOptionPricingMutation();
-
 
   useEffect(() => {
     const rules = [];
@@ -132,6 +133,8 @@ const PriceSetupForm = ({ data }) => {
 
     setPriceRules(rules);
   }, [questions, packages]);
+
+  const isValueEditable = (priceType) => !['ignore', 'bid_in_person'].includes(priceType);
 
   const updatePriceRule = (
     questionId,
@@ -212,46 +215,64 @@ const PriceSetupForm = ({ data }) => {
 
   const getPriceTypeIcon = (priceType) => {
     switch (priceType) {
-      case 'upcharge': return '+';
-      case 'discount': return '-';
-      case 'bid_in_person': return '?';
-      default: return '○';
+      case 'upcharge':
+        return '+';
+      case 'discount':
+        return '-';
+      case 'bid_in_person':
+        return '?';
+      default:
+        return '○';
     }
   };
 
   const getPriceTypeColor = (priceType) => {
     switch (priceType) {
-      case 'upcharge': return 'success.main';
-      case 'discount': return 'warning.main';
-      case 'bid_in_person': return 'info.main';
-      default: return 'grey.400';
+      case 'upcharge':
+        return 'success.main';
+      case 'discount':
+        return 'warning.main';
+      case 'bid_in_person':
+        return 'info.main';
+      default:
+        return 'grey.400';
     }
   };
 
   const mapToApiPricingType = (type) => {
     switch (type) {
-      case 'upcharge': return 'upcharge_percent';
-      case 'discount': return 'discount_percent';
-      case 'fixed': return 'fixed_price';
-      case 'ignore':
+      case 'upcharge':
+        return 'upcharge_percent';
+      case 'discount':
+        return 'discount_percent';
+      case 'fixed':
+        return 'fixed_price';
       case 'bid_in_person':
+        return 'fixed_price';
+      case 'ignore':
       default:
         return 'ignore';
     }
   };
 
+  const formatRuleForPayload = (rule) => {
+    // if ignore or bid_in_person => force value zero
+    const isZeroed = ['ignore', 'bid_in_person'].includes(rule.priceType);
+    const rawValue = isZeroed ? 0 : rule.value || 0;
+    return {
+      package_id: rule.packageId,
+      pricing_type: mapToApiPricingType(rule.priceType),
+      value: rawValue.toFixed(2),
+    };
+  };
+
   const handleSave = async (questionId) => {
-    const question = questions.find(q => q.id === questionId);
-    const rulesToSave = priceRules.filter(r => r.questionId === questionId);
+    const question = questions.find((q) => q.id === questionId);
+    const rulesToSave = priceRules.filter((r) => r.questionId === questionId);
 
     try {
       if (question.question_type === 'yes_no') {
-        // Existing logic for yes/no
-        const pricing_rules = rulesToSave.map(rule => ({
-          package_id: rule.packageId,
-          pricing_type: mapToApiPricingType(rule.priceType),
-          value: rule.value?.toFixed(2) ?? '0.00',
-        }));
+        const pricing_rules = rulesToSave.map(formatRuleForPayload);
 
         const payload = {
           question_id: questionId,
@@ -259,20 +280,13 @@ const PriceSetupForm = ({ data }) => {
         };
 
         await createQuestionPricing(payload).unwrap();
-      }
-
-      else if (question.question_type === 'options') {
-        // New logic for options
+      } else if (question.question_type === 'options') {
         const options = question.options || [];
 
         for (const opt of options) {
-          const optionRules = rulesToSave.filter(r => r.optionId === opt.id);
+          const optionRules = rulesToSave.filter((r) => r.optionId === opt.id);
 
-          const pricing_rules = optionRules.map(rule => ({
-            package_id: rule.packageId,
-            pricing_type: mapToApiPricingType(rule.priceType),
-            value: rule.value?.toFixed(2) ?? '0.00',
-          }));
+          const pricing_rules = optionRules.map(formatRuleForPayload);
 
           const payload = {
             option_id: opt.id,
@@ -283,14 +297,13 @@ const PriceSetupForm = ({ data }) => {
         }
       }
 
-      setChangedQuestions(prev => ({ ...prev, [questionId]: false }));
+      setChangedQuestions((prev) => ({ ...prev, [questionId]: false }));
       alert('Pricing saved successfully!');
     } catch (err) {
       console.error(err);
       alert('Failed to save pricing. Please try again.');
     }
   };
-
 
   return (
     <Box>
@@ -334,18 +347,27 @@ const PriceSetupForm = ({ data }) => {
                               <TextField
                                 size="small"
                                 type="number"
-                                value={rule?.value || 0}
-                                onChange={(e) =>
+                                value={
+                                  isValueEditable(rule?.priceType)
+                                    ? rule?.value ?? 0
+                                    : '' // hide value when not editable
+                                }
+                                onChange={(e) => {
+                                  if (!isValueEditable(rule?.priceType)) return;
                                   updatePriceRule(
                                     question.id,
                                     pkg.id,
                                     'value',
                                     Number(e.target.value),
-                                    answer
-                                  )
-                                }
+                                    answer, // or undefined / option.id in options branch
+                                    option ? option.id : undefined
+                                  );
+                                }}
+                                disabled={!isValueEditable(rule?.priceType)}
+                                placeholder={!isValueEditable(rule?.priceType) ? '' : undefined}
                                 sx={{ width: 80 }}
                               />
+
                               <IconButton
                                 size="small"
                                 onClick={(e) =>
@@ -393,19 +415,27 @@ const PriceSetupForm = ({ data }) => {
                               <TextField
                                 size="small"
                                 type="number"
-                                value={rule?.value || 0}
-                                onChange={(e) =>
+                                value={
+                                  isValueEditable(rule?.priceType)
+                                    ? rule?.value ?? 0
+                                    : '' // hide value when not editable
+                                }
+                                onChange={(e) => {
+                                  if (!isValueEditable(rule?.priceType)) return;
                                   updatePriceRule(
                                     question.id,
                                     pkg.id,
                                     'value',
                                     Number(e.target.value),
-                                    undefined,
-                                    option.id
-                                  )
-                                }
+                                    answer, // or undefined / option.id in options branch
+                                    option ? option.id : undefined
+                                  );
+                                }}
+                                disabled={!isValueEditable(rule?.priceType)}
+                                placeholder={!isValueEditable(rule?.priceType) ? '' : undefined}
                                 sx={{ width: 80 }}
                               />
+
                               <IconButton
                                 size="small"
                                 onClick={(e) =>
@@ -476,23 +506,25 @@ const PriceSetupForm = ({ data }) => {
             }
             onChange={(e) => handlePriceTypeSelect(e.target.value)}
           >
-            {['upcharge', 'discount', 'ignore', 'bid_in_person'].map((type) => (
-              <FormControlLabel
-                key={type}
-                value={type}
-                control={<Radio size="small" />}
-                label={
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography variant="body2">
-                      {type.replace(/_/g, ' ')}
-                    </Typography>
-                    <Tooltip title={`Type: ${type}`}>
-                      <Info fontSize="small" />
-                    </Tooltip>
-                  </Box>
-                }
-              />
-            ))}
+            {['upcharge', 'discount', 'ignore', 'bid_in_person'].map(
+              (type) => (
+                <FormControlLabel
+                  key={type}
+                  value={type}
+                  control={<Radio size="small" />}
+                  label={
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <Typography variant="body2">
+                        {type.replace(/_/g, ' ')}
+                      </Typography>
+                      <Tooltip title={`Type: ${type}`}>
+                        <Info fontSize="small" />
+                      </Tooltip>
+                    </Box>
+                  }
+                />
+              )
+            )}
           </RadioGroup>
         </Box>
       </Popover>

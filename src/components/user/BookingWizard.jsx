@@ -15,6 +15,7 @@ import ServiceSelectionForm from './forms/ServiceSelectionForm';
 import PackageSelectionForm from './forms/PackageSelectionForm';
 import QuestionsForm from './forms/QuestionsForm';
 import CheckoutSummary from './forms/CheckoutSummary';
+import { useCreateContactMutation, useUpdateContactMutation } from '../../store/api/user/contactsApi';
 
 const steps = [
   'Your Information',
@@ -41,6 +42,10 @@ export const BookingWizard = () => {
       phone: '',
       email: '',
       address: '',
+      latitude: '', // if you capture these later
+      longitude: '',
+      googlePlaceId: '',
+      contactId: null, // <- will store created contact's id
     },
     selectedService: null,
     selectedPackage: null,
@@ -53,8 +58,51 @@ export const BookingWizard = () => {
     },
   });
 
-  const handleNext = () => {
-    if (activeStep === steps.length - 1) {
+  const [createContact, { isLoading: creating }] = useCreateContactMutation();
+  const [updateContact, { isLoading: updating }] = useUpdateContactMutation();
+
+  const isSavingContact = creating || updating;
+
+  const handleNext = async () => {
+    if (activeStep === 0) {
+      // ensure required fields are present
+      const { firstName, phone, email, address, contactId } = bookingData.userInfo;
+      if ([firstName, phone, email, address].some(v => !v || v.trim() === '')) {
+        return; // guard; button is disabled normally
+      }
+
+      // prepare payload matching API
+      const payload = {
+        first_name: firstName,
+        phone_number: phone,
+        email,
+        address,
+        latitude: bookingData.userInfo.latitude || undefined,
+        longitude: bookingData.userInfo.longitude || undefined,
+        google_place_id: bookingData.userInfo.googlePlaceId || undefined,
+      };
+
+      try {
+        let contactResponse;
+        if (contactId) {
+          contactResponse = await updateContact({ id: contactId, ...payload }).unwrap();
+        } else {
+          contactResponse = await createContact(payload).unwrap();
+        }
+        // persist contactId (assuming response has .id)
+        updateBookingData({
+          userInfo: {
+            ...bookingData.userInfo,
+            contactId: contactResponse.id,
+          },
+        });
+        setActiveStep((prev) => prev + 1);
+      } catch (err) {
+        console.error('Failed to save contact', err);
+        // surface error to user
+        alert('Could not save contact. Please try again.');
+      }
+    } else if (activeStep === steps.length - 1) {
       handleSubmit();
     } else {
       setActiveStep((prevActiveStep) => prevActiveStep + 1);
@@ -100,7 +148,12 @@ export const BookingWizard = () => {
   const isStepComplete = (step) => {
     switch (step) {
       case 0:
-        return Object.values(bookingData.userInfo).every(value => value.trim() !== '');
+        {
+          const { firstName = '', phone = '', email = '', address = '' } = bookingData.userInfo;
+          return [firstName, phone, email, address].every(
+            (v) => typeof v === 'string' && v.trim() !== ''
+          );
+        }
       case 1:
         return bookingData.selectedService !== null;
       case 2:
@@ -189,7 +242,7 @@ export const BookingWizard = () => {
             <Button 
               onClick={handleNext} 
               variant="contained"
-              disabled={!isStepComplete(activeStep)}
+              disabled={!isStepComplete(activeStep) || (activeStep === 0 && isSavingContact)}
             >
               {activeStep === steps.length - 1 ? 'Submit Booking' : 'Next'}
             </Button>

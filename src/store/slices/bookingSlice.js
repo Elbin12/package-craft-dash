@@ -8,6 +8,10 @@ const initialState = {
     phone: '',
     email: '',
     address: '',
+    latitude: '', // if you capture these later
+    longitude: '',
+    googlePlaceId: '',
+    contactId: null, // <- will store created contact's id
   },
   selectedService: null,
   selectedPackage: null,

@@ -74,9 +74,9 @@ function App() {
               
               {/* Admin Routes */}
               <Route path="/admin/login" element={<UserLogin />} />
-              <Route path="/admin" element={<AdminProtectedRoute>
+              {/* <Route path="/admin" element={<AdminProtectedRoute>
                 <AdminLayout><AdminDashboard /></AdminLayout>
-              </AdminProtectedRoute>} />
+              </AdminProtectedRoute>} /> */}
               <Route path="/admin/services" element={<AdminProtectedRoute><AdminLayout><ServicesManagement /></AdminLayout></AdminProtectedRoute>} />
               <Route path="/admin/locations" element={<AdminProtectedRoute><AdminLayout><LocationsManagement /></AdminLayout></AdminProtectedRoute>} />
               {/* <Route path="/admin/questions" element={<AdminProtectedRoute><AdminLayout><div>Questions Coming Soon</div></AdminLayout></AdminProtectedRoute>} />

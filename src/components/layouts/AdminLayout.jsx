@@ -31,7 +31,7 @@ const drawerWidth = 280;
 // AdminLayout component props: { children }
 
 const menuItems = [
-  { text: 'Dashboard', icon: Dashboard, path: '/admin' },
+  // { text: 'Dashboard', icon: Dashboard, path: '/admin' },
   { text: 'Service Management', icon: BusinessCenter, path: '/admin/services' },
   { text: 'Location Management', icon: LocationOn, path: '/admin/locations' },
   // { text: 'Question Builder', icon: QuestionAnswer, path: '/admin/questions' },

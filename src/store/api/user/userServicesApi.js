@@ -18,7 +18,13 @@ export const userServicesApi = createApi({
       providesTags: (result, error, id) => [{ type: 'UserService', id }],
     }),
     getServiceQuestions: builder.query({
-      query: (serviceId) => ({ url:`${serviceId}/questions/`}),
+      query: ({serviceId, packageId}) => {
+        const params = packageId ? { package_id: packageId } : undefined;
+        return {
+          url: `${serviceId}/questions/`,
+          params,
+        };
+      },
       providesTags: (result, error, serviceId) => [{ type: 'ServiceQuestions', id: serviceId }],
     }),
   }),

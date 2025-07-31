@@ -30,8 +30,11 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     isLoading,
     isError,
     error,
-  } = useGetServiceQuestionsQuery(data.selectedService.id, {
-    skip: !data.selectedService?.id,
+  } = useGetServiceQuestionsQuery({
+      serviceId: data.selectedService?.id,
+      packageId: data.selectedPackage?.id,
+    }, {
+      skip: !data.selectedService?.id,
   });
 
   useEffect(() => {

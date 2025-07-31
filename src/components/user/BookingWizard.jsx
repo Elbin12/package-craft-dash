@@ -1,53 +1,32 @@
-import React, { useState } from 'react';
-import {
-  Box,
-  Card,
-  CardContent,
-  Stepper,
-  Step,
-  StepLabel,
-  Button,
-  Typography,
-  Container,
-} from '@mui/material';
-import UserInfoForm from './forms/UserInfoForm';
-import ServiceSelectionForm from './forms/ServiceSelectionForm';
-import PackageSelectionForm from './forms/PackageSelectionForm';
-import QuestionsForm from './forms/QuestionsForm';
-import CheckoutSummary from './forms/CheckoutSummary';
-import { useCreateContactMutation, useUpdateContactMutation } from '../../store/api/user/contactsApi';
-import { useCreateQuoteMutation } from '../../store/api/user/quotesApi';
-import { useNavigate } from 'react-router-dom';
+"use client"
+import { useState } from "react"
+import { Card, CardContent } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
+import { CheckCircle, Circle, Loader2 } from "lucide-react"
+import { useCreateContactMutation, useUpdateContactMutation } from "../../store/api/user/contactsApi"
+import { useCreateQuoteMutation } from "../../store/api/user/quotesApi"
+import { useNavigate } from "react-router-dom"
+import UserInfoForm from "./forms/UserInfoForm"
+import ServiceSelectionForm from "./forms/ServiceSelectionForm"
+import PackageSelectionForm from "./forms/PackageSelectionForm"
+import QuestionsForm from "./forms/QuestionsForm"
+import CheckoutSummary from "./forms/CheckoutSummary"
 
-const steps = [
-  'Your Information',
-  'Select Service',
-  'Choose Package',
-  'Answer Questions',
-  'Review & Submit'
-];
-
-// BookingData structure:
-// {
-//   userInfo: { firstName, phone, email, address },
-//   selectedService: object,
-//   selectedPackage: object,
-//   questionAnswers: object,
-//   pricing: { basePrice, tripSurcharge, questionAdjustments, totalPrice }
-// }
+const steps = ["Your Information", "Select Service", "Choose Package", "Answer Questions", "Review & Submit"]
 
 export const BookingWizard = () => {
-  const [activeStep, setActiveStep] = useState(0);
+  const [activeStep, setActiveStep] = useState(0)
   const [bookingData, setBookingData] = useState({
     userInfo: {
-      firstName: '',
-      phone: '',
-      email: '',
-      address: '',
-      latitude: '', // if you capture these later
-      longitude: '',
-      googlePlaceId: '',
-      contactId: null, // <- will store created contact's id
+      firstName: "",
+      phone: "",
+      email: "",
+      address: "",
+      latitude: "",
+      longitude: "",
+      googlePlaceId: "",
+      contactId: null,
     },
     selectedService: null,
     selectedPackage: null,
@@ -58,26 +37,21 @@ export const BookingWizard = () => {
       questionAdjustments: 0,
       totalPrice: 0,
     },
-  });
+  })
 
-  const [createContact, { isLoading: creating }] = useCreateContactMutation();
-  const [updateContact, { isLoading: updating }] = useUpdateContactMutation();
-
-  const [createQuote, { isLoading: creatingQuote }] = useCreateQuoteMutation();
-
-  const isSavingContact = creating || updating;
-
-  const navigate = useNavigate();
+  const [createContact, { isLoading: creating }] = useCreateContactMutation()
+  const [updateContact, { isLoading: updating }] = useUpdateContactMutation()
+  const [createQuote, { isLoading: creatingQuote }] = useCreateQuoteMutation()
+  const isSavingContact = creating || updating
+  const navigate = useNavigate()
 
   const handleNext = async () => {
     if (activeStep === 0) {
-      // ensure required fields are present
-      const { firstName, phone, email, address, contactId } = bookingData.userInfo;
-      if ([firstName, phone, email, address].some(v => !v || v.trim() === '')) {
-        return; // guard; button is disabled normally
+      const { firstName, phone, email, address, contactId } = bookingData.userInfo
+      if ([firstName, phone, email, address].some((v) => !v || v.trim() === "")) {
+        return
       }
 
-      // prepare payload matching API
       const payload = {
         first_name: firstName,
         phone_number: phone,
@@ -86,95 +60,89 @@ export const BookingWizard = () => {
         latitude: bookingData.userInfo.latitude || undefined,
         longitude: bookingData.userInfo.longitude || undefined,
         google_place_id: bookingData.userInfo.googlePlaceId || undefined,
-      };
+      }
 
       try {
-        let contactResponse;
+        let contactResponse
         if (contactId) {
-          contactResponse = await updateContact({ id: contactId, ...payload }).unwrap();
+          contactResponse = await updateContact({ id: contactId, ...payload }).unwrap()
         } else {
-          contactResponse = await createContact(payload).unwrap();
+          contactResponse = await createContact(payload).unwrap()
         }
-        // persist contactId (assuming response has .id)
         updateBookingData({
           userInfo: {
             ...bookingData.userInfo,
             contactId: contactResponse.id,
           },
-        });
-        setActiveStep((prev) => prev + 1);
+        })
+        setActiveStep((prev) => prev + 1)
       } catch (err) {
-        console.error('Failed to save contact', err);
-        // surface error to user
-        alert('Could not save contact. Please try again.');
+        console.error("Failed to save contact", err)
+        alert("Could not save contact. Please try again.")
       }
     } else if (activeStep === steps.length - 1) {
-      handleSubmit();
+      handleSubmit()
     } else {
-      setActiveStep((prevActiveStep) => prevActiveStep + 1);
+      setActiveStep((prevActiveStep) => prevActiveStep + 1)
     }
-  };
+  }
 
   const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
+    setActiveStep((prevActiveStep) => prevActiveStep - 1)
+  }
 
   const handleSubmit = async () => {
-    console.log('Submitting booking:', bookingData);
-    // Here you would submit to your API
-    // guard
-    const contactId = bookingData.userInfo?.contactId;
-    const serviceId = bookingData.selectedService?.id;
-    const packageId = bookingData.selectedPackage?.id;
+    const contactId = bookingData.userInfo?.contactId
+    const serviceId = bookingData.selectedService?.id
+    const packageId = bookingData.selectedPackage?.id
     if (!contactId || !serviceId || !packageId) {
-      alert('Missing required booking info.');
-      return;
+      alert("Missing required booking info.")
+      return
     }
-    // build answers payload
-    const questions = bookingData.selectedService?.questions || [];
+
+    const questions = bookingData.selectedService?.questions || []
     const answersPayload = questions.map((q) => {
-      const ans = bookingData.questionAnswers[q.id];
-      if (q.type === 'yes_no') {
+      const ans = bookingData.questionAnswers[q.id]
+      if (q.type === "yes_no") {
         return {
           question_id: q.id,
-          yes_no_answer: ans === 'yes',
-        };
+          yes_no_answer: ans === "yes",
+        }
       } else {
         return {
           question_id: q.id,
           selected_option_id: ans,
-        };
+        }
       }
-    });
+    })
 
     const payload = {
       contact_id: contactId,
       service_id: serviceId,
       package_id: packageId,
       answers: answersPayload,
-    };
+    }
 
     try {
-      const quoteResponse = await createQuote(payload).unwrap();
-      // redirect to summary/detail page, passing along the quote (or id)
+      const quoteResponse = await createQuote(payload).unwrap()
       if (quoteResponse?.id) {
-        navigate(`/quote/details/${quoteResponse.id}`);
+        navigate(`/quote/details/${quoteResponse.id}`)
       }
     } catch (err) {
-      console.error('Failed to create quote', err);
-      alert('Could not submit booking. Please try again.');
+      console.error("Failed to create quote", err)
+      alert("Could not submit booking. Please try again.")
     }
-    handleReset();
-  };
+    handleReset()
+  }
 
   const handleReset = () => {
-    setActiveStep(0);
+    setActiveStep(0)
     setBookingData({
       userInfo: {
-        firstName: '',
-        phone: '',
-        email: '',
-        address: '',
+        firstName: "",
+        phone: "",
+        email: "",
+        address: "",
       },
       selectedService: null,
       selectedPackage: null,
@@ -185,124 +153,149 @@ export const BookingWizard = () => {
         questionAdjustments: 0,
         totalPrice: 0,
       },
-    });
-  };
+    })
+  }
 
   const updateBookingData = (stepData) => {
-    setBookingData((prev) => ({ ...prev, ...stepData }));
-  };
+    setBookingData((prev) => ({ ...prev, ...stepData }))
+  }
 
   const isStepComplete = (step) => {
     switch (step) {
-      case 0:
-        {
-          const { firstName = '', phone = '', email = '', address = '' } = bookingData.userInfo;
-          return [firstName, phone, email, address].every(
-            (v) => typeof v === 'string' && v.trim() !== ''
-          );
-        }
+      case 0: {
+        const { firstName = "", phone = "", email = "", address = "" } = bookingData.userInfo
+        return [firstName, phone, email, address].every((v) => typeof v === "string" && v.trim() !== "")
+      }
       case 1:
-        return bookingData.selectedService !== null;
+        return bookingData.selectedService !== null
       case 2:
-        return bookingData.selectedPackage !== null;
+        return bookingData.selectedPackage !== null
       case 3:
-        return bookingData.selectedService?.questions?.every((q) => 
-          bookingData.questionAnswers[q.id] !== undefined
-        ) ?? true;
+        return (
+          bookingData.selectedService?.questions?.every((q) => bookingData.questionAnswers[q.id] !== undefined) ?? true
+        )
       case 4:
         return (
           Boolean(bookingData.selectedService && bookingData.selectedPackage) &&
-          (bookingData.selectedService?.questions?.every(
-            (q) => bookingData.questionAnswers[q.id] !== undefined
-          ) ?? true)
-        );
+          (bookingData.selectedService?.questions?.every((q) => bookingData.questionAnswers[q.id] !== undefined) ??
+            true)
+        )
       default:
-        return false;
+        return false
     }
-  };
+  }
 
   const getStepContent = (step) => {
     switch (step) {
       case 0:
-        return (
-          <UserInfoForm
-            data={bookingData}
-            onUpdate={updateBookingData}
-          />
-        );
+        return <UserInfoForm data={bookingData} onUpdate={updateBookingData} />
       case 1:
-        return (
-          <ServiceSelectionForm
-            data={bookingData}
-            onUpdate={updateBookingData}
-          />
-        );
+        return <ServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />
       case 2:
-        return (
-          <PackageSelectionForm
-            data={bookingData}
-            onUpdate={updateBookingData}
-          />
-        );
+        return <PackageSelectionForm data={bookingData} onUpdate={updateBookingData} />
       case 3:
-        return (
-          <QuestionsForm
-            data={bookingData}
-            onUpdate={updateBookingData}
-          />
-        );
+        return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />
       case 4:
-        return (
-          <CheckoutSummary
-            data={bookingData}
-            onUpdate={updateBookingData}
-          />
-        );
+        return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} />
       default:
-        return 'Unknown step';
+        return "Unknown step"
     }
-  };
+  }
+
+  const progressPercentage = ((activeStep + 1) / steps.length) * 100
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ mb: 4 }}>
-        Book Your Service
-      </Typography>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Book Your Service</h1>
+            <p className="text-gray-600">Complete the steps below to book your service</p>
+          </div>
+        </div>
+      </div>
 
-      <Card sx={{ mb: 4 }}>
-        <CardContent>
-          <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-            {steps.map((label, index) => (
-              <Step key={label} completed={index < activeStep}>
-                <StepLabel>{label}</StepLabel>
-              </Step>
-            ))}
-          </Stepper>
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Progress Section */}
+        <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Step {activeStep + 1} of {steps.length}
+                </span>
+                <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+            </div>
 
-          <Box sx={{ minHeight: '400px' }}>
-            {getStepContent(activeStep)}
-          </Box>
+            {/* Step Indicators */}
+            <div className="flex justify-between items-center">
+              {steps.map((label, index) => (
+                <div key={label} className="flex flex-col items-center space-y-2">
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                      index < activeStep
+                        ? "bg-green-500 border-green-500 text-white"
+                        : index === activeStep
+                          ? "bg-blue-500 border-blue-500 text-white"
+                          : "bg-gray-100 border-gray-300 text-gray-400"
+                    }`}
+                  >
+                    {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                  </div>
+                  <span
+                    className={`text-xs font-medium text-center max-w-20 ${
+                      index <= activeStep ? "text-gray-900" : "text-gray-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
 
-          <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
-            <Button
-              color="inherit"
-              disabled={activeStep === 0}
-              onClick={handleBack}
-              sx={{ mr: 1 }}
-            >
-              Back
-            </Button>
-            <Box sx={{ flex: '1 1 auto' }} />
-            <Button 
-              onClick={handleNext} 
-              variant="contained"
-              disabled={!isStepComplete(activeStep) || (activeStep === 0 && isSavingContact)}
-            >
-              {activeStep === steps.length - 1 ? 'Submit Booking' : 'Next'}
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-    </Container>
-  );
-};
+        {/* Main Content */}
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardContent className="p-8">
+            <div className="min-h-[500px]">{getStepContent(activeStep)}</div>
+
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={activeStep === 0}
+                className="px-6 bg-transparent"
+              >
+                Back
+              </Button>
+
+              <Button
+                onClick={handleNext}
+                disabled={!isStepComplete(activeStep) || (activeStep === 0 && isSavingContact)}
+                className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+              >
+                {(activeStep === 0 && isSavingContact) || creatingQuote ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    {activeStep === 0 ? "Saving..." : "Submitting..."}
+                  </>
+                ) : activeStep === steps.length - 1 ? (
+                  "Submit Booking"
+                ) : (
+                  "Next"
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  )
+}
+
+export default BookingWizard

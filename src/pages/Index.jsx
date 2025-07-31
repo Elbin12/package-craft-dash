@@ -15,22 +15,35 @@ const Index = () => {
             variant="h2"
             component="h1"
             gutterBottom
-            sx={{ 
+            sx={{
               fontWeight: 'bold',
               background: 'var(--gradient-primary)',
               backgroundClip: 'text',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
-              mb: 2
+              mb: 2,
             }}
           >
             Professional Service Booking Platform
           </Typography>
-          <Typography variant="h5" color="text.secondary" sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}>
-            Streamline your service bookings with dynamic pricing, location management, and comprehensive admin tools.
+          <Typography
+            variant="h5"
+            color="text.secondary"
+            sx={{ mb: 4, maxWidth: '600px', mx: 'auto' }}
+          >
+            Streamline your service bookings with dynamic pricing, location management, and
+            comprehensive end-to-end flows.
           </Typography>
-          
-          <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+
+          <Box
+            sx={{
+              display: 'flex',
+              gap: 2,
+              justifyContent: 'center',
+              flexWrap: 'wrap',
+              mt: 2,
+            }}
+          >
             <Button
               variant="contained"
               size="large"
@@ -48,35 +61,19 @@ const Index = () => {
             >
               Start Booking
             </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              onClick={() => navigate('/admin')}
-              sx={{
-                px: 4,
-                py: 1.5,
-                fontSize: '1.1rem',
-                borderColor: 'hsl(var(--primary))',
-                color: 'hsl(var(--primary))',
-                '&:hover': {
-                  backgroundColor: 'hsl(var(--primary) / 0.1)',
-                  borderColor: 'hsl(var(--primary))',
-                },
-              }}
-            >
-              Admin Panel
-            </Button>
           </Box>
         </Box>
 
         {/* Features Section */}
-        <Box sx={{ 
-          display: 'grid', 
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-          gap: 4,
-          mb: 8 
-        }}>
-          <Card sx={{ height: '100%', textAlign: 'center', p: 2 }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+            gap: 4,
+            mb: 8,
+          }}
+        >
+          <Card sx={{ height: '100%', textAlign: 'center', p: 2, borderRadius: 2, boxShadow: 3 }}>
             <CardContent>
               <Box
                 sx={{
@@ -97,12 +94,13 @@ const Index = () => {
                 Service Management
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Comprehensive CRUD interface for managing services, packages, and features with dynamic pricing.
+                Comprehensive CRUD interface for managing services, packages, and features with
+                dynamic pricing.
               </Typography>
             </CardContent>
           </Card>
-          
-          <Card sx={{ height: '100%', textAlign: 'center', p: 2 }}>
+
+          <Card sx={{ height: '100%', textAlign: 'center', p: 2, borderRadius: 2, boxShadow: 3 }}>
             <CardContent>
               <Box
                 sx={{
@@ -123,12 +121,13 @@ const Index = () => {
                 Smart Booking Flow
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Multi-step booking process with dynamic questions and real-time pricing calculations.
+                Multi-step booking process with dynamic questions and real-time pricing
+                calculations.
               </Typography>
             </CardContent>
           </Card>
-          
-          <Card sx={{ height: '100%', textAlign: 'center', p: 2 }}>
+
+          <Card sx={{ height: '100%', textAlign: 'center', p: 2, borderRadius: 2, boxShadow: 3 }}>
             <CardContent>
               <Box
                 sx={{
@@ -149,7 +148,8 @@ const Index = () => {
                 Location Intelligence
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                Google Places integration with automatic trip surcharge calculation based on location.
+                Google Places integration with automatic trip surcharge calculation based on
+                location.
               </Typography>
             </CardContent>
           </Card>

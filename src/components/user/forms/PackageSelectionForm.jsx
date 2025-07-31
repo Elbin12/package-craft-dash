@@ -18,17 +18,6 @@ import {
 import { CheckCircle, LocalOffer } from '@mui/icons-material';
 import { useGetServiceByIdQuery } from '../../../store/api/user/userServicesApi';
 
-// Mock features data (you can replace this with real features if they come separately)
-const mockFeatures = [
-  { id: '1', name: 'Deep Cleaning', description: 'Thorough cleaning of all surfaces' },
-  { id: '2', name: 'Eco-Friendly Products', description: 'Green cleaning supplies' },
-  { id: '3', name: 'Premium Equipment', description: 'Professional grade tools' },
-  { id: '4', name: 'Insurance Coverage', description: 'Fully insured service' },
-  { id: '5', name: 'Satisfaction Guarantee', description: '100% satisfaction guaranteed' },
-];
-
-// PackageSelectionFormProps: { data, onUpdate }
-
 export const PackageSelectionForm = ({ data, onUpdate }) => {
   if (!data.selectedService || !data.selectedService.id) {
     return (
@@ -48,16 +37,11 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
     error,
   } = useGetServiceByIdQuery(data.selectedService.id);
 
-  console.log(serviceDetail, data, 'from package');
-  
-
-  // When the detailed service loads, merge its packages into bookingData.selectedService
   useEffect(() => {
     if (serviceDetail) {
       onUpdate({
         selectedService: {
           ...data.selectedService,
-          // map API shape to your internal shape (e.g., nickname vs name)
           nickname: serviceDetail.name,
           description: serviceDetail.description,
           packages: (serviceDetail.packages || []).map((p) => ({
@@ -66,7 +50,6 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
             basePrice: p.base_price,
             features: p.features || [],
           })),
-          // if questions come from elsewhere, attach here; else keep existing
           questions: data.selectedService.questions || [],
         },
       });
@@ -85,20 +68,17 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
   if (isError) {
     return (
       <Box>
-        <Typography color="error">
-          Failed to load service details: {error?.message || 'Unknown error'}
-        </Typography>
+        <Typography color="error">Failed to load service details: {error?.message || 'Unknown error'}</Typography>
       </Box>
     );
   }
 
-  // if after loading we still don't have packages, guard
   const packages = data.selectedService?.packages || [];
 
   const handlePackageSelect = (packageItem) => {
     onUpdate({
       selectedPackage: packageItem,
-      questionAnswers: {}, // reset when package changes
+      questionAnswers: {},
     });
   };
 
@@ -123,7 +103,6 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
       >
         <Box sx={{ display: 'grid', gap: 3 }}>
           {packages.map((packageItem) => {
-            // determine included features from the API's features array
             const includedFeatures = (packageItem.features || [])
               .filter((f) => f.is_included)
               .map((f) => ({
@@ -137,17 +116,39 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
                 key={packageItem.id}
                 sx={{
                   border: data.selectedPackage?.id === packageItem.id ? 2 : 1,
-                  borderColor:
-                    data.selectedPackage?.id === packageItem.id
-                      ? 'primary.main'
-                      : 'divider',
+                  borderColor: data.selectedPackage?.id === packageItem.id ? 'primary.main' : 'divider',
+                  borderRadius: 2,
                   transition: 'all 0.2s ease-in-out',
                   '&:hover': {
-                    boxShadow: 2,
+                    boxShadow: 3,
                     transform: 'translateY(-2px)',
                   },
                 }}
               >
+                <Box
+                  sx={{
+                    background: data.selectedPackage?.id === packageItem.id
+                      ? 'linear-gradient(90deg,#059669,#10b981)'
+                      : 'linear-gradient(90deg,#f0f5f9,#e2e8f0)',
+                    color: data.selectedPackage?.id === packageItem.id ? 'white' : 'text.primary',
+                    px: 2,
+                    py: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <LocalOffer fontSize="small" />
+                  <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                    {packageItem.name}
+                  </Typography>
+                  {/* <Chip
+                    label={`$${packageItem.basePrice}`}
+                    size="small"
+                    sx={{ ml: 'auto', fontWeight: 'bold' }}
+                  /> */}
+                </Box>
+
                 <CardActionArea onClick={() => handlePackageSelect(packageItem)}>
                   <CardContent>
                     <Box display="flex" alignItems="flex-start" gap={2}>
@@ -158,43 +159,9 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
                         sx={{ m: 0 }}
                       />
 
-                      <Box
-                        sx={{
-                          width: 48,
-                          height: 48,
-                          borderRadius: 2,
-                          background: 'hsl(var(--secondary) / 0.1)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          flexShrink: 0,
-                        }}
-                      >
-                        <LocalOffer sx={{ color: 'hsl(var(--secondary))' }} />
-                      </Box>
-
                       <Box sx={{ flex: 1 }}>
-                        <Box
-                          display="flex"
-                          justifyContent="space-between"
-                          alignItems="center"
-                          mb={1}
-                        >
-                          <Typography variant="h6">{packageItem.name}</Typography>
-                          <Chip
-                            label={`$${packageItem.basePrice}`}
-                            color="primary"
-                            sx={{ fontWeight: 'bold' }}
-                          />
-                        </Box>
-
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mb: 2 }}
-                        >
-                          Base price: ${packageItem.basePrice} (additional charges may apply
-                          based on your answers)
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                          Base price: ${packageItem.basePrice} (additional charges may apply based on your answers)
                         </Typography>
 
                         {includedFeatures.length > 0 && (
@@ -227,9 +194,7 @@ export const PackageSelectionForm = ({ data, onUpdate }) => {
             );
           })}
           {packages.length === 0 && (
-            <Typography color="text.secondary">
-              No packages available for this service.
-            </Typography>
+            <Typography color="text.secondary">No packages available for this service.</Typography>
           )}
         </Box>
       </RadioGroup>

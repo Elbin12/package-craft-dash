@@ -383,9 +383,9 @@ const QuoteDetailsPage = () => {
                           <Typography variant="body2" sx={{ mb: 1 }}>
                             <strong>Answer:</strong> {answerDisplay}
                           </Typography>
-                          <Typography variant="caption" color="text.secondary">
+                          {/* <Typography variant="caption" color="text.secondary">
                             Price Adjustment: ${parseFloat(qa.price_adjustment || 0).toFixed(2)}
-                          </Typography>
+                          </Typography> */}
                         </Box>
                       );
                     })}

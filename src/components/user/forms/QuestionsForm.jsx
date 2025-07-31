@@ -13,8 +13,6 @@ import {
 } from '@mui/material';
 import { useGetServiceQuestionsQuery } from '../../../store/api/user/userServicesApi';
 
-// QuestionsFormProps: { data, onUpdate }
-
 export const QuestionsForm = ({ data, onUpdate }) => {
   if (!data.selectedService || !data.selectedPackage) {
     return (
@@ -22,9 +20,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
         <Typography variant="h6" gutterBottom>
           Answer Questions
         </Typography>
-        <Typography color="text.secondary">
-          Please select a service and package first.
-        </Typography>
+        <Typography color="text.secondary">Please select a service and package first.</Typography>
       </Box>
     );
   }
@@ -38,10 +34,9 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     skip: !data.selectedService?.id,
   });
 
-  // Normalize API shape into internal shape once loaded
   useEffect(() => {
     if (!isLoading && !isError && questionsRaw) {
-      const normalized = [...questionsRaw] // copy before sorting
+      const normalized = [...questionsRaw]
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((q) => ({
           id: q.id,
@@ -49,7 +44,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           type: q.question_type === 'yes_no' ? 'yes_no' : 'options',
           options:
             q.question_type === 'options'
-              ? [...(q.options || [])] // copy before sorting
+              ? [...(q.options || [])]
                   .sort((o, p) => (o.order || 0) - (p.order || 0))
                   .map((opt) => ({
                     id: opt.id,
@@ -58,15 +53,10 @@ export const QuestionsForm = ({ data, onUpdate }) => {
               : [],
         }));
 
-      // only update if different to avoid loops
       const existing = data.selectedService.questions || [];
       const same =
-        JSON.stringify(
-          existing.map((q) => ({ id: q.id, text: q.text, type: q.type }))
-        ) ===
-        JSON.stringify(
-          normalized.map((q) => ({ id: q.id, text: q.text, type: q.type }))
-        );
+        JSON.stringify(existing.map((q) => ({ id: q.id, text: q.text, type: q.type }))) ===
+        JSON.stringify(normalized.map((q) => ({ id: q.id, text: q.text, type: q.type })));
 
       if (!same) {
         onUpdate({
@@ -80,7 +70,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questionsRaw, isLoading, isError]);
 
-  // if there are no questions after fetching
   const questions = data.selectedService.questions || [];
 
   if (isLoading) {
@@ -94,9 +83,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   if (isError) {
     return (
       <Box>
-        <Typography color="error">
-          Failed to load questions: {error?.message || 'Unknown error'}
-        </Typography>
+        <Typography color="error">Failed to load questions: {error?.message || 'Unknown error'}</Typography>
       </Box>
     );
   }
@@ -137,24 +124,33 @@ export const QuestionsForm = ({ data, onUpdate }) => {
 
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
         {questions.map((question, index) => (
-          <Card key={question.id}>
+          <Card key={question.id} sx={{ borderRadius: 2, overflow: 'hidden' }}>
+            <Box
+              sx={{
+                background: 'linear-gradient(90deg,#9333ea,#c084fc)',
+                color: 'white',
+                px: 2,
+                py: 1,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+              }}
+            >
+              <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                {index + 1}. {question.text}
+              </Typography>
+            </Box>
             <CardContent>
               <FormControl component="fieldset" fullWidth>
-                <FormLabel component="legend" sx={{ mb: 2 }}>
-                  <Typography variant="h6">
-                    {index + 1}. {question.text}
-                  </Typography>
-                </FormLabel>
-
                 <RadioGroup
                   value={data.questionAnswers[question.id] || ''}
                   onChange={(e) => handleAnswerChange(question.id, e.target.value)}
                 >
                   {question.type === 'yes_no' ? (
-                    <>
+                    <Box sx={{ display: 'flex', gap: 2 }}>
                       <FormControlLabel value="yes" control={<Radio />} label="Yes" />
                       <FormControlLabel value="no" control={<Radio />} label="No" />
-                    </>
+                    </Box>
                   ) : (
                     question.options?.map((option) => (
                       <FormControlLabel

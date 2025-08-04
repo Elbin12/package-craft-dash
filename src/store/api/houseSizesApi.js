@@ -1,0 +1,35 @@
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { axiosBaseQuery, BASE_URL } from '../axios/axios';
+
+export const houseSizesApi = createApi({
+  reducerPath: 'houseSizesApi',
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/house-sizes/' }),
+  tagTypes: ['HouseSize'],
+  endpoints: (builder) => ({
+    getHouseSizes: builder.query({
+      query: () => '',
+      providesTags: ['HouseSize'],
+    }),
+    createHouseSizes: builder.mutation({
+      query: (sizes) => ({
+        url: '',
+        method: 'POST',
+        data: sizes,
+      }),
+      invalidatesTags: ['HouseSize'],
+    }),
+    deleteHouseSize: builder.mutation({
+      query: (id) => ({
+        url: `${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['HouseSize'],
+    }),
+  }),
+});
+
+export const {
+  useGetHouseSizesQuery,
+  useCreateHouseSizesMutation,
+  useDeleteHouseSizeMutation,
+} = houseSizesApi;

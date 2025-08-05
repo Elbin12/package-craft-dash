@@ -36,7 +36,11 @@ import {
   useDeleteQuestionOptionMutation,
   useUpdateQuestionOptionMutation,
 } from "../../../../store/api/questionOptionsApi"
-import { useCreateQuestionSubQuestionMutation, useDeleteQuestionSubQuestionMutation, useUpdateQuestionSubQuestionMutation } from "../../../../store/api/questionSubQuestionsApi"
+import {
+  useCreateQuestionSubQuestionMutation,
+  useDeleteQuestionSubQuestionMutation,
+  useUpdateQuestionSubQuestionMutation,
+} from "../../../../store/api/questionSubQuestionsApi"
 
 const QUESTION_TYPES = [
   { value: "describe", label: "Multiple Choice (Describe)" },
@@ -209,7 +213,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
           updatedQuestion = {
             ...updatedQuestion,
-            conditional_child: childResult,
+            child_questions: [childResult],
           }
         } catch (e) {
           console.error("Failed to create conditional child", e)
@@ -370,10 +374,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         if (forChild && q.id === parentQuestionId) {
           return {
             ...q,
-            conditional_child: {
-              ...q.conditional_child,
-              options: [...(q.conditional_child?.options || []), optionResult],
-            },
+            child_questions: q.child_questions.map((child) =>
+              child.id === questionId ? { ...child, options: [...(child.options || []), optionResult] } : child,
+            ),
           }
         }
         return q
@@ -386,7 +389,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     }
   }
 
-  const handleDeleteOptionFromQuestion = async (questionId, optionId, isChild = false) => {
+  const handleDeleteOptionFromQuestion = async (questionId, optionId, isChild = false, parentQuestionId = null) => {
     try {
       await deleteQuestionOption(optionId).unwrap()
 
@@ -397,13 +400,14 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             options: q.options.filter((opt) => opt.id !== optionId),
           }
         }
-        if (isChild && q.id === questionId && q.conditional_child) {
+        if (isChild && q.id === parentQuestionId) {
           return {
             ...q,
-            conditional_child: {
-              ...q.conditional_child,
-              options: q.conditional_child.options.filter((opt) => opt.id !== optionId),
-            },
+            child_questions: q.child_questions.map((child) =>
+              child.id === questionId
+                ? { ...child, options: child.options.filter((opt) => opt.id !== optionId) }
+                : child,
+            ),
           }
         }
         return q
@@ -440,10 +444,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         if (forChild && q.id === parentQuestionId) {
           return {
             ...q,
-            conditional_child: {
-              ...q.conditional_child,
-              sub_questions: [...(q.conditional_child?.sub_questions || []), subQuestionResult],
-            },
+            child_questions: q.child_questions.map((child) =>
+              child.id === questionId
+                ? { ...child, sub_questions: [...(child.sub_questions || []), subQuestionResult] }
+                : child,
+            ),
           }
         }
         return q
@@ -456,7 +461,12 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     }
   }
 
-  const handleDeleteSubQuestionFromQuestion = async (questionId, subQuestionId, isChild = false) => {
+  const handleDeleteSubQuestionFromQuestion = async (
+    questionId,
+    subQuestionId,
+    isChild = false,
+    parentQuestionId = null,
+  ) => {
     try {
       await deleteQuestionSubQuestion(subQuestionId).unwrap()
 
@@ -467,13 +477,14 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             sub_questions: q.sub_questions.filter((subQ) => subQ.id !== subQuestionId),
           }
         }
-        if (isChild && q.id === questionId && q.conditional_child) {
+        if (isChild && q.id === parentQuestionId) {
           return {
             ...q,
-            conditional_child: {
-              ...q.conditional_child,
-              sub_questions: q.conditional_child.sub_questions.filter((subQ) => subQ.id !== subQuestionId),
-            },
+            child_questions: q.child_questions.map((child) =>
+              child.id === questionId
+                ? { ...child, sub_questions: child.sub_questions.filter((subQ) => subQ.id !== subQuestionId) }
+                : child,
+            ),
           }
         }
         return q
@@ -545,7 +556,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   }
 
   const renderOptionList = (question, isChild = false, parentQuestionId = null) => {
-    const options = isChild ? question?.conditional_child?.options || [] : question?.options || []
+    const options = isChild ? question?.options || [] : question?.options || []
 
     return (
       <Box>
@@ -576,7 +587,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                         const result = await updateQuestionOption({
                           id: option.id,
                           option_text: editingOptionText.trim(),
-                          question: isChild ? question.conditional_child.id : question.id,
+                          question: question.id,
                         }).unwrap()
 
                         const updatedQuestions = questions.map((q) => {
@@ -586,15 +597,17 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                               options: q.options.map((opt) => (opt.id === option.id ? result : opt)),
                             }
                           }
-                          if (isChild && q.id === question.id) {
+                          if (isChild && q.id === parentQuestionId) {
                             return {
                               ...q,
-                              conditional_child: {
-                                ...q.conditional_child,
-                                options: q.conditional_child.options.map((opt) =>
-                                  opt.id === option.id ? result : opt,
-                                ),
-                              },
+                              child_questions: q.child_questions.map((child) =>
+                                child.id === question.id
+                                  ? {
+                                      ...child,
+                                      options: child.options.map((opt) => (opt.id === option.id ? result : opt)),
+                                    }
+                                  : child,
+                              ),
                             }
                           }
                           return q
@@ -628,7 +641,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() => handleDeleteOptionFromQuestion(question.id, option.id, isChild)}
+                      onClick={() => handleDeleteOptionFromQuestion(question.id, option.id, isChild, parentQuestionId)}
                       sx={{ p: 0 }}
                     >
                       <Delete sx={{ fontSize: "14px", color: "#BE4B4B" }} />
@@ -657,10 +670,10 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 e.preventDefault()
                 if (isChild) {
                   handleAddOptionToQuestion(
-                    question.conditional_child.id,
+                    question.id,
                     optionInputs[`child_${question.id}`] || "",
                     true,
-                    question.id,
+                    parentQuestionId,
                   )
                   setOptionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
                 } else {
@@ -674,10 +687,10 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             onClick={() => {
               if (isChild) {
                 handleAddOptionToQuestion(
-                  question.conditional_child.id,
+                  question.id,
                   optionInputs[`child_${question.id}`] || "",
                   true,
-                  question.id,
+                  parentQuestionId,
                 )
                 setOptionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
               } else {
@@ -697,7 +710,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   }
 
   const renderSubQuestionList = (question, isChild = false, parentQuestionId = null) => {
-    const subQuestions = isChild ? question?.conditional_child?.sub_questions || [] : question?.sub_questions || []
+    const subQuestions = isChild ? question?.sub_questions || [] : question?.sub_questions || []
 
     return (
       <Box>
@@ -728,7 +741,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                         const result = await updateQuestionSubQuestion({
                           id: subQuestion.id,
                           sub_question_text: editingSubQuestionText.trim(),
-                          question: isChild ? question.conditional_child.id : question.id,
+                          question: question.id,
                         }).unwrap()
 
                         const updatedQuestions = questions.map((q) => {
@@ -740,15 +753,19 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                               ),
                             }
                           }
-                          if (isChild && q.id === question.id) {
+                          if (isChild && q.id === parentQuestionId) {
                             return {
                               ...q,
-                              conditional_child: {
-                                ...q.conditional_child,
-                                sub_questions: q.conditional_child.sub_questions.map((subQ) =>
-                                  subQ.id === subQuestion.id ? result : subQ,
-                                ),
-                              },
+                              child_questions: q.child_questions.map((child) =>
+                                child.id === question.id
+                                  ? {
+                                      ...child,
+                                      sub_questions: child.sub_questions.map((subQ) =>
+                                        subQ.id === subQuestion.id ? result : subQ,
+                                      ),
+                                    }
+                                  : child,
+                              ),
                             }
                           }
                           return q
@@ -782,7 +799,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     </IconButton>
                     <IconButton
                       size="small"
-                      onClick={() => handleDeleteSubQuestionFromQuestion(question.id, subQuestion.id, isChild)}
+                      onClick={() =>
+                        handleDeleteSubQuestionFromQuestion(question.id, subQuestion.id, isChild, parentQuestionId)
+                      }
                       sx={{ p: 0 }}
                     >
                       <Delete sx={{ fontSize: "14px", color: "#BE4B4B" }} />
@@ -811,10 +830,10 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 e.preventDefault()
                 if (isChild) {
                   handleAddSubQuestionToQuestion(
-                    question.conditional_child.id,
+                    question.id,
                     subQuestionInputs[`child_${question.id}`] || "",
                     true,
-                    question.id,
+                    parentQuestionId,
                   )
                   setSubQuestionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
                 } else {
@@ -828,10 +847,10 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             onClick={() => {
               if (isChild) {
                 handleAddSubQuestionToQuestion(
-                  question.conditional_child.id,
+                  question.id,
                   subQuestionInputs[`child_${question.id}`] || "",
                   true,
-                  question.id,
+                  parentQuestionId,
                 )
                 setSubQuestionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
               } else {
@@ -1361,34 +1380,36 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     {/* Display sub-questions for multiple_yes_no type with edit/delete functionality */}
                     {isSubQuestionType(question.question_type) && renderSubQuestionList(question)}
 
-                    {/* Display conditional child question */}
-                    {question.question_type === "conditional" && question.conditional_child && (
-                      <Box sx={{ mt: 2, pl: 2, borderLeft: "2px solid #ccc" }}>
-                        <Typography variant="subtitle2" gutterBottom>
-                          If Yes, ask:
-                        </Typography>
-                        <Card variant="outlined" sx={{ p: 2 }}>
-                          <Typography variant="body1" gutterBottom>
-                            {question.conditional_child.question_text}
+                    {/* Display conditional child questions */}
+                    {question.question_type === "conditional" &&
+                      Array.isArray(question.child_questions) &&
+                      question.child_questions.length > 0 && (
+                        <Box sx={{ mt: 2, pl: 2, borderLeft: "2px solid #ccc" }}>
+                          <Typography variant="subtitle2" gutterBottom>
+                            If Yes, ask:
                           </Typography>
-                          <Chip
-                            label={
-                              QUESTION_TYPES.find((t) => t.value === question.conditional_child.question_type)?.label ||
-                              question.conditional_child.question_type
-                            }
-                            size="small"
-                            color="secondary"
-                          />
-
-                          {/* Display child options with edit/delete functionality */}
-                          {isOptionType(question.conditional_child.question_type) && renderOptionList(question, true)}
-
-                          {/* Display child sub-questions with edit/delete functionality */}
-                          {isSubQuestionType(question.conditional_child.question_type) &&
-                            renderSubQuestionList(question, true)}
-                        </Card>
-                      </Box>
-                    )}
+                          {question.child_questions.map((child, index) => (
+                            <Card key={index} variant="outlined" sx={{ p: 2, mb: 2 }}>
+                              <Typography variant="body1" gutterBottom>
+                                {child.question_text}
+                              </Typography>
+                              <Chip
+                                label={
+                                  QUESTION_TYPES.find((t) => t.value === child.question_type)?.label ||
+                                  child.question_type
+                                }
+                                size="small"
+                                color="secondary"
+                              />
+                              {/* Display child options with edit/delete functionality */}
+                              {isOptionType(child.question_type) && renderOptionList(child, true, question.id)}
+                              {/* Display child sub-questions with edit/delete functionality */}
+                              {isSubQuestionType(child.question_type) &&
+                                renderSubQuestionList(child, true, question.id)}
+                            </Card>
+                          ))}
+                        </Box>
+                      )}
                   </Box>
 
                   <Box>

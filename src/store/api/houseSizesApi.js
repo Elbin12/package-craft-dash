@@ -3,7 +3,7 @@ import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 
 export const houseSizesApi = createApi({
   reducerPath: 'houseSizesApi',
-  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/house-sizes/' }),
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/global-sizes/' }),
   tagTypes: ['HouseSize'],
   endpoints: (builder) => ({
     getHouseSizes: builder.query({

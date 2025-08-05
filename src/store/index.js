@@ -38,8 +38,8 @@ export const store = configureStore({
     [userServicesApi.reducerPath]: userServicesApi.reducer,
     [priceApi.reducerPath]: priceApi.reducer,
     [quotesApi.reducerPath]: quotesApi.reducer,
-    [houseSizesApi.reducerPath]: quotesApi.reducer,
-    [questionSubQuestionsApi.reducerPath]: quotesApi.reducer,
+    [houseSizesApi.reducerPath]: houseSizesApi.reducer,
+    [questionSubQuestionsApi.reducerPath]: questionOptionsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

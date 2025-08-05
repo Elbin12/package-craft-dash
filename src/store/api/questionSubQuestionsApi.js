@@ -3,12 +3,12 @@ import { axiosBaseQuery, BASE_URL } from '../axios/axios';
 
 export const questionSubQuestionsApi = createApi({
   reducerPath: 'questionSubQuestionsApi',
-  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/sub-questions/'}),
+  baseQuery: axiosBaseQuery({ baseUrl: BASE_URL + '/service/'}),
   tagTypes: ['Sub-Question'],
   endpoints: (builder) => ({
     createQuestionSubQuestion: builder.mutation({
       query: (data) => ({
-        url: '',
+        url: 'sub-questions/',
         method: 'POST',
         data: data,
       }),
@@ -16,7 +16,7 @@ export const questionSubQuestionsApi = createApi({
     }),
     updateQuestionSubQuestion: builder.mutation({
       query: ({ id, ...data }) => ({
-        url: `${id}/`,
+        url: `sub-questions/${id}/`,
         method: 'PUT',
         data: data,
       }),
@@ -24,16 +24,25 @@ export const questionSubQuestionsApi = createApi({
     }),
     deleteQuestionSubQuestion: builder.mutation({
       query: (id) => ({
-        url: `${id}/`,
+        url: `sub-questions/${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Sub-Question'],
     }),
+    createSubQuestionPricing: builder.mutation({
+        query: (data) => ({
+          url: 'sub-questions/bulk-pricing/',
+          method: 'POST',
+          data: data,
+        }),
+        invalidatesTags: ['Sub-Question-Pricing'],
+      }),
   }),
 });
 
 export const {
   useCreateQuestionSubQuestionMutation,
   useUpdateQuestionSubQuestionMutation,
-  useDeleteQuestionSubQuestionMutation
+  useDeleteQuestionSubQuestionMutation,
+  useCreateSubQuestionPricingMutation
 } = questionSubQuestionsApi;

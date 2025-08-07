@@ -12,8 +12,14 @@ import ServiceSelectionForm from "./forms/ServiceSelectionForm"
 import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
+import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
 
-const steps = ["Your Information", "Select Service", "Choose Package", "Answer Questions", "Review & Submit"]
+const steps = [
+  "Select Services",
+  "Your Information",
+  "Answer Questions",
+  "Review & Submit"
+];
 
 export const BookingWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
@@ -27,7 +33,10 @@ export const BookingWizard = () => {
       longitude: "",
       googlePlaceId: "",
       contactId: null,
+      selectedLocation:null,
+      selectedHouseSize:null
     },
+    selectedServices:[],
     selectedService: null,
     selectedPackage: null,
     questionAnswers: {},
@@ -46,7 +55,7 @@ export const BookingWizard = () => {
   const navigate = useNavigate()
 
   const handleNext = async () => {
-    if (activeStep === 0) {
+    if (activeStep === 1) {
       const { firstName, phone, email, address, contactId } = bookingData.userInfo
       if ([firstName, phone, email, address].some((v) => !v || v.trim() === "")) {
         return
@@ -60,6 +69,8 @@ export const BookingWizard = () => {
         latitude: bookingData.userInfo.latitude || undefined,
         longitude: bookingData.userInfo.longitude || undefined,
         google_place_id: bookingData.userInfo.googlePlaceId || undefined,
+        location: bookingData.userInfo.selectedLocation,
+        house_sqft: bookingData.userInfo.selectedHouseSize
       }
 
       try {
@@ -143,7 +154,12 @@ export const BookingWizard = () => {
         phone: "",
         email: "",
         address: "",
+        latitude: "",
+        longitude: "",
+        googlePlaceId: "",
+        contactId: null,
       },
+      selectedServices: [],
       selectedService: null,
       selectedPackage: null,
       questionAnswers: {},
@@ -153,7 +169,10 @@ export const BookingWizard = () => {
         questionAdjustments: 0,
         totalPrice: 0,
       },
-    })
+      availableLocations: [],
+      availableSizes: [],
+    });
+
   }
 
   const updateBookingData = (stepData) => {
@@ -162,14 +181,16 @@ export const BookingWizard = () => {
 
   const isStepComplete = (step) => {
     switch (step) {
-      case 0: {
+      case 0:
+        return Array.isArray(bookingData.selectedServices) && bookingData.selectedServices.length > 0;
+      case 1: {
         const { firstName = "", phone = "", email = "", address = "" } = bookingData.userInfo
         return [firstName, phone, email, address].every((v) => typeof v === "string" && v.trim() !== "")
       }
-      case 1:
-        return bookingData.selectedService !== null
       case 2:
-        return bookingData.selectedPackage !== null
+        return bookingData.selectedService !== null
+      // case 3:
+      //   return bookingData.selectedPackage !== null
       case 3:
         return (
           bookingData.selectedService?.questions?.every((q) => bookingData.questionAnswers[q.id] !== undefined) ?? true
@@ -188,19 +209,20 @@ export const BookingWizard = () => {
   const getStepContent = (step) => {
     switch (step) {
       case 0:
-        return <UserInfoForm data={bookingData} onUpdate={updateBookingData} />
+        return <MultiServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />;
       case 1:
-        return <ServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />
+        return <UserInfoForm data={bookingData} onUpdate={updateBookingData} />;
+      // case 2:
+      //   return <PackageSelectionForm data={bookingData} onUpdate={updateBookingData} />;
       case 2:
-        return <PackageSelectionForm data={bookingData} onUpdate={updateBookingData} />
+        return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />;
       case 3:
-        return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />
-      case 4:
-        return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} />
+        return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} />;
       default:
-        return "Unknown step"
+        return "Unknown step";
     }
-  }
+  };
+
 
   const progressPercentage = ((activeStep + 1) / steps.length) * 100
 

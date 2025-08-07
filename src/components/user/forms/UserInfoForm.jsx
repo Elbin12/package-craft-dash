@@ -9,8 +9,10 @@ import {
   ListItemText,
   ClickAwayListener,
   List,
+  MenuItem,
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
+import axios from 'axios';
 
 // PlacesAutocomplete in plain JSX
 const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
@@ -178,6 +180,24 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
 };
 
 export const UserInfoForm = ({ data, onUpdate }) => {
+  const [locations, setLocations] = useState([]);
+  const [sizeRanges, setSizeRanges] = useState([]);
+
+  useEffect(() => {
+    const fetchInitialData = async () => {
+      try {
+        const res = await axios.get("http://localhost:8000/api/quote/initial-data/");
+        const data = res.data;
+        setLocations(data.locations);
+        setSizeRanges(data.size_ranges);
+      } catch (error) {
+        console.error("Error fetching initial data:", error);
+      }
+    };
+
+    fetchInitialData();
+  }, []);
+
   const handleChange = (field) => (event) => {
     onUpdate({
       userInfo: {
@@ -245,6 +265,35 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           error={false}
           helperText="Start typing to search and select your address"
         />
+        <TextField
+          select
+          fullWidth
+          label="Select Location"
+          value={data.userInfo?.selectedLocation || ''}
+          onChange={handleChange('selectedLocation')}
+        >
+          <MenuItem value="">Select Location</MenuItem>
+          {locations.map(loc => (
+            <MenuItem key={loc.id} value={loc.id}>
+              {loc.name}
+            </MenuItem>
+          ))}
+        </TextField>
+
+        <TextField
+          select
+          fullWidth
+          label="Select House Size"
+          value={data.userInfo?.selectedHouseSize || ''}
+          onChange={handleChange('selectedHouseSize')}
+        >
+          <MenuItem value="">Select House Size</MenuItem>
+          {sizeRanges.map(size => (
+            <MenuItem key={size.id} value={size.id}>
+              {size.min_sqft} - {size.max_sqft} sq ft
+            </MenuItem>
+          ))}
+        </TextField>
       </Box>
     </Box>
   );

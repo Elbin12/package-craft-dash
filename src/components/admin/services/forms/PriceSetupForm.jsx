@@ -320,10 +320,10 @@ const PriceSetupForm = ({ data, onUpdate }) => {
           pricing_rules,
         }
         // Adjust payload key if it's a conditional child question (as per user's example)
-        if (questionToSave.is_conditional && questionToSave.parent_question) {
-          payload.question = questionId // Use 'question' key for conditional child
-          delete payload.question_id
-        }
+        // if (questionToSave.is_conditional && questionToSave.parent_question) {
+        //   payload.question = questionId // Use 'question' key for conditional child
+        //   delete payload.question_id
+        // }
         await createQuestionPricing(payload).unwrap() // Use createQuestionPricing for yes_no types (including conditional children)
       } else if (questionToSave.question_type === "multiple_yes_no") {
         // This handles multiple_yes_no questions and their sub_questions
@@ -543,7 +543,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
           </Table>
         </TableContainer>
         <Box display="flex" justifyContent="flex-end" mt={1}>
-          {question.question_type == 'conditional'&&
+          {/* {question.question_type == 'conditional'&& */}
             <Button
               variant="contained"
               color="primary"
@@ -552,7 +552,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
             >
               {isLoading ? "Saving..." : "Save"}
             </Button>
-          }
+          {/* } */}
         </Box>
         {/* Render sub_questions if they exist and it's not a multiple_yes_no (as its sub_questions are handled in the table) */}
         {question.sub_questions &&

@@ -23,19 +23,23 @@ import PriceSetupForm from './forms/PriceSetupForm';
 import { 
   servicesApi,
   useCreateServiceMutation, 
-  useUpdateServiceMutation 
+  useCreateServiceSettingsMutation, 
+  useUpdateServiceMutation, 
+  useUpdateServiceSettingsMutation
 } from '../../../store/api/servicesApi';
 import { useCreatePackageMutation } from '../../../store/api/packagesApi';
 import { useCreateFeatureMutation } from '../../../store/api/featuresApi';
 import { useCreateQuestionMutation } from '../../../store/api/questionsApi';
 import { useDispatch } from 'react-redux';
 import { setEditingService } from '../../../store/slices/servicesSlice';
+import ServiceSettingsForm from './forms/ServiceSettingsForm';
 
 const steps = [
   'Service Details',
   'Package Management',
   'Question Builder', 
-  'Price Setup'
+  'Price Setup',
+  'Final Details'
 ];
 
 // ServiceCreationWizardProps: { open, onClose, onComplete, editData }
@@ -56,6 +60,7 @@ export const ServiceCreationWizard = ({
     1: false,
     2: false,
     3: false,
+    4: false
   });
 
   const [stepErrors, setStepErrors] = useState({});
@@ -66,6 +71,10 @@ export const ServiceCreationWizard = ({
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [createQuestion] = useCreateQuestionMutation();
+
+  const [createServiceSettings] = useCreateServiceSettingsMutation();
+  const [updateServiceSettings] = useUpdateServiceSettingsMutation();
+
 
   const dispatch = useDispatch();
 
@@ -80,12 +89,14 @@ export const ServiceCreationWizard = ({
         features: editData.features || [],
         questions: editData.questions || [],
         pricing: editData.pricing || {},
+        settings: editData.settings
       });
       setSavedSteps({
         0: true,
         1: true,
         2: true,
         3: true,
+        4: true
       });
     } else if (!editData && open) {
       setServiceData({
@@ -101,6 +112,7 @@ export const ServiceCreationWizard = ({
         1: false,
         2: false,
         3: false,
+        4: false
       });
     }
   }, [editData, open]);
@@ -140,6 +152,8 @@ export const ServiceCreationWizard = ({
         break;
       case 3:
         // Pricing validation can be added here
+        break;
+      case 4:
         break;
     }
     setStepErrors({});
@@ -215,6 +229,31 @@ export const ServiceCreationWizard = ({
             // Final step - pricing setup is already handled in packages
             setSavedSteps((prev) => ({ ...prev, 3: true }));
           }
+          break;
+          
+        case 4: // Final Step
+        if (editData){
+          await updateServiceSettings({
+            serviceId: serviceData.id,
+            general_disclaimer: serviceData.settings.general_disclaimer || '',
+            bid_in_person_disclaimer: serviceData.settings.bid_in_person_disclaimer || '',
+            apply_area_minimum: serviceData.settings.apply_area_minimum || false,
+            apply_house_size_minimum: serviceData.settings.apply_house_size_minimum || false,
+            apply_trip_charge_to_bid: serviceData.settings.apply_trip_charge_to_bid || false,
+            enable_dollar_minimum: serviceData.settings.enable_dollar_minimum || false
+          }).unwrap();
+        }else{
+          await createServiceSettings({
+            serviceId: serviceData.id,
+            general_disclaimer: serviceData.settings.general_disclaimer || '',
+            bid_in_person_disclaimer: serviceData.settings.bid_in_person_disclaimer || '',
+            apply_area_minimum: serviceData.settings.apply_area_minimum || false,
+            apply_house_size_minimum: serviceData.settings.apply_house_size_minimum || false,
+            apply_trip_charge_to_bid: serviceData.settings.apply_trip_charge_to_bid || false,
+            enable_dollar_minimum: serviceData.settings.enable_dollar_minimum || false
+          }).unwrap();
+        }
+
           onComplete(serviceData);
           handleReset();
           onClose();
@@ -289,6 +328,13 @@ export const ServiceCreationWizard = ({
       case 3:
         return (
           <PriceSetupForm
+            data={serviceData}
+            onUpdate={updateServiceData}
+          />
+        );
+      case 4:
+        return (
+          <ServiceSettingsForm
             data={serviceData}
             onUpdate={updateServiceData}
           />

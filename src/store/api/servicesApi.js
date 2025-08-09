@@ -37,6 +37,22 @@ export const servicesApi = createApi({
       }),
       invalidatesTags: ['Service'],
     }),
+    createServiceSettings: builder.mutation({
+      query: ({ serviceId, ...settings }) => ({
+        url: `${serviceId}/settings/`,
+        method: 'POST',
+        data: settings,
+      }),
+      invalidatesTags: ['Service'],
+    }),
+    updateServiceSettings: builder.mutation({
+      query: ({ serviceId, ...settings }) => ({
+        url: `${serviceId}/settings/`,
+        method: 'PUT',
+        data: settings,
+      }),
+      invalidatesTags: ['Service'],
+    }),
   }),
 });
 
@@ -46,4 +62,6 @@ export const {
   useCreateServiceMutation,
   useUpdateServiceMutation,
   useDeleteServiceMutation,
+  useCreateServiceSettingsMutation,
+  useUpdateServiceSettingsMutation
 } = servicesApi;

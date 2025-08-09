@@ -355,7 +355,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     }))
   }
 
-  const handleAddOptionToQuestion = async (questionId, optionText, forChild = false, parentQuestionId = null) => {
+  const handleAddOptionToQuestion = async (questionId, optionText, maxQty = 1, forChild = false, parentQuestionId = null) => {
     if (!optionText.trim()) return
 
     try {
@@ -365,6 +365,17 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         option_text: optionText.trim(),
         order: 1,
       }
+      
+      // Add quantity-specific fields if it's a quantity question
+      const currentQuestion = forChild 
+        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
+        : questions.find(q => q.id === questionId)
+      
+      if (currentQuestion?.question_type === "quantity") {
+        payload.allow_quantity = true
+        payload.max_quantity = parseInt(maxQty) || 1
+      }
+      
       const optionResult = await createQuestionOption(payload).unwrap()
 
       const updatedQuestions = questions.map((q) => {
@@ -628,6 +639,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
               ) : (
                 <>
                   <Typography variant="body2">{option.option_text || option}</Typography>
+                  {question.question_type === "quantity" && (
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: "12px" }}>
+                      (Max: {option.max_quantity || 1})
+                    </Typography>
+                  )}
                   <Box sx={{ display: "flex", gap: 0.5 }}>
                     <IconButton
                       size="small"
@@ -654,7 +670,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         </Box>
 
         {/* inline add */}
-        <Box display="flex" gap={1} alignItems="center" mb={2}>
+        <Box display="flex" gap={1} alignItems="center" mb={2} flexWrap="wrap">
           <TextField
             size="small"
             label="New Option"
@@ -672,30 +688,106 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   handleAddOptionToQuestion(
                     question.id,
                     optionInputs[`child_${question.id}`] || "",
+                    optionInputs[`child_${question.id}_maxQty`] || 1,
                     true,
                     parentQuestionId,
                   )
-                  setOptionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
+                  setOptionInputs((prev) => ({ 
+                    ...prev, 
+                    [`child_${question.id}`]: "",
+                    [`child_${question.id}_maxQty`]: ""
+                  }))
                 } else {
-                  handleAddOptionToQuestion(question.id, optionInputs[question.id] || "")
-                  setOptionInputs((prev) => ({ ...prev, [question.id]: "" }))
+                  handleAddOptionToQuestion(
+                    question.id, 
+                    optionInputs[question.id] || "",
+                    optionInputs[`${question.id}_maxQty`] || 1
+                  )
+                  setOptionInputs((prev) => ({ 
+                    ...prev, 
+                    [question.id]: "",
+                    [`${question.id}_maxQty`]: ""
+                  }))
                 }
               }
             }}
+            sx={{ minWidth: "150px" }}
           />
+          
+          {/* Max Quantity Input for quantity type questions */}
+          {question.question_type === "quantity" && (
+            <TextField
+              size="small"
+              type="number"
+              label="Max Qty"
+              value={isChild ? optionInputs[`child_${question.id}_maxQty`] || "" : optionInputs[`${question.id}_maxQty`] || ""}
+              onChange={(e) =>
+                setOptionInputs((prev) => ({
+                  ...prev,
+                  [isChild ? `child_${question.id}_maxQty` : `${question.id}_maxQty`]: e.target.value,
+                }))
+              }
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  if (isChild) {
+                    handleAddOptionToQuestion(
+                      question.id,
+                      optionInputs[`child_${question.id}`] || "",
+                      optionInputs[`child_${question.id}_maxQty`] || 1,
+                      true,
+                      parentQuestionId,
+                    )
+                    setOptionInputs((prev) => ({ 
+                      ...prev, 
+                      [`child_${question.id}`]: "",
+                      [`child_${question.id}_maxQty`]: ""
+                    }))
+                  } else {
+                    handleAddOptionToQuestion(
+                      question.id, 
+                      optionInputs[question.id] || "",
+                      optionInputs[`${question.id}_maxQty`] || 1
+                    )
+                    setOptionInputs((prev) => ({ 
+                      ...prev, 
+                      [question.id]: "",
+                      [`${question.id}_maxQty`]: ""
+                    }))
+                  }
+                }
+              }}
+              sx={{ width: "100px" }}
+              inputProps={{ min: 1 }}
+            />
+          )}
+          
           <Button
             onClick={() => {
               if (isChild) {
                 handleAddOptionToQuestion(
                   question.id,
                   optionInputs[`child_${question.id}`] || "",
+                  optionInputs[`child_${question.id}_maxQty`] || 1,
                   true,
                   parentQuestionId,
                 )
-                setOptionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
+                setOptionInputs((prev) => ({ 
+                  ...prev, 
+                  [`child_${question.id}`]: "",
+                  [`child_${question.id}_maxQty`]: ""
+                }))
               } else {
-                handleAddOptionToQuestion(question.id, optionInputs[question.id] || "")
-                setOptionInputs((prev) => ({ ...prev, [question.id]: "" }))
+                handleAddOptionToQuestion(
+                  question.id, 
+                  optionInputs[question.id] || "",
+                  optionInputs[`${question.id}_maxQty`] || 1
+                )
+                setOptionInputs((prev) => ({ 
+                  ...prev, 
+                  [question.id]: "",
+                  [`${question.id}_maxQty`]: ""
+                }))
               }
             }}
             disabled={!(isChild ? optionInputs[`child_${question.id}`] : optionInputs[question.id])?.trim()}

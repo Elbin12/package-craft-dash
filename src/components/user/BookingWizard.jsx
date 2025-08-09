@@ -1,10 +1,9 @@
 "use client"
-import { useState } from "react"
+import { useState, useCallback } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, Circle, Loader2 } from "lucide-react"
-import { useCreateContactMutation, useUpdateContactMutation } from "../../store/api/user/contactsApi"
 import { useCreateQuoteMutation } from "../../store/api/user/quotesApi"
 import { useNavigate } from "react-router-dom"
 import UserInfoForm from "./forms/UserInfoForm"
@@ -13,10 +12,11 @@ import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
+import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 
 const steps = [
-  "Select Services",
   "Your Information",
+  "Select Services",
   "Answer Questions",
   "Review & Submit"
 ];
@@ -24,6 +24,7 @@ const steps = [
 export const BookingWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
   const [bookingData, setBookingData] = useState({
+    submission_id: null,
     userInfo: {
       firstName: "",
       phone: "",
@@ -33,10 +34,10 @@ export const BookingWizard = () => {
       longitude: "",
       googlePlaceId: "",
       contactId: null,
-      selectedLocation:null,
-      selectedHouseSize:null
+      selectedLocation: null,
+      selectedHouseSize: null
     },
-    selectedServices:[],
+    selectedServices: [],
     selectedService: null,
     selectedPackage: null,
     questionAnswers: {},
@@ -46,53 +47,248 @@ export const BookingWizard = () => {
       questionAdjustments: 0,
       totalPrice: 0,
     },
+    quoteDetails: null, // Add this to store quote details
+    selectedPackages: [], // Add this to store selected packages for each service
   })
 
-  const [createContact, { isLoading: creating }] = useCreateContactMutation()
-  const [updateContact, { isLoading: updating }] = useUpdateContactMutation()
+  const [createSubmission, { isLoading: creating }] = useCreateSubmissionMutation()
+  const [updateSubmission, { isLoading: updating }] = useUpdateSubmissionMutation()
   const [createQuote, { isLoading: creatingQuote }] = useCreateQuoteMutation()
+  const [createQuestionResponses, { isLoading: submittingResponses }] = useCreateQuestionResponsesMutation()
+  const [addServiceToSubmission] = useCreateServiceToSubmissionMutation();
+  
   const isSavingContact = creating || updating
   const navigate = useNavigate()
 
+  // Use useCallback to prevent infinite loops
+  const updateBookingData = useCallback((stepData) => {
+    setBookingData((prev) => ({ ...prev, ...stepData }))
+  }, [])
+
+  const [submitQuote, { isLoading: submittingQuote }] = useSubmitQuoteMutation();
+
+  // Helper function to transform question answers to API format
+  const transformQuestionAnswersToAPIFormat = (questionAnswers, selectedServices) => {
+    const serviceResponses = {};
+
+    // Initialize service responses for each selected service
+    selectedServices.forEach(service => {
+      serviceResponses[service.id] = [];
+    });
+
+    // Group answers by service and question
+    Object.entries(questionAnswers).forEach(([key, value]) => {
+      const parts = key.split('_');
+      if (parts.length < 2) return;
+
+      const serviceId = parts[0];
+      const questionId = parts[1];
+
+      if (!serviceResponses[serviceId]) return;
+
+      // Find existing response for this question
+      let existingResponse = serviceResponses[serviceId].find(r => r.question_id === questionId);
+
+      if (parts.length === 2) {
+        // Simple question answer (yes_no, describe, options)
+        if (!existingResponse) {
+          // Determine question type based on the answer format
+          if (value === 'yes' || value === 'no') {
+            existingResponse = {
+              question_id: questionId,
+              question_type: "yes_no",
+              yes_no_answer: value === 'yes'
+            };
+          } else {
+            existingResponse = {
+              question_id: questionId,
+              question_type: "describe", // or "options"
+              selected_options: [{
+                option_id: value,
+                quantity: 1
+              }]
+            };
+          }
+          serviceResponses[serviceId].push(existingResponse);
+        }
+      } else if (parts.length === 3) {
+        // Sub-question or option-based answer
+        const thirdPart = parts[2];
+
+        // Check if this is a sub-question (multiple_yes_no)
+        if (value === 'yes' || value === 'no') {
+          if (!existingResponse) {
+            existingResponse = {
+              question_id: questionId,
+              question_type: "multiple_yes_no",
+              sub_question_answers: []
+            };
+            serviceResponses[serviceId].push(existingResponse);
+          }
+
+          const subQuestionAnswer = {
+            sub_question_id: thirdPart,
+            answer: value === 'yes'
+          };
+
+          // Update or add sub-question answer
+          const existingSubAnswer = existingResponse.sub_question_answers.find(
+            sa => sa.sub_question_id === thirdPart
+          );
+          if (existingSubAnswer) {
+            existingSubAnswer.answer = value === 'yes';
+          } else {
+            existingResponse.sub_question_answers.push(subQuestionAnswer);
+          }
+        } else if (value === 'selected') {
+          // Quantity question option selection
+          if (!existingResponse) {
+            existingResponse = {
+              question_id: questionId,
+              question_type: "quantity",
+              selected_options: []
+            };
+            serviceResponses[serviceId].push(existingResponse);
+          }
+
+          // Check if option already exists
+          const existingOption = existingResponse.selected_options.find(
+            opt => opt.option_id === thirdPart
+          );
+          if (!existingOption) {
+            existingResponse.selected_options.push({
+              option_id: thirdPart,
+              quantity: 1
+            });
+          }
+        }
+      } else if (parts.length === 4 && parts[3] === 'quantity') {
+        // Quantity value for an option
+        if (!existingResponse) {
+          existingResponse = {
+            question_id: questionId,
+            question_type: "quantity",
+            selected_options: []
+          };
+          serviceResponses[serviceId].push(existingResponse);
+        }
+
+        const optionId = parts[2];
+        const existingOption = existingResponse.selected_options.find(
+          opt => opt.option_id === optionId
+        );
+        if (existingOption) {
+          existingOption.quantity = parseInt(value) || 1;
+        }
+      }
+    });
+
+    return serviceResponses;
+  };
+
   const handleNext = async () => {
-    if (activeStep === 1) {
+    if (activeStep === 0) {
+      const {submission_id} = bookingData
       const { firstName, phone, email, address, contactId } = bookingData.userInfo
       if ([firstName, phone, email, address].some((v) => !v || v.trim() === "")) {
         return
       }
 
       const payload = {
-        first_name: firstName,
-        phone_number: phone,
-        email,
-        address,
+        customer_name: firstName,
+        customer_phone: phone,
+        customer_email: email,
+        customer_address: address,
         latitude: bookingData.userInfo.latitude || undefined,
         longitude: bookingData.userInfo.longitude || undefined,
         google_place_id: bookingData.userInfo.googlePlaceId || undefined,
         location: bookingData.userInfo.selectedLocation,
-        house_sqft: bookingData.userInfo.selectedHouseSize
+        house_sqft: 200
       }
 
       try {
-        let contactResponse
-        if (contactId) {
-          contactResponse = await updateContact({ id: contactId, ...payload }).unwrap()
+        let submissionResponse
+        if (submission_id) {
+          submissionResponse = await updateSubmission({ id: submission_id, ...payload }).unwrap()
         } else {
-          contactResponse = await createContact(payload).unwrap()
+          submissionResponse = await createSubmission(payload).unwrap()
         }
         updateBookingData({
-          userInfo: {
-            ...bookingData.userInfo,
-            contactId: contactResponse.id,
-          },
+          submission_id: submissionResponse.submission_id,
         })
         setActiveStep((prev) => prev + 1)
       } catch (err) {
         console.error("Failed to save contact", err)
         alert("Could not save contact. Please try again.")
       }
+    } else if(activeStep === 1){
+      try{
+        const payload = {service_ids:bookingData.selectedServices.map(service => service.id)}
+        await addServiceToSubmission({submissionId:bookingData.submission_id, payload})
+        setActiveStep((prevActiveStep) => prevActiveStep + 1)
+      }catch(error){
+        console.log(error, 'error')
+      }
+    }
+    else if (activeStep === 2) {
+      // Handle question responses submission
+      try {
+        const { submission_id, selectedServices, questionAnswers } = bookingData;
+        
+        if (!submission_id) {
+          alert("Missing submission ID. Please go back and complete your information.");
+          return;
+        }
+
+        if (!selectedServices || selectedServices.length === 0) {
+          alert("No services selected. Please go back and select services.");
+          return;
+        }
+
+        console.log(bookingData, 'dataaaa')
+
+        // Transform question answers to API format
+        const serviceResponses = transformQuestionAnswersToAPIFormat(questionAnswers, selectedServices);
+
+        // Submit responses for each service
+        const responsePromises = selectedServices.map(async (service) => {
+          const responses = serviceResponses[service.id] || [];
+          
+          if (responses.length === 0) {
+            console.log(`No responses for service ${service.id}, skipping...`);
+            return;
+          }
+
+          const payload = { responses };
+
+          console.log(payload, 'payload')
+          
+          try {
+            const result = await createQuestionResponses({
+              submissionId: submission_id,
+              serviceId: service.id,
+              payload
+            }).unwrap();
+            console.log(`Responses submitted for service ${service.id}:`, result);
+            return result;
+          } catch (error) {
+            console.error(`Failed to submit responses for service ${service.id}:`, error);
+            throw new Error(`Failed to submit responses for ${service.name}`);
+          }
+        });
+
+        // Wait for all service responses to be submitted
+        await Promise.all(responsePromises);
+        
+        console.log('All question responses submitted successfully');
+        setActiveStep((prev) => prev + 1);
+        
+      } catch (err) {
+        console.error("Failed to submit question responses", err);
+        alert(`Could not submit question responses: ${err.message || 'Please try again.'}`);
+      }
     } else if (activeStep === steps.length - 1) {
-      handleSubmit()
+      await handleSubmit()
     } else {
       setActiveStep((prevActiveStep) => prevActiveStep + 1)
     }
@@ -103,52 +299,53 @@ export const BookingWizard = () => {
   }
 
   const handleSubmit = async () => {
-    const contactId = bookingData.userInfo?.contactId
-    const serviceId = bookingData.selectedService?.id
-    const packageId = bookingData.selectedPackage?.id
-    if (!contactId || !serviceId || !packageId) {
-      alert("Missing required booking info.")
-      return
-    }
-
-    const questions = bookingData.selectedService?.questions || []
-    const answersPayload = questions.map((q) => {
-      const ans = bookingData.questionAnswers[q.id]
-      if (q.type === "yes_no") {
-        return {
-          question_id: q.id,
-          yes_no_answer: ans === "yes",
-        }
-      } else {
-        return {
-          question_id: q.id,
-          selected_option_id: ans,
-        }
-      }
-    })
-
-    const payload = {
-      contact_id: contactId,
-      service_id: serviceId,
-      package_id: packageId,
-      answers: answersPayload,
-    }
-
     try {
-      const quoteResponse = await createQuote(payload).unwrap()
-      if (quoteResponse?.id) {
-        navigate(`/quote/details/${quoteResponse.id}`)
+      const { submission_id, selectedPackages, quoteDetails } = bookingData;
+      
+      if (!submission_id) {
+        alert("Missing submission ID.");
+        return;
       }
+
+      if (!selectedPackages || selectedPackages.length === 0) {
+        alert("Please select at least one package before submitting.");
+        return;
+      }
+
+      // Prepare the payload for quote submission
+      const payload = {
+        customer_confirmation: true,
+        selected_packages: selectedPackages.map(pkg => ({
+          service_selection_id: pkg.service_selection_id,
+          package_id: pkg.package_id,
+          package_name: pkg.package_name,
+          total_price: pkg.total_price
+        })),
+        additional_notes: "",
+        preferred_contact_method: "email",
+        preferred_start_date: new Date().toISOString().split('T')[0],
+        terms_accepted: true,
+        marketing_consent: false
+      };
+
+      console.log('Submitting quote with payload:', payload);
+      
+      await submitQuote({ submissionId: submission_id, payload }).unwrap();
+      console.log('Quote submitted successfully:', result);
+      
+      // Navigate to success page or quote details
+      navigate(`/quote/details/${submission_id}`);
+      
     } catch (err) {
-      console.error("Failed to create quote", err)
-      alert("Could not submit booking. Please try again.")
+      console.error("Failed to submit quote", err);
+      alert("Could not submit booking. Please try again.");
     }
-    handleReset()
   }
 
   const handleReset = () => {
     setActiveStep(0)
     setBookingData({
+      submission_id: null,
       userInfo: {
         firstName: "",
         phone: "",
@@ -158,6 +355,8 @@ export const BookingWizard = () => {
         longitude: "",
         googlePlaceId: "",
         contactId: null,
+        selectedLocation: null,
+        selectedHouseSize: null
       },
       selectedServices: [],
       selectedService: null,
@@ -169,38 +368,23 @@ export const BookingWizard = () => {
         questionAdjustments: 0,
         totalPrice: 0,
       },
-      availableLocations: [],
-      availableSizes: [],
+      quoteDetails: null,
+      selectedPackages: [],
     });
-
-  }
-
-  const updateBookingData = (stepData) => {
-    setBookingData((prev) => ({ ...prev, ...stepData }))
   }
 
   const isStepComplete = (step) => {
     switch (step) {
-      case 0:
-        return Array.isArray(bookingData.selectedServices) && bookingData.selectedServices.length > 0;
-      case 1: {
+      case 0: {
         const { firstName = "", phone = "", email = "", address = "" } = bookingData.userInfo
         return [firstName, phone, email, address].every((v) => typeof v === "string" && v.trim() !== "")
       }
+      case 1:
+        return Array.isArray(bookingData.selectedServices) && bookingData.selectedServices.length > 0;
       case 2:
-        return bookingData.selectedService !== null
-      // case 3:
-      //   return bookingData.selectedPackage !== null
+        return true; // Questions are optional, so always allow proceeding
       case 3:
-        return (
-          bookingData.selectedService?.questions?.every((q) => bookingData.questionAnswers[q.id] !== undefined) ?? true
-        )
-      case 4:
-        return (
-          Boolean(bookingData.selectedService && bookingData.selectedPackage) &&
-          (bookingData.selectedService?.questions?.every((q) => bookingData.questionAnswers[q.id] !== undefined) ??
-            true)
-        )
+        return bookingData.selectedPackages && bookingData.selectedPackages.length > 0;
       default:
         return false
     }
@@ -209,11 +393,9 @@ export const BookingWizard = () => {
   const getStepContent = (step) => {
     switch (step) {
       case 0:
-        return <MultiServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />;
-      case 1:
         return <UserInfoForm data={bookingData} onUpdate={updateBookingData} />;
-      // case 2:
-      //   return <PackageSelectionForm data={bookingData} onUpdate={updateBookingData} />;
+      case 1:
+        return <MultiServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />;
       case 2:
         return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />;
       case 3:
@@ -222,7 +404,6 @@ export const BookingWizard = () => {
         return "Unknown step";
     }
   };
-
 
   const progressPercentage = ((activeStep + 1) / steps.length) * 100
 
@@ -298,13 +479,16 @@ export const BookingWizard = () => {
 
               <Button
                 onClick={handleNext}
-                disabled={!isStepComplete(activeStep) || (activeStep === 0 && isSavingContact)}
+                disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
                 className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
               >
-                {(activeStep === 0 && isSavingContact) || creatingQuote ? (
+                {(isSavingContact || submittingResponses || creatingQuote) ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {activeStep === 0 ? "Saving..." : "Submitting..."}
+                    {activeStep === 0 ? "Saving..." : 
+                     activeStep === 1 ? "Adding Services..." :
+                     activeStep === 2 ? "Submitting Responses..." :
+                     "Submitting Quote..."}
                   </>
                 ) : activeStep === steps.length - 1 ? (
                   "Submit Booking"

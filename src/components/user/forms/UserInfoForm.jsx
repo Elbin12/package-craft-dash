@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { LocationOn } from '@mui/icons-material';
 import axios from 'axios';
+import { useGetInitialDataQuery } from '../../../store/api/user/quoteApi';
 
 // PlacesAutocomplete in plain JSX
 const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
@@ -183,20 +184,14 @@ export const UserInfoForm = ({ data, onUpdate }) => {
   const [locations, setLocations] = useState([]);
   const [sizeRanges, setSizeRanges] = useState([]);
 
-  useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const res = await axios.get("http://localhost:8000/api/quote/initial-data/");
-        const data = res.data;
-        setLocations(data.locations);
-        setSizeRanges(data.size_ranges);
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-      }
-    };
+  const { data: initialData, isLoading, error } = useGetInitialDataQuery();
 
-    fetchInitialData();
-  }, []);
+  useEffect(() => {
+    if (initialData) {
+      setLocations(initialData.locations);
+      setSizeRanges(initialData.size_ranges);
+    }
+  }, [initialData]);
 
   const handleChange = (field) => (event) => {
     onUpdate({

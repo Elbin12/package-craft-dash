@@ -18,6 +18,7 @@ import { priceApi } from './api/user/priceApi';
 import { quotesApi } from './api/user/quotesApi';
 import { houseSizesApi } from './api/houseSizesApi';
 import { questionSubQuestionsApi } from './api/questionSubQuestionsApi';
+import { quoteApi } from './api/user/quoteApi';
 
 export const store = configureStore({
   reducer: {
@@ -40,6 +41,7 @@ export const store = configureStore({
     [quotesApi.reducerPath]: quotesApi.reducer,
     [houseSizesApi.reducerPath]: houseSizesApi.reducer,
     [questionSubQuestionsApi.reducerPath]: questionOptionsApi.reducer,
+    [quoteApi.reducerPath]: quoteApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -65,6 +67,7 @@ export const store = configureStore({
       .concat(quotesApi.middleware)
       .concat(houseSizesApi.middleware)
       .concat(questionSubQuestionsApi.middleware)
+      .concat(quoteApi.middleware)
 });
 
 export default store;

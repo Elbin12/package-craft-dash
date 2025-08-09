@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -11,6 +11,15 @@ import {
   Chip,
   Paper,
   CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  Grid,
+  Button,
+  Radio,
+  FormControlLabel,
+  RadioGroup,
+  FormControl,
 } from '@mui/material';
 import {
   Person,
@@ -19,170 +28,365 @@ import {
   QuestionAnswer,
   Receipt,
   LocationOn,
+  ExpandMore,
+  Check,
+  Close,
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
+import { useGetQuoteDetailsQuery } from '../../../store/api/user/quoteApi';
 
 export const CheckoutSummary = ({ data, onUpdate }) => {
-  const [calculatePrice, { data: priceResp, isLoading, isError, error }] =
-    useCalculatePriceMutation();
+  const [selectedPackages, setSelectedPackages] = useState({});
 
+  const {
+    data: response,
+    isLoading,
+    isError,
+    error
+  } = useGetQuoteDetailsQuery(data.submission_id, {
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
+
+  const quote_details = response;
+
+  // Memoize the quote data to prevent unnecessary re-renders
+  const quoteData = useMemo(() => quote_details, [quote_details]);
+
+  // Only update parent when quote details first load or when selected packages change
   useEffect(() => {
-    const contactId = data.userInfo?.contactId;
-    const serviceId = data.selectedService?.id;
-    const packageId = data.selectedPackage?.id;
+    if (quoteData && !isLoading && !data.quoteDetails) {
+      onUpdate({
+        quoteDetails: quoteData,
+        pricing: {
+          basePrice: parseFloat(quoteData.total_base_price || 0),
+          totalAdjustments: parseFloat(quoteData.total_adjustments || 0),
+          totalSurcharges: parseFloat(quoteData.total_surcharges || 0),
+          finalTotal: parseFloat(quoteData.final_total || 0),
+        },
+      });
+    }
+  }, [quoteData, isLoading, data.quoteDetails, onUpdate]);
 
-    if (!contactId || !serviceId || !packageId) return;
+  // Handle package selection
+  const handlePackageSelect = (serviceSelectionId, packageQuote) => {
+    const newSelectedPackages = {
+      ...selectedPackages,
+      [serviceSelectionId]: packageQuote.id
+    };
+    
+    setSelectedPackages(newSelectedPackages);
 
-    const questions = data.selectedService?.questions || [];
-    const incomplete = questions.some((q) => data.questionAnswers[q.id] === undefined);
-    if (questions.length > 0 && incomplete) return;
-
-    const answersPayload = questions.map((q) => {
-      const ans = data.questionAnswers[q.id];
-      if (q.type === 'yes_no') {
+    // Update parent component with selected packages
+    const selectedPackagesArray = Object.entries(newSelectedPackages).map(([serviceId, packageId]) => {
+      // Find the service selection and package details
+      const serviceSelection = quoteData?.service_selections.find(s => s.id === serviceId);
+      const packageDetails = serviceSelection?.package_quotes.find(p => p.id === packageId);
+      
+      if (packageDetails && serviceSelection) {
         return {
-          question_id: q.id,
-          yes_no_answer: ans === 'yes',
-        };
-      } else {
-        return {
-          question_id: q.id,
-          selected_option_id: ans,
+          service_selection_id: serviceId,
+          package_id: packageDetails.package,
+          package_name: packageDetails.package_name,
+          total_price: packageDetails.total_price
         };
       }
+      return null;
+    }).filter(Boolean);
+
+    onUpdate({
+      selectedPackages: selectedPackagesArray
     });
+  };
 
-    const payload = {
-      contact_id: contactId,
-      service_id: serviceId,
-      package_id: packageId,
-      answers: answersPayload,
-    };
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Loading quote details...
+        </Typography>
+      </Box>
+    );
+  }
 
-    calculatePrice(payload)
-      .unwrap()
-      .then((resp) => {
-        const basePrice = parseFloat(resp.base_price);
-        const tripSurcharge = parseFloat(resp.trip_surcharge);
-        const questionAdjustments = parseFloat(resp.question_adjustments);
-        const totalPrice = parseFloat(resp.total_price);
-
-        onUpdate({
-          pricing: {
-            basePrice,
-            tripSurcharge,
-            questionAdjustments,
-            totalPrice,
-          },
-          nearestLocation: resp.nearest_location,
-          distanceToLocation: resp.distance_to_location,
-        });
-      })
-      .catch((e) => {
-        console.error('Price calculation failed', e);
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data.selectedPackage, data.selectedService, data.userInfo?.contactId, data.questionAnswers]);
-
-  if (!data.selectedService || !data.selectedPackage) {
+  if (isError || !quoteData) {
     return (
       <Box>
         <Typography variant="h6" gutterBottom>
           Review & Submit
         </Typography>
-        <Typography color="text.secondary">Please complete all previous steps first.</Typography>
+        <Typography color="error">
+          Failed to load quote details. Please try again.
+        </Typography>
       </Box>
     );
   }
 
-  const pricing = data.pricing || {};
-  const hasQuestions = (data.selectedService.questions || []).length > 0;
+  const formatPrice = (price) => {
+    const numPrice = typeof price === 'string' ? parseFloat(price) : price;
+    return isNaN(numPrice) ? '0.00' : numPrice.toFixed(2);
+  };
+
+  const renderQuestionResponse = (response) => {
+    switch (response.question_type) {
+      case 'yes_no':
+        return response.yes_no_answer ? 'Yes' : 'No';
+      case 'conditional':
+        return response.yes_no_answer ? 'Yes' : 'No';
+      case 'multiple_yes_no':
+        return response.sub_question_responses
+          .filter(sub => sub.answer)
+          .map(sub => sub.sub_question_text)
+          .join(', ') || 'None selected';
+      case 'quantity':
+        return response.option_responses
+          .map(opt => `${opt.option_text}: ${opt.quantity}`)
+          .join(', ');
+      case 'describe':
+        return response.option_responses
+          .map(opt => opt.option_text)
+          .join(', ');
+      default:
+        return 'N/A';
+    }
+  };
+
+  const renderPackageFeatures = (packageQuote) => {
+    return (
+      <Box>
+        {packageQuote.included_features_details.length > 0 && (
+          <Box mb={2}>
+            <Typography variant="subtitle2" color="success.main" gutterBottom>
+              ✓ Included Features:
+            </Typography>
+            <List dense>
+              {packageQuote.included_features_details.map((feature) => (
+                <ListItem key={feature.id} sx={{ py: 0.5, pl: 2 }}>
+                  <Check color="success" fontSize="small" sx={{ mr: 1 }} />
+                  <ListItemText 
+                    primary={feature.name}
+                    secondary={feature.description}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
+        
+        {packageQuote.excluded_features_details.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" color="error.main" gutterBottom>
+              ✗ Excluded Features:
+            </Typography>
+            <List dense>
+              {packageQuote.excluded_features_details.map((feature) => (
+                <ListItem key={feature.id} sx={{ py: 0.5, pl: 2 }}>
+                  <Close color="error" fontSize="small" sx={{ mr: 1 }} />
+                  <ListItemText 
+                    primary={feature.name}
+                    secondary={feature.description}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
+  // Calculate total price of selected packages
+  const calculateTotalSelectedPrice = () => {
+    let total = 0;
+    Object.entries(selectedPackages).forEach(([serviceId, packageId]) => {
+      const serviceSelection = quoteData?.service_selections.find(s => s.id === serviceId);
+      const packageDetails = serviceSelection?.package_quotes.find(p => p.id === packageId);
+      if (packageDetails) {
+        total += parseFloat(packageDetails.total_price || 0);
+      }
+    });
+    return total;
+  };
+
+  const totalSelectedPrice = calculateTotalSelectedPrice();
 
   return (
     <Box>
       <Typography variant="h6" gutterBottom>
-        Review Your Booking
+        Quote Summary
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Please review all details before submitting your booking.
+        Quote ID: {quoteData.id} | Status: {quoteData.status.replace('_', ' ').toUpperCase()}
       </Typography>
 
       <Box display="grid" gridTemplateColumns={{ xs: '1fr', md: '2fr 1fr' }} gap={3}>
-        {/* Left */}
+        {/* Left Column - Details */}
         <Box>
+          {/* Customer Information */}
           <Card sx={{ mb: 3, borderRadius: 2 }}>
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <Person color="primary" />
-                <Typography variant="h6">Contact Information</Typography>
+                <Typography variant="h6">Customer Information</Typography>
               </Box>
-              <List dense>
-                <ListItem>
-                  <ListItemText primary="Name" secondary={data.userInfo.firstName} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Phone" secondary={data.userInfo.phone} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Email" secondary={data.userInfo.email} />
-                </ListItem>
-                <ListItem>
-                  <ListItemText primary="Address" secondary={data.userInfo.address} />
-                </ListItem>
-              </List>
+              <Grid container spacing={2}>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">Name</Typography>
+                  <Typography variant="body2">{quoteData.customer_name}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">Email</Typography>
+                  <Typography variant="body2">{quoteData.customer_email}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">Phone</Typography>
+                  <Typography variant="body2">{quoteData.customer_phone}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">Address</Typography>
+                  <Typography variant="body2">{quoteData.customer_address}</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">House Size</Typography>
+                  <Typography variant="body2">{quoteData.house_sqft} sq ft</Typography>
+                </Grid>
+                <Grid item xs={6}>
+                  <Typography variant="subtitle2">Location</Typography>
+                  <Typography variant="body2">{quoteData.location_details.name}</Typography>
+                </Grid>
+              </Grid>
             </CardContent>
           </Card>
 
-          <Card sx={{ mb: 3, borderRadius: 2 }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" gap={1} mb={2}>
-                <BusinessCenter color="primary" />
-                <Typography variant="h6">Service Details</Typography>
-              </Box>
-              <Typography variant="subtitle1">{data.selectedService.nickname}</Typography>
-              <Typography variant="body2" color="text.secondary" mb={2}>
-                {data.selectedService.description}
-              </Typography>
-              <Box display="flex" alignItems="center" gap={1}>
-                <LocalOffer color="secondary" />
-                <Typography variant="subtitle1">Package: {data.selectedPackage.name}</Typography>
-                <Chip label={`$${data.selectedPackage.basePrice}`} size="small" color="primary" />
-              </Box>
-            </CardContent>
-          </Card>
-
-          {hasQuestions && (
-            <Card sx={{ mb: 3, borderRadius: 2 }}>
+          {/* Service Selections */}
+          {quoteData.service_selections.map((selection, index) => (
+            <Card key={selection.id} sx={{ mb: 3, borderRadius: 2 }}>
               <CardContent>
                 <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <QuestionAnswer color="primary" />
-                  <Typography variant="h6">Your Answers</Typography>
+                  <BusinessCenter color="primary" />
+                  <Typography variant="h6">
+                    {selection.service_details.name}
+                  </Typography>
                 </Box>
-                <List dense>
-                  {data.selectedService.questions.map((question) => {
-                    const answer = data.questionAnswers[question.id];
-                    let displayAnswer = 'Not answered';
-                    if (answer !== undefined) {
-                      if (question.type === 'yes_no') {
-                        displayAnswer = answer === 'yes' ? 'Yes' : 'No';
-                      } else {
-                        const option = question.options?.find((opt) => opt.id === answer);
-                        displayAnswer = option?.text || 'Unknown option';
+                <Typography variant="body2" color="text.secondary" mb={2}>
+                  {selection.service_details.description}
+                </Typography>
+
+                {/* Package Options */}
+                <Typography variant="subtitle1" gutterBottom>
+                  Select Package ({selection.service_details.packages_count} options):
+                </Typography>
+                
+                <FormControl component="fieldset" sx={{ width: '100%', mb: 2 }}>
+                  <RadioGroup
+                    value={selectedPackages[selection.id] || ''}
+                    onChange={(e) => {
+                      const packageQuote = selection.package_quotes.find(p => p.id === e.target.value);
+                      if (packageQuote) {
+                        handlePackageSelect(selection.id, packageQuote);
                       }
-                    }
-                    return (
-                      <ListItem key={question.id}>
-                        <ListItemText primary={question.text} secondary={displayAnswer} />
-                      </ListItem>
-                    );
-                  })}
-                </List>
+                    }}
+                  >
+                    {selection.package_quotes.map((packageQuote) => (
+                      <Box key={packageQuote.id} sx={{ mb: 2 }}>
+                        <FormControlLabel
+                          value={packageQuote.id}
+                          control={<Radio />}
+                          label={
+                            <Box display="flex" justifyContent="space-between" alignItems="center" width="100%" sx={{ minWidth: 400 }}>
+                              <Box>
+                                <Typography variant="subtitle2">
+                                  {packageQuote.package_name}
+                                </Typography>
+                                <Typography variant="body2" color="text.secondary">
+                                  Base: ${formatPrice(packageQuote.base_price)} | Adjustments: ${formatPrice(packageQuote.question_adjustments)}
+                                </Typography>
+                              </Box>
+                              <Typography variant="h6" color="primary">
+                                ${formatPrice(packageQuote.total_price)}
+                              </Typography>
+                            </Box>
+                          }
+                          sx={{ 
+                            margin: 0,
+                            width: '100%',
+                            '& .MuiFormControlLabel-label': { width: '100%' }
+                          }}
+                        />
+                        
+                        {selectedPackages[selection.id] === packageQuote.id && (
+                          <Accordion sx={{ mt: 1, ml: 4 }}>
+                            <AccordionSummary expandIcon={<ExpandMore />}>
+                              <Typography variant="body2">View Package Details</Typography>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                              <Box>
+                                <Grid container spacing={2} mb={2}>
+                                  <Grid item xs={6}>
+                                    <Typography variant="body2">Base Price: ${formatPrice(packageQuote.base_price)}</Typography>
+                                  </Grid>
+                                  <Grid item xs={6}>
+                                    <Typography variant="body2">Sq Ft Price: ${formatPrice(packageQuote.sqft_price)}</Typography>
+                                  </Grid>
+                                  <Grid item xs={6}>
+                                    <Typography variant="body2">Question Adjustments: ${formatPrice(packageQuote.question_adjustments)}</Typography>
+                                  </Grid>
+                                  <Grid item xs={6}>
+                                    <Typography variant="body2">Surcharge: ${formatPrice(packageQuote.surcharge_amount)}</Typography>
+                                  </Grid>
+                                </Grid>
+                                
+                                {renderPackageFeatures(packageQuote)}
+                              </Box>
+                            </AccordionDetails>
+                          </Accordion>
+                        )}
+                      </Box>
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+
+                {/* Question Responses */}
+                {selection.question_responses.length > 0 && (
+                  <Box mt={3}>
+                    <Box display="flex" alignItems="center" gap={1} mb={2}>
+                      <QuestionAnswer color="primary" />
+                      <Typography variant="h6">Question Responses</Typography>
+                    </Box>
+                    <List dense>
+                      {selection.question_responses.map((response) => (
+                        <ListItem key={response.id}>
+                          <ListItemText 
+                            primary={response.question_text}
+                            secondary={
+                              <Box>
+                                <Typography variant="body2" component="span">
+                                  {renderQuestionResponse(response)}
+                                </Typography>
+                                {parseFloat(response.price_adjustment) !== 0 && (
+                                  <Chip 
+                                    label={`${parseFloat(response.price_adjustment) > 0 ? '+' : ''}${formatPrice(response.price_adjustment)}`}
+                                    size="small"
+                                    color={parseFloat(response.price_adjustment) > 0 ? 'error' : 'success'}
+                                    sx={{ ml: 1 }}
+                                  />
+                                )}
+                              </Box>
+                            }
+                          />
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
               </CardContent>
             </Card>
-          )}
+          ))}
         </Box>
 
-        {/* Right summary */}
+        {/* Right Column - Pricing Summary */}
         <Box>
           <Paper sx={{ p: 3, position: 'sticky', top: 20, borderRadius: 2 }}>
             <Box display="flex" alignItems="center" gap={1} mb={2}>
@@ -190,68 +394,80 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
               <Typography variant="h6">Pricing Summary</Typography>
             </Box>
 
-            {isLoading && (
-              <Box display="flex" justifyContent="center" mb={2}>
-                <CircularProgress size={24} />
-              </Box>
-            )}
-
-            {isError && (
-              <Typography color="error" sx={{ mb: 2 }}>
-                Failed to calculate price: {error?.message || 'Unknown'}
-              </Typography>
-            )}
-
             <Box mb={3}>
               <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Base Price ({data.selectedPackage.name})</Typography>
-                <Typography>
-                  ${pricing?.basePrice != null ? pricing.basePrice.toFixed(2) : '0.00'}
+                <Typography>Selected Packages Total</Typography>
+                <Typography color="primary" variant="h6">
+                  ${formatPrice(totalSelectedPrice)}
                 </Typography>
               </Box>
 
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography>Trip Surcharge</Typography>
-                <Typography>
-                  ${pricing?.tripSurcharge != null ? pricing.tripSurcharge.toFixed(2) : '0.00'}
-                </Typography>
-              </Box>
-
-              {(pricing?.questionAdjustments || 0) !== 0 && (
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography>Question-based Adjustments</Typography>
-                  <Typography>
-                    {pricing.questionAdjustments > 0 ? '+' : ''}
-                    ${pricing.questionAdjustments.toFixed(2)}
-                  </Typography>
+              {Object.keys(selectedPackages).length > 0 && (
+                <Box sx={{ backgroundColor: 'grey.50', p: 2, borderRadius: 1, mb: 2 }}>
+                  <Typography variant="subtitle2" mb={1}>Selected Packages:</Typography>
+                  {Object.entries(selectedPackages).map(([serviceId, packageId]) => {
+                    const serviceSelection = quoteData?.service_selections.find(s => s.id === serviceId);
+                    const packageDetails = serviceSelection?.package_quotes.find(p => p.id === packageId);
+                    if (packageDetails && serviceSelection) {
+                      return (
+                        <Box key={serviceId} display="flex" justifyContent="space-between" mb={0.5}>
+                          <Typography variant="body2">
+                            {serviceSelection.service_details.name} - {packageDetails.package_name}
+                          </Typography>
+                          <Typography variant="body2">
+                            ${formatPrice(packageDetails.total_price)}
+                          </Typography>
+                        </Box>
+                      );
+                    }
+                    return null;
+                  })}
                 </Box>
               )}
 
               <Divider sx={{ my: 2 }} />
 
               <Box display="flex" justifyContent="space-between">
-                <Typography variant="h6">Total Price</Typography>
+                <Typography variant="h6">Final Total</Typography>
                 <Typography variant="h6" color="primary">
-                  ${pricing?.totalPrice != null ? pricing.totalPrice.toFixed(2) : '0.00'}
+                  ${formatPrice(totalSelectedPrice)}
                 </Typography>
               </Box>
 
-              {data.nearestLocation && (
+              {quoteData.location_details && (
                 <Box mt={2}>
                   <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                     <LocationOn color="action" />
                     <Typography variant="body2">
-                      Nearest Location: {data.nearestLocation}
+                      Service Location: {quoteData.location_details.name}
                     </Typography>
                   </Box>
-                  {data.distanceToLocation != null && (
-                    <Typography variant="body2" color="text.secondary">
-                      Distance: {data.distanceToLocation}
-                    </Typography>
-                  )}
+                  <Typography variant="body2" color="text.secondary">
+                    Trip Surcharge: ${formatPrice(quoteData.location_details.trip_surcharge)}
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Address: {quoteData.location_details.address}
+                  </Typography>
                 </Box>
               )}
             </Box>
+
+            <Box mb={2}>
+              <Typography variant="body2" color="text.secondary">
+                Created: {new Date(quoteData.created_at).toLocaleDateString()}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Expires: {new Date(quoteData.expires_at).toLocaleDateString()}
+              </Typography>
+            </Box>
+
+            {Object.keys(selectedPackages).length === 0 && (
+              <Box sx={{ backgroundColor: 'warning.light', p: 2, borderRadius: 1, mb: 2 }}>
+                <Typography variant="body2" color="warning.dark">
+                  Please select at least one package to proceed with booking.
+                </Typography>
+              </Box>
+            )}
 
             <Typography variant="body2" color="text.secondary" align="center">
               Final price will be confirmed after service completion

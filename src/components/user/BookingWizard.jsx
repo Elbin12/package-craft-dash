@@ -331,7 +331,6 @@ export const BookingWizard = () => {
       console.log('Submitting quote with payload:', payload);
       
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
-      console.log('Quote submitted successfully:', result);
       
       // Navigate to success page or quote details
       navigate(`/quote/details/${submission_id}`);

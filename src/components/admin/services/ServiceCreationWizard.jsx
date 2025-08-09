@@ -126,11 +126,11 @@ export const ServiceCreationWizard = ({
         }
         break;
       case 1:
-        // if (!serviceData.packages || serviceData.packages.length === 0) {
-        //   setStepErrors({ 1: 'At least one package is required' });
-        //   return false;
-        // }
-        return true;
+        if (!serviceData.packages || serviceData.packages.length === 0) {
+          setStepErrors({ 1: 'At least one package is required' });
+          return false;
+        }
+        break;
       case 2:
 
       if(serviceData?.questions.length==0){

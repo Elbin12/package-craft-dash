@@ -1000,7 +1000,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
               {newQuestion.question_type === "quantity" && (
                 <>
-                  <FormControlLabel
+                  {/* <FormControlLabel
                     control={
                       <Checkbox
                         checked={option.allow_quantity || false}
@@ -1015,7 +1015,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       />
                     }
                     label="Allow Quantity"
-                  />
+                  /> */}
                   <TextField
                     size="small"
                     type="number"
@@ -1197,7 +1197,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
               {newQuestion.conditional_child.question_type === "quantity" && (
                 <>
-                  <FormControlLabel
+                  {/* <FormControlLabel
                     control={
                       <Checkbox
                         checked={option.allow_quantity || false}
@@ -1215,7 +1215,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       />
                     }
                     label="Allow Quantity"
-                  />
+                  /> */}
                   <TextField
                     size="small"
                     type="number"

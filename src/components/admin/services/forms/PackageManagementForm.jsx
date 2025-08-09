@@ -81,9 +81,9 @@ const PackageManagementForm = ({
       newErrors.name = 'Package name must be at least 3 characters';
     }
     
-    // if (!newPackage.base_price || isNaN(newPackage.base_price) || parseFloat(newPackage.base_price) <= 0) {
-    //   newErrors.base_price = 'Base price must be a valid positive number';
-    // }
+    if (!newPackage.base_price || isNaN(newPackage.base_price) || parseFloat(newPackage.base_price) <= 0) {
+      newErrors.base_price = 'Base price must be a valid positive number';
+    }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -130,7 +130,7 @@ const PackageManagementForm = ({
       const packagePayload = {
         service: data.id,
         name: newPackage.name.trim(),
-        base_price: 0,
+        base_price: newPackage.base_price,
       };
       
       const result = await createPackage(packagePayload).unwrap();
@@ -277,9 +277,9 @@ const PackageManagementForm = ({
                         <div className="space-y-1">
                           <div className="text-xs text-muted-foreground">Package {index + 1}</div>
                           <div className="font-semibold">{pkg.name}</div>
-                          {/* <div className="text-sm text-muted-foreground">
+                          <div className="text-sm text-muted-foreground">
                             Base Price ${pkg.base_price}
-                          </div> */}
+                          </div>
                           <Button
                             variant="ghost"
                             size="sm"
@@ -465,7 +465,7 @@ const PackageManagementForm = ({
             />
             {errors.name && <p className="text-sm text-destructive">{errors.name}</p>}
           </div>
-          {/* <div>
+          <div>
             <Label htmlFor="base-price">Base Price ($)</Label>
             <Input
               id="base-price"
@@ -478,7 +478,7 @@ const PackageManagementForm = ({
               placeholder="50"
             />
             {errors.base_price && <p className="text-sm text-destructive">{errors.base_price}</p>}
-          </div> */}
+          </div>
           <Button 
             onClick={handleAddPackage} 
             disabled={!newPackage.name || isLoading}

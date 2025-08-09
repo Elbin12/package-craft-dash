@@ -130,7 +130,7 @@ export const ServiceCreationWizard = ({
         //   setStepErrors({ 1: 'At least one package is required' });
         //   return false;
         // }
-        // break;
+        return true;
       case 2:
 
       if(serviceData?.questions.length==0){

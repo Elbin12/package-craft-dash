@@ -1,5 +1,5 @@
 "use client"
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -13,6 +13,8 @@ import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
 import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
+import { useDispatch } from "react-redux"
+import { resetBookingData } from "../../store/slices/bookingSlice"
 
 const steps = [
   "Your Information",
@@ -23,33 +25,27 @@ const steps = [
 
 export const BookingWizard = () => {
   const [activeStep, setActiveStep] = useState(0)
-  const [bookingData, setBookingData] = useState({
-    submission_id: null,
-    userInfo: {
-      firstName: "",
-      phone: "",
-      email: "",
-      address: "",
-      latitude: "",
-      longitude: "",
-      googlePlaceId: "",
-      contactId: null,
-      selectedLocation: null,
-      selectedHouseSize: null
-    },
-    selectedServices: [],
-    selectedService: null,
-    selectedPackage: null,
-    questionAnswers: {},
-    pricing: {
-      basePrice: 0,
-      tripSurcharge: 0,
-      questionAdjustments: 0,
-      totalPrice: 0,
-    },
-    quoteDetails: null, // Add this to store quote details
-    selectedPackages: [], // Add this to store selected packages for each service
-  })
+  const [bookingData, setBookingData] = useState(() => {
+    const saved = localStorage.getItem("bookingData");
+    return saved ? JSON.parse(saved) : {
+      submission_id: null,
+      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null },
+      selectedServices: [],
+      selectedService: null,
+      selectedPackage: null,
+      questionAnswers: {},
+      pricing: { basePrice: 0, tripSurcharge: 0, questionAdjustments: 0, totalPrice: 0 },
+      quoteDetails: null,
+      selectedPackages: [],
+    };
+  });
+
+  const dispatch = useDispatch();
+
+  // Save to localStorage whenever bookingData changes
+  useEffect(() => {
+    localStorage.setItem("bookingData", JSON.stringify(bookingData));
+  }, [bookingData]);
 
   const [createSubmission, { isLoading: creating }] = useCreateSubmissionMutation()
   const [updateSubmission, { isLoading: updating }] = useUpdateSubmissionMutation()
@@ -186,6 +182,9 @@ export const BookingWizard = () => {
     return serviceResponses;
   };
 
+  console.log(bookingData, 'data');
+  
+
   const handleNext = async () => {
     if (activeStep === 0) {
       const {submission_id} = bookingData
@@ -212,10 +211,10 @@ export const BookingWizard = () => {
           submissionResponse = await updateSubmission({ id: submission_id, ...payload }).unwrap()
         } else {
           submissionResponse = await createSubmission(payload).unwrap()
+          updateBookingData({
+            submission_id: submissionResponse.submission_id,
+          })
         }
-        updateBookingData({
-          submission_id: submissionResponse.submission_id,
-        })
         setActiveStep((prev) => prev + 1)
       } catch (err) {
         console.error("Failed to save contact", err)
@@ -332,7 +331,7 @@ export const BookingWizard = () => {
       
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
       
-      // Navigate to success page or quote details
+      localStorage.removeItem("bookingData");      // Navigate to success page or quote details
       navigate(`/quote/details/${submission_id}`);
       
     } catch (err) {

@@ -9,7 +9,6 @@ import { packageFeaturesApi } from './api/packageFeaturesApi';
 import { questionOptionsApi } from './api/questionOptionsApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
-import bookingSlice from './slices/bookingSlice';
 import authSlice from './slices/authSlice';
 import { createOptionPricingApi } from './api/optionPricing';
 import { contactsApi } from './api/user/contactsApi';
@@ -19,12 +18,26 @@ import { quotesApi } from './api/user/quotesApi';
 import { houseSizesApi } from './api/houseSizesApi';
 import { questionSubQuestionsApi } from './api/questionSubQuestionsApi';
 import { quoteApi } from './api/user/quoteApi';
+import persistReducer from 'redux-persist/lib/persistReducer';
+import storage from 'redux-persist/lib/storage';
+import persistStore from 'redux-persist/lib/persistStore';
+
+import bookingReducer from './slices/bookingSlice';
+
+const persistConfig = {
+  key: 'booking',
+  storage,
+  whitelist: ['booking'] // persist only booking slice
+};
+
+const persistedBookingReducer = persistReducer(persistConfig, bookingReducer);
 
 export const store = configureStore({
   reducer: {
+    booking: persistedBookingReducer,
     services: servicesSlice,
     locations: locationsSlice,
-    booking: bookingSlice,
+
     auth: authSlice,
     [servicesApi.reducerPath]: servicesApi.reducer,
     [locationsApi.reducerPath]: locationsApi.reducer,
@@ -69,5 +82,7 @@ export const store = configureStore({
       .concat(questionSubQuestionsApi.middleware)
       .concat(quoteApi.middleware)
 });
+
+export const persistor = persistStore(store);
 
 export default store;

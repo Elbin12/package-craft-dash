@@ -21,7 +21,7 @@ export const quoteApi = createApi({
         data: contactData,
       }),
       invalidatesTags: ['Submission'],
-    }),
+    }), 
     updateSubmission: builder.mutation({
       query: ({ id, ...contactData }) => ({
         url: `${id}/`,

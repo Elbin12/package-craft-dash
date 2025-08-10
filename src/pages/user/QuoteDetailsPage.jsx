@@ -475,7 +475,7 @@ const QuoteDetailsPage = () => {
                                                 >
                                                   {formatYesNo(subResp.answer)}
                                                 </Typography>
-                                                {parseFloat(subResp.price_adjustment || 0) !== 0 && (
+                                                {/* {parseFloat(subResp.price_adjustment || 0) !== 0 && (
                                                   <Chip
                                                     label={`${parseFloat(subResp.price_adjustment).toFixed(2)}`}
                                                     size="small"
@@ -485,7 +485,7 @@ const QuoteDetailsPage = () => {
                                                       height: 20
                                                     }}
                                                   />
-                                                )}
+                                                )} */}
                                               </Box>
                                             </Box>
                                           ))}
@@ -546,11 +546,11 @@ const QuoteDetailsPage = () => {
                                     </Box>
                                   )}
                                   
-                                  {parseFloat(response.price_adjustment || 0) !== 0 && (
+                                  {/* {parseFloat(response.price_adjustment || 0) !== 0 && (
                                     <Typography variant="caption" color="text.secondary">
                                       Price Adjustment: ${parseFloat(response.price_adjustment || 0).toFixed(2)}
                                     </Typography>
-                                  )}
+                                  )} */}
                                 </Box>
                               );
                             })}

@@ -203,7 +203,7 @@ export const BookingWizard = () => {
         longitude: bookingData.userInfo.longitude || undefined,
         google_place_id: bookingData.userInfo.googlePlaceId || undefined,
         location: bookingData.userInfo.selectedLocation,
-        house_sqft: 200
+        house_sqft: bookingData.userInfo?.selectedHouseSize
       }
 
       try {

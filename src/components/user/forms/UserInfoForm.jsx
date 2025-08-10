@@ -276,18 +276,17 @@ export const UserInfoForm = ({ data, onUpdate }) => {
         </TextField>
 
         <TextField
-          select
           fullWidth
           label="Select House Size"
           value={data.userInfo?.selectedHouseSize || ''}
           onChange={handleChange('selectedHouseSize')}
         >
-          <MenuItem value="">Select House Size</MenuItem>
+          {/* <MenuItem value="">Select House Size</MenuItem>
           {sizeRanges.map(size => (
             <MenuItem key={size.id} value={size.id}>
               {size.min_sqft} - {size.max_sqft} sq ft
             </MenuItem>
-          ))}
+          ))} */}
         </TextField>
       </Box>
     </Box>

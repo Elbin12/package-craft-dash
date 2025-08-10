@@ -456,9 +456,9 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
               <Typography variant="body2" color="text.secondary">
                 Created: {new Date(quoteData.created_at).toLocaleDateString()}
               </Typography>
-              <Typography variant="body2" color="text.secondary">
+              {/* <Typography variant="body2" color="text.secondary">
                 Expires: {new Date(quoteData.expires_at).toLocaleDateString()}
-              </Typography>
+              </Typography> */}
             </Box>
 
             {Object.keys(selectedPackages).length === 0 && (

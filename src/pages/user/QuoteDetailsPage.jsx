@@ -675,7 +675,7 @@ const QuoteDetailsPage = () => {
                       )}
                     </Box>
                   )}
-                  {expires_at && (
+                  {/* {expires_at && (
                     <Box
                       sx={{
                         mt: 1,
@@ -690,7 +690,7 @@ const QuoteDetailsPage = () => {
                         Quote Expires: {new Date(expires_at).toLocaleDateString()}
                       </Typography>
                     </Box>
-                  )}
+                  )} */}
                   <Divider />
                   <Typography variant="caption" color="text.secondary" align="center">
                     Quote created on{' '}

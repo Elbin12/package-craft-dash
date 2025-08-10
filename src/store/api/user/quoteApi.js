@@ -61,5 +61,5 @@ export const quoteApi = createApi({
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
-  useCreateServiceToSubmissionMutation, useGetQuoteDetailsQuery,useSubmitQuoteMutation
+  useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation
  } = quoteApi;

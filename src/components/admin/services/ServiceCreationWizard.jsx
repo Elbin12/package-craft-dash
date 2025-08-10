@@ -232,17 +232,6 @@ export const ServiceCreationWizard = ({
           break;
           
         case 4: // Final Step
-        if (editData){
-          await updateServiceSettings({
-            serviceId: serviceData.id,
-            general_disclaimer: serviceData.settings.general_disclaimer || '',
-            bid_in_person_disclaimer: serviceData.settings.bid_in_person_disclaimer || '',
-            apply_area_minimum: serviceData.settings.apply_area_minimum || false,
-            apply_house_size_minimum: serviceData.settings.apply_house_size_minimum || false,
-            apply_trip_charge_to_bid: serviceData.settings.apply_trip_charge_to_bid || false,
-            enable_dollar_minimum: serviceData.settings.enable_dollar_minimum || false
-          }).unwrap();
-        }else{
           await createServiceSettings({
             serviceId: serviceData.id,
             general_disclaimer: serviceData.settings.general_disclaimer || '',
@@ -252,7 +241,6 @@ export const ServiceCreationWizard = ({
             apply_trip_charge_to_bid: serviceData.settings.apply_trip_charge_to_bid || false,
             enable_dollar_minimum: serviceData.settings.enable_dollar_minimum || false
           }).unwrap();
-        }
 
           onComplete(serviceData);
           handleReset();

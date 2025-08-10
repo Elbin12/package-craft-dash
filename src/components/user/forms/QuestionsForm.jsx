@@ -272,7 +272,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
             {question.options?.map((option) => {
               const optionKey = `${serviceId}_${question.id}_${option.id}`
               const quantityKey = `${serviceId}_${question.id}_${option.id}_quantity`
-              const isSelected = data.questionAnswers?.[optionKey] === "selected"
+              const isSelected = Boolean(data.questionAnswers?.[optionKey])
               const quantity = data.questionAnswers?.[quantityKey] || 1
 
               return (
@@ -282,14 +282,12 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                       <Checkbox
                         checked={isSelected}
                         onChange={(e) => {
-                          handleAnswerChange(
-                            serviceId,
-                            question.id,
-                            e.target.checked ? "selected" : "",
-                            null,
-                            option.id,
-                          )
-                          if (!e.target.checked) {
+                          if (e.target.checked) {
+                            handleAnswerChange(serviceId, question.id, "selected", null, option.id)
+                          } else {
+                            const updatedAnswers = { ...data.questionAnswers }
+                            delete updatedAnswers[optionKey]
+                            onUpdate({ questionAnswers: updatedAnswers })
                             handleQuantityChange(serviceId, question.id, option.id, 1)
                           }
                         }}

@@ -20,6 +20,8 @@ import {
   FormControlLabel,
   RadioGroup,
   FormControl,
+  TextField,
+  Checkbox,
 } from '@mui/material';
 import {
   Person,
@@ -34,8 +36,9 @@ import {
 } from '@mui/icons-material';
 import { useCalculatePriceMutation } from '../../../store/api/user/priceApi';
 import { useGetQuoteDetailsQuery } from '../../../store/api/user/quoteApi';
+import { Info } from 'lucide-react';
 
-export const CheckoutSummary = ({ data, onUpdate }) => {
+export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepted, additionalNotes, setAdditionalNotes }) => {
   const [selectedPackages, setSelectedPackages] = useState({});
 
   const {
@@ -333,9 +336,9 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
                                   <Grid item xs={6}>
                                     <Typography variant="body2">Question Adjustments: ${formatPrice(packageQuote.question_adjustments)}</Typography>
                                   </Grid>
-                                  <Grid item xs={6}>
+                                  {/* <Grid item xs={6}>
                                     <Typography variant="body2">Surcharge: ${formatPrice(packageQuote.surcharge_amount)}</Typography>
-                                  </Grid>
+                                  </Grid> */}
                                 </Grid>
                                 
                                 {renderPackageFeatures(packageQuote)}
@@ -381,6 +384,27 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
                     </List>
                   </Box>
                 )}
+                {/* Disclaimers */}
+                {(selection.service_details.service_settings?.general_disclaimer ||
+                  selection.service_details.service_settings?.bid_in_person_disclaimer) && (
+                  <Box mt={3} p={2} sx={{ backgroundColor: 'grey.100', borderRadius: 1 }}>
+                    <Box display="flex" alignItems="center" gap={1} mb={1}>
+                      <Info color="#bdbdbd" />
+                      <Typography variant="h6" className=''>Disclaimers</Typography>
+                    </Box>
+                    {selection.service_details.service_settings.general_disclaimer && (
+                      <Typography variant="body2" color="text.secondary" mb={1}>
+                        <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
+                      </Typography>
+                    )}
+                    {selection.service_details.service_settings.bid_in_person_disclaimer && (
+                      <Typography variant="body2" color="text.secondary">
+                        <strong>Bid In Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+
               </CardContent>
             </Card>
           ))}
@@ -395,12 +419,12 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
             </Box>
 
             <Box mb={3}>
-              <Box display="flex" justifyContent="space-between" mb={1}>
+              {/* <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography>Selected Packages Total</Typography>
                 <Typography color="primary" variant="h6">
                   ${formatPrice(totalSelectedPrice)}
                 </Typography>
-              </Box>
+              </Box> */}
 
               {Object.keys(selectedPackages).length > 0 && (
                 <Box sx={{ backgroundColor: 'grey.50', p: 2, borderRadius: 1, mb: 2 }}>
@@ -424,13 +448,23 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
                   })}
                 </Box>
               )}
+              <Box sx={{ backgroundColor: 'grey.50', p: 2, borderRadius: 1, mb: 2 }}>
+                  <Box display="flex" justifyContent="space-between" mb={0.5}>
+                    <Typography variant="body2">
+                      Trip Surcharge:
+                    </Typography>
+                    <Typography variant="body2">
+                      ${formatPrice(quoteData.location_details.trip_surcharge)}
+                    </Typography>
+                  </Box>
+              </Box>
 
               <Divider sx={{ my: 2 }} />
 
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="h6">Final Total</Typography>
                 <Typography variant="h6" color="primary">
-                  ${formatPrice(totalSelectedPrice)}
+                  ${formatPrice(totalSelectedPrice + parseFloat(quoteData.location_details.trip_surcharge || 0))}
                 </Typography>
               </Box>
 
@@ -451,6 +485,65 @@ export const CheckoutSummary = ({ data, onUpdate }) => {
                 </Box>
               )}
             </Box>
+
+            {/* Additional Notes */}
+          <Box mt={3}>
+            <Typography variant="subtitle1" gutterBottom>
+              Additional Notes
+            </Typography>
+            <TextField
+              placeholder="Add any extra notes or requests..."
+              multiline
+              rows={3}
+              fullWidth
+              value={additionalNotes}
+              onChange={(e) => {
+                setAdditionalNotes(e.target.value);
+                onUpdate({
+                  additionalNotes: e.target.value,
+                  termsAccepted
+                });
+              }}
+            />
+          </Box>
+
+          {/* Terms & Conditions */}
+          <Box mt={2}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked);
+                    onUpdate({
+                      additionalNotes,
+                      termsAccepted: e.target.checked
+                    });
+                  }}
+                  color="primary"
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  I have read and agree to the{' '}
+                  <a href="/terms" target="_blank" rel="noopener noreferrer">
+                    Terms & Conditions
+                  </a>
+                </Typography>
+              }
+            />
+          </Box>
+
+          {/* Optional: Disable button until terms accepted */}
+          {/* Example:
+          <Button
+            variant="contained"
+            fullWidth
+            disabled={!termsAccepted}
+            sx={{ mt: 2 }}
+          >
+            Confirm & Book
+          </Button> */}
 
             <Box mb={2}>
               <Typography variant="body2" color="text.secondary">

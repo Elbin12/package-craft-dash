@@ -5,16 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, Circle, Loader2 } from "lucide-react"
 import { useCreateQuoteMutation } from "../../store/api/user/quotesApi"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import UserInfoForm from "./forms/UserInfoForm"
 import ServiceSelectionForm from "./forms/ServiceSelectionForm"
 import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
-import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
+import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
+import { Box, Typography } from "@mui/material"
 
 const steps = [
   "Your Information",
@@ -24,9 +25,26 @@ const steps = [
 ];
 
 export const BookingWizard = () => {
+  const [searchParams] = useSearchParams();
+  const submissionIdFromUrl = searchParams.get("submission_id");
+
+  const [signature, setSignature] = useState('');
+  const [addiditional_notes, setAdditionalNotes] = useState();
+  const [termsAccepted, setTermsAccepted] = useState(false)
+
+  // Fetch if submission_id present
+  const {
+    data: submissionData,
+    isSuccess,
+    isFetching,
+  } = useGetQuoteDetailsQuery(submissionIdFromUrl, {
+    skip: !submissionIdFromUrl,
+    refetchOnMountOrArgChange: true,
+  });
+
   const [activeStep, setActiveStep] = useState(0)
   const [bookingData, setBookingData] = useState(() => {
-    const saved = localStorage.getItem("bookingData");
+    const saved = '';
     return saved ? JSON.parse(saved) : {
       submission_id: null,
       userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null },
@@ -40,12 +58,103 @@ export const BookingWizard = () => {
     };
   });
 
-  const dispatch = useDispatch();
-
-  // Save to localStorage whenever bookingData changes
   useEffect(() => {
-    localStorage.setItem("bookingData", JSON.stringify(bookingData));
-  }, [bookingData]);
+  if (isSuccess && submissionData) {
+    const transformedData = {
+      submission_id: submissionData.id,
+      userInfo: {
+        firstName: submissionData.customer_name || "",
+        phone: submissionData.customer_phone || "",
+        email: submissionData.customer_email || "",
+        address: submissionData.customer_address || "",
+        latitude: submissionData.latitude || "",
+        longitude: submissionData.longitude || "",
+        googlePlaceId: submissionData.google_place_id || "",
+        contactId: null,
+        selectedLocation: submissionData.location || null,
+        selectedHouseSize: submissionData.house_sqft || null,
+      },
+      selectedServices: submissionData.service_selections.map((s) => ({
+        id: s.service_details.id,
+        name: s.service_details.name,
+      })),
+      selectedService: null,
+      selectedPackage: null,
+      selectedPackages: submissionData.service_selections
+        .flatMap((s) =>
+          s.package_quotes.filter((p) => p.is_selected).map((pkg) => ({
+            service_selection_id: pkg.id,
+            package_id: pkg.package,
+            package_name: pkg.package_name,
+            total_price: pkg.total_price,
+          }))
+        ),
+      // FIXED: Proper question answers transformation
+      questionAnswers: submissionData.service_selections.reduce((acc, service) => {
+        service.question_responses.forEach((response) => {
+          const serviceId = service.service_details.id;
+          const questionId = response.question;
+          
+          // Handle different question types
+          switch (response.question_type) {
+            case "yes_no":
+            case "conditional":
+              const key = `${serviceId}_${questionId}`;
+              acc[key] = response.yes_no_answer ? "yes" : "no";
+              break;
+              
+            case "describe":
+            case "options":
+              if (response.option_responses && response.option_responses.length > 0) {
+                const key = `${serviceId}_${questionId}`;
+                // For single selection, use the first option
+                acc[key] = response.option_responses[0].option;
+              }
+              break;
+              
+            case "quantity":
+              response.option_responses.forEach((optResponse) => {
+                // Mark the option as selected
+                const selectedKey = `${serviceId}_${questionId}_${optResponse.option}`;
+                acc[selectedKey] = "selected";
+                
+                // Store the quantity
+                const quantityKey = `${serviceId}_${questionId}_${optResponse.option}_quantity`;
+                acc[quantityKey] = optResponse.quantity;
+              });
+              break;
+              
+            case "multiple_yes_no":
+              response.sub_question_responses.forEach((subResponse) => {
+                const subKey = `${serviceId}_${questionId}_${subResponse.sub_question_id || subResponse.sub_question}`;
+                acc[subKey] = subResponse.answer ? "yes" : "no";
+              });
+              break;
+              
+            default:
+              console.warn(`Unknown question type: ${response.question_type}`);
+          }
+        });
+        return acc;
+      }, {}),
+      pricing: {
+        basePrice: submissionData.total_base_price || 0,
+        tripSurcharge: submissionData.total_surcharges || 0,
+        questionAdjustments: submissionData.total_adjustments || 0,
+        totalPrice: submissionData.final_total || 0,
+      },
+      quoteDetails: submissionData,
+    };
+    
+    console.log('Transformed question answers:', transformedData.questionAnswers);
+    setBookingData(transformedData);
+  }
+}, [isSuccess, submissionData]);
+
+  // // Save to localStorage whenever bookingData changes
+  // useEffect(() => {
+  //   localStorage.setItem("bookingData", JSON.stringify(bookingData));
+  // }, [bookingData]);
 
   const [createSubmission, { isLoading: creating }] = useCreateSubmissionMutation()
   const [updateSubmission, { isLoading: updating }] = useUpdateSubmissionMutation()
@@ -320,11 +429,12 @@ export const BookingWizard = () => {
           package_name: pkg.package_name,
           total_price: pkg.total_price
         })),
-        additional_notes: "",
+        additional_notes: addiditional_notes,
         preferred_contact_method: "email",
         preferred_start_date: new Date().toISOString().split('T')[0],
-        terms_accepted: true,
-        marketing_consent: false
+        terms_accepted: termsAccepted,
+        marketing_consent: false,
+        signature:signature
       };
 
       console.log('Submitting quote with payload:', payload);
@@ -374,15 +484,37 @@ export const BookingWizard = () => {
   const isStepComplete = (step) => {
     switch (step) {
       case 0: {
-        const { firstName = "", phone = "", email = "", address = "" } = bookingData.userInfo
-        return [firstName, phone, email, address].every((v) => typeof v === "string" && v.trim() !== "")
-      }
+      const {
+        firstName = "",
+        phone = "",
+        email = "",
+        address = "",
+        selectedHouseSize = ""
+      } = bookingData.userInfo || {};
+
+      const isNonEmpty = (v) =>
+        typeof v === "string" && v.trim() !== "";
+
+      const isValidEmail = (email) =>
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+      const isValidPhone = (phone) =>
+        /^\d{10}$/.test(phone); // only 10 digits
+
+      return (
+        isNonEmpty(firstName) &&
+        isNonEmpty(String(selectedHouseSize)) &&
+        isValidPhone(phone) &&
+        isValidEmail(email) &&
+        isNonEmpty(address)
+      );
+    }
       case 1:
         return Array.isArray(bookingData.selectedServices) && bookingData.selectedServices.length > 0;
       case 2:
         return true; // Questions are optional, so always allow proceeding
       case 3:
-        return bookingData.selectedPackages && bookingData.selectedPackages.length > 0;
+        return bookingData.selectedPackages && bookingData.selectedPackages.length > 0 && termsAccepted && signature;
       default:
         return false
     }
@@ -397,7 +529,9 @@ export const BookingWizard = () => {
       case 2:
         return <QuestionsForm data={bookingData} onUpdate={updateBookingData} />;
       case 3:
-        return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} />;
+        return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
+        additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes}
+        />;
       default:
         return "Unknown step";
     }
@@ -417,7 +551,7 @@ export const BookingWizard = () => {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Section */}
         <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-6">
@@ -475,6 +609,27 @@ export const BookingWizard = () => {
                 Back
               </Button>
 
+              <div className="flex items-center gap-4">
+                {activeStep === steps.length - 1 &&
+                  <Box mb={2}>
+                    <Typography variant="subtitle2" gutterBottom>
+                      Signature
+                    </Typography>
+                    <input
+                      type="text"
+                      value={signature}
+                      onChange={(e) => setSignature(e.target.value)}
+                      placeholder="Type your full name as signature"
+                      style={{
+                        width: "100%",
+                        padding: "8px",
+                        borderRadius: "4px",
+                        border: "1px solid #ccc"
+                      }}
+                    />
+                  </Box>
+                }
+
               <Button
                 onClick={handleNext}
                 disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
@@ -489,11 +644,12 @@ export const BookingWizard = () => {
                      "Submitting Quote..."}
                   </>
                 ) : activeStep === steps.length - 1 ? (
-                  "Submit Booking"
+                  "Accept Quote"
                 ) : (
                   "Next"
                 )}
               </Button>
+              </div>
             </div>
           </CardContent>
         </Card>

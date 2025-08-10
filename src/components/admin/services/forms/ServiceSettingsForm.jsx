@@ -21,7 +21,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         }
         label="Apply Area Minimum"
       />
-      <FormControlLabel
+      {/* <FormControlLabel
         control={
           <Checkbox
             checked={data?.settings?.apply_house_size_minimum || false}
@@ -29,7 +29,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
           />
         }
         label="Apply House Size Minimum"
-      />
+      /> */}
       <FormControlLabel
         control={
           <Checkbox
@@ -39,7 +39,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         }
         label="Apply Trip Charge To Bid"
       />
-      <FormControlLabel
+      {/* <FormControlLabel
         control={
           <Checkbox
             checked={data?.settings?.enable_dollar_minimum || false}
@@ -47,7 +47,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
           />
         }
         label="Enable a Dollar Minimum"
-      />
+      /> */}
 
       <TextField
         label="General Disclaimer"

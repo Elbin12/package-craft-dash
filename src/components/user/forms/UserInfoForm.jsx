@@ -232,15 +232,31 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           onChange={handleChange('firstName')}
           required
         />
-
         <TextField
           label="Phone Number"
           variant="outlined"
           fullWidth
+          type="tel"
           value={data.userInfo?.phone || ''}
           onChange={handleChange('phone')}
           placeholder="(555) 123-4567"
           required
+          inputProps={{
+            inputMode: 'numeric',
+            pattern: '[0-9]{10}', // 10 digits only
+            maxLength: 10
+          }}
+          error={
+            !data.userInfo?.phone ||
+            !/^\d{10}$/.test(data.userInfo?.phone)
+          }
+          helperText={
+            !data.userInfo?.phone
+              ? 'Phone number is required'
+              : !/^\d{10}$/.test(data.userInfo?.phone)
+              ? 'Enter a valid 10-digit phone number'
+              : ''
+          }
         />
 
         <TextField
@@ -252,6 +268,17 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           onChange={handleChange('email')}
           placeholder="john@example.com"
           required
+          error={
+            !data.userInfo?.email ||
+            !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email)
+          }
+          helperText={
+            !data.userInfo?.email
+              ? 'Email is required'
+              : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email)
+              ? 'Enter a valid email'
+              : ''
+          }
         />
 
         <PlacesAutocomplete
@@ -276,18 +303,16 @@ export const UserInfoForm = ({ data, onUpdate }) => {
         </TextField>
 
         <TextField
-          fullWidth
-          label="Select House Size"
-          value={data.userInfo?.selectedHouseSize || ''}
-          onChange={handleChange('selectedHouseSize')}
-        >
-          {/* <MenuItem value="">Select House Size</MenuItem>
-          {sizeRanges.map(size => (
-            <MenuItem key={size.id} value={size.id}>
-              {size.min_sqft} - {size.max_sqft} sq ft
-            </MenuItem>
-          ))} */}
-        </TextField>
+  fullWidth
+  label="Select House Size"
+  value={data.userInfo?.selectedHouseSize || ''}
+  onChange={(e) => {
+    const onlyNums = e.target.value.replace(/\D/g, ""); // remove non-digits
+    handleChange('selectedHouseSize')({
+      target: { value: onlyNums }
+    });
+  }}
+/>
       </Box>
     </Box>
   );

@@ -59,7 +59,7 @@ const Index = () => {
                 },
               }}
             >
-              Start Booking
+              Get Quote
             </Button>
           </Box>
         </Box>

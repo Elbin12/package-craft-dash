@@ -477,7 +477,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                     </Typography>
                   </Box>
                   <Typography variant="body2" color="text.secondary">
-                    Trip Surcharge: ${formatPrice(quoteData.location_details.trip_surcharge)}
+                    Trip Surcharge: {quoteData.quote_surcharge_applicable ? `${formatPrice(quoteData.location_details.trip_surcharge)}` : 0}
                   </Typography>
                   <Typography variant="body2" color="text.secondary">
                     Address: {quoteData.location_details.address}

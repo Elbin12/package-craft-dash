@@ -545,8 +545,8 @@ export const BookingWizard = () => {
       <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Book Your Service</h1>
-            <p className="text-gray-600">Complete the steps below to book your service</p>
+            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Quote</h1>
+            <p className="text-gray-600">Complete the steps below to create your quote</p>
           </div>
         </div>
       </div>
@@ -609,9 +609,9 @@ export const BookingWizard = () => {
                 Back
               </Button>
 
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 w-full justify-end">
                 {activeStep === steps.length - 1 &&
-                  <Box mb={2}>
+                  <Box mb={2} className='w-1/3'>
                     <Typography variant="subtitle2" gutterBottom>
                       Signature
                     </Typography>
@@ -630,25 +630,25 @@ export const BookingWizard = () => {
                   </Box>
                 }
 
-              <Button
-                onClick={handleNext}
-                disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
-                className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-              >
-                {(isSavingContact || submittingResponses || creatingQuote) ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    {activeStep === 0 ? "Saving..." : 
-                     activeStep === 1 ? "Adding Services..." :
-                     activeStep === 2 ? "Submitting Responses..." :
-                     "Submitting Quote..."}
-                  </>
-                ) : activeStep === steps.length - 1 ? (
-                  "Accept Quote"
-                ) : (
-                  "Next"
-                )}
-              </Button>
+                <Button
+                  onClick={handleNext}
+                  disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
+                  className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                >
+                  {(isSavingContact || submittingResponses || creatingQuote) ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {activeStep === 0 ? "Saving..." : 
+                      activeStep === 1 ? "Adding Services..." :
+                      activeStep === 2 ? "Submitting Responses..." :
+                      "Submitting Quote..."}
+                    </>
+                  ) : activeStep === steps.length - 1 ? (
+                    "Accept Quote"
+                  ) : (
+                    "Next"
+                  )}
+                </Button>
               </div>
             </div>
           </CardContent>

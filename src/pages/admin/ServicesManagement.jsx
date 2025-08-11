@@ -168,7 +168,6 @@ const handleEditService = async (service) => {
                 <TableRow>
                   <TableCell>Service Name</TableCell>
                   <TableCell>Description</TableCell>
-                  <TableCell>Packages</TableCell>
                   <TableCell>Questions</TableCell>
                   <TableCell>Status</TableCell>
                   <TableCell>Created</TableCell>
@@ -193,14 +192,6 @@ const handleEditService = async (service) => {
                     </TableCell>
                     <TableCell>
                       <Chip 
-                        label={`${service?.packages_count} packages`} 
-                        size="small" 
-                        color="primary"
-                        variant="outlined"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
                         label={`${service?.questions_count} questions`} 
                         size="small" 
                         color="secondary"
@@ -216,9 +207,6 @@ const handleEditService = async (service) => {
                     </TableCell>
                     <TableCell>{new Date(service.created_at).toLocaleDateString()}</TableCell>
                     <TableCell align="right">
-                      <IconButton size="small" color="primary">
-                        <Visibility />
-                      </IconButton>
                       <IconButton 
                         size="small" 
                         color="primary"

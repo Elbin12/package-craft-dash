@@ -211,7 +211,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
             {parentQuestion ? "↳ " : ""}
             {question.text}
           </Typography>
-          <Chip
+          {/* <Chip
             label={question.type}
             size="small"
             sx={{
@@ -219,7 +219,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
               color: "white",
               fontSize: "11px",
             }}
-          />
+          /> */}
         </Box>
         <CardContent>
           {renderQuestionContent(question, serviceId, parentQuestion)}
@@ -282,14 +282,18 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                       <Checkbox
                         checked={isSelected}
                         onChange={(e) => {
+                          const updatedAnswers = { ...data.questionAnswers }
                           if (e.target.checked) {
-                            handleAnswerChange(serviceId, question.id, "selected", null, option.id)
+                            updatedAnswers[optionKey] = "selected"
+                            if (option.allow_quantity) {
+                              updatedAnswers[quantityKey] = quantity || 1
+                            }
                           } else {
-                            const updatedAnswers = { ...data.questionAnswers }
                             delete updatedAnswers[optionKey]
-                            onUpdate({ questionAnswers: updatedAnswers })
-                            handleQuantityChange(serviceId, question.id, option.id, 1)
+                            delete updatedAnswers[quantityKey]
+                            // handleQuantityChange(serviceId, question.id, option.id, 1)
                           }
+                          onUpdate({ questionAnswers: updatedAnswers })
                         }}
                       />
                     }

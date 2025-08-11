@@ -125,24 +125,24 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
   return (
     <ClickAwayListener onClickAway={handleClickAway}>
       <Box sx={{ position: 'relative' }}>
-        <TextField
-          fullWidth
-          label="Address"
-          value={inputValue}
-          onChange={handleChange}
-          placeholder="Search for a location..."
-          error={error}
-          helperText={
-            helperText ||
-            (googleReady
-              ? 'Start typing to search for places...'
-              : 'Loading Google Places...')
-          }
-          disabled={!googleReady}
-          InputProps={{
-            endAdornment: loading && <CircularProgress size={20} />,
-          }}
-        />
+          {/* <TextField
+            fullWidth
+            label="Address"
+            value={inputValue}
+            onChange={handleChange}
+            placeholder="Search for a location..."
+            error={error}
+            helperText={
+              helperText ||
+              (googleReady
+                ? 'Start typing to search for places...'
+                : 'Loading Google Places...')
+            }
+            disabled={!googleReady}
+            InputProps={{
+              endAdornment: loading && <CircularProgress size={20} />,
+            }}
+          /> */}
 
         {showSuggestions && suggestions.length > 0 && (
           <Paper
@@ -281,12 +281,12 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           }
         />
 
-        <PlacesAutocomplete
+        {/* <PlacesAutocomplete
           value={data.userInfo?.address || ''}
           onSelect={handlePlaceSelect}
           error={false}
           helperText="Start typing to search and select your address"
-        />
+        /> */}
         <TextField
           select
           fullWidth
@@ -300,7 +300,7 @@ export const UserInfoForm = ({ data, onUpdate }) => {
               {loc.name}
             </MenuItem>
           ))}
-        </TextField>
+        </TextField>  
 
         <TextField
   fullWidth

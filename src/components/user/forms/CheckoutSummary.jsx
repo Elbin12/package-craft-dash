@@ -214,6 +214,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
   };
 
   const totalSelectedPrice = calculateTotalSelectedPrice();
+  const FinalTotal = formatPrice(totalSelectedPrice + (quoteData.quote_surcharge_applicable ? parseFloat(quoteData.location_details.trip_surcharge || 0): 0))
 
   return (
     <Box>
@@ -255,10 +256,10 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                   <Typography variant="subtitle2">House Size</Typography>
                   <Typography variant="body2">{quoteData.house_sqft} sq ft</Typography>
                 </Grid>
-                <Grid item xs={6}>
+                {/* <Grid item xs={6}>
                   <Typography variant="subtitle2">Location</Typography>
                   <Typography variant="body2">{quoteData.location_details.name}</Typography>
-                </Grid>
+                </Grid> */}
               </Grid>
             </CardContent>
           </Card>
@@ -368,14 +369,14 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                                 <Typography variant="body2" component="span">
                                   {renderQuestionResponse(response)}
                                 </Typography>
-                                {parseFloat(response.price_adjustment) !== 0 && (
+                                {/* {parseFloat(response.price_adjustment) !== 0 && (
                                   <Chip 
                                     label={`${parseFloat(response.price_adjustment) > 0 ? '+' : ''}${formatPrice(response.price_adjustment)}`}
                                     size="small"
                                     color={parseFloat(response.price_adjustment) > 0 ? 'error' : 'success'}
                                     sx={{ ml: 1 }}
                                   />
-                                )}
+                                )} */}
                               </Box>
                             }
                           />
@@ -454,7 +455,7 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
                       Trip Surcharge:
                     </Typography>
                     <Typography variant="body2">
-                      ${formatPrice(quoteData.location_details.trip_surcharge)}
+                      {quoteData.quote_surcharge_applicable ? `${formatPrice(quoteData.location_details.trip_surcharge)}` : 0}
                     </Typography>
                   </Box>
               </Box>
@@ -464,23 +465,23 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
               <Box display="flex" justifyContent="space-between">
                 <Typography variant="h6">Final Total</Typography>
                 <Typography variant="h6" color="primary">
-                  ${formatPrice(totalSelectedPrice + parseFloat(quoteData.location_details.trip_surcharge || 0))}
+                  ${FinalTotal}
                 </Typography>
               </Box>
 
               {quoteData.location_details && (
                 <Box mt={2}>
-                  <Box display="flex" alignItems="center" gap={1} mb={0.5}>
+                  {/* <Box display="flex" alignItems="center" gap={1} mb={0.5}>
                     <LocationOn color="action" />
                     <Typography variant="body2">
                       Service Location: {quoteData.location_details.name}
                     </Typography>
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
+                  </Box> */}
+                  {/* <Typography variant="body2" color="text.secondary">
                     Trip Surcharge: {quoteData.quote_surcharge_applicable ? `${formatPrice(quoteData.location_details.trip_surcharge)}` : 0}
-                  </Typography>
+                  </Typography> */}
                   <Typography variant="body2" color="text.secondary">
-                    Address: {quoteData.location_details.address}
+                    Address: {quoteData.customer_address}
                   </Typography>
                 </Box>
               )}
@@ -526,9 +527,9 @@ export const CheckoutSummary = ({ data, onUpdate, termsAccepted, setTermsAccepte
               label={
                 <Typography variant="body2">
                   I have read and agree to the{' '}
-                  <a href="/terms" target="_blank" rel="noopener noreferrer">
                     Terms & Conditions
-                  </a>
+                  {/* <a href="/terms" target="_blank" rel="noopener noreferrer">
+                  </a> */}
                 </Typography>
               }
             />

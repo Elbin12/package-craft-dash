@@ -298,7 +298,7 @@ export const BookingWizard = () => {
     if (activeStep === 0) {
       const {submission_id} = bookingData
       const { firstName, phone, email, address, contactId } = bookingData.userInfo
-      if ([firstName, phone, email, address].some((v) => !v || v.trim() === "")) {
+      if ([firstName, phone, email].some((v) => !v || v.trim() === "")) {
         return
       }
 
@@ -505,8 +505,7 @@ export const BookingWizard = () => {
         isNonEmpty(firstName) &&
         isNonEmpty(String(selectedHouseSize)) &&
         isValidPhone(phone) &&
-        isValidEmail(email) &&
-        isNonEmpty(address)
+        isValidEmail(email)
       );
     }
       case 1:
@@ -514,7 +513,7 @@ export const BookingWizard = () => {
       case 2:
         return true; // Questions are optional, so always allow proceeding
       case 3:
-        return bookingData.selectedPackages && bookingData.selectedPackages.length > 0 && termsAccepted && signature;
+        return bookingData.selectedPackages && bookingData.selectedPackages.length === bookingData.selectedServices.length && termsAccepted && signature;
       default:
         return false
     }

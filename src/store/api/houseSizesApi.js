@@ -18,6 +18,14 @@ export const houseSizesApi = createApi({
       }),
       invalidatesTags: ['HouseSize'],
     }),
+    updateHouseSizes: builder.mutation({
+      query: ({id, sizes}) => ({
+        url: `${id}/`,
+        method: 'PATCH',
+        data: sizes,
+      }),
+      invalidatesTags: ['HouseSize'],
+    }),
     deleteHouseSize: builder.mutation({
       query: (id) => ({
         url: `${id}/`,
@@ -32,4 +40,5 @@ export const {
   useGetHouseSizesQuery,
   useCreateHouseSizesMutation,
   useDeleteHouseSizeMutation,
+  useUpdateHouseSizesMutation
 } = houseSizesApi;

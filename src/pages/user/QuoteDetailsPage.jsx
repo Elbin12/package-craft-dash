@@ -13,6 +13,8 @@ import {
   CircularProgress,
   Paper,
   Button,
+  Stack,
+  Avatar,
 } from '@mui/material';
 import {
   Person,
@@ -27,6 +29,7 @@ import {
   Home,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
+import { Info } from 'lucide-react';
 
 const statusStyles = {
   pending: { bgcolor: 'warning.light', color: 'warning.dark' },
@@ -34,6 +37,7 @@ const statusStyles = {
   rejected: { bgcolor: 'error.light', color: 'error.dark' },
   submitted: { bgcolor: 'info.light', color: 'info.dark' },
   draft: { bgcolor: 'grey.100', color: 'grey.800' },
+  responses_completed: { bgcolor: 'success.light', color: 'success.dark' },
 };
 
 const formatYesNo = (val) => {
@@ -100,6 +104,8 @@ const QuoteDetailsPage = () => {
     created_at,
     expires_at,
     service_selections,
+    quote_surcharge_applicable,
+    additional_data,
   } = quote;
 
   return (
@@ -107,24 +113,26 @@ const QuoteDetailsPage = () => {
       {/* Header */}
       <Box
         sx={{
+          bgcolor:'white',
           bg: 'white',
           borderBottom: 1,
           borderColor: 'divider',
           mb: 4,
-          py: 3,
+          py: 2,
         }}
+        className='fixed w-full z-20'
       >
-        <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1}>
+        <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center" gap={2}>
-              <Button
+              {/* <Button
                 variant="text"
                 startIcon={<ArrowBack />}
                 onClick={() => navigate(-1)}
                 sx={{ textTransform: 'none' }}
               >
                 Back
-              </Button>
+              </Button> */}
               <Box>
                 <Typography variant="h4" fontWeight="bold">
                   Quote Details
@@ -153,10 +161,10 @@ const QuoteDetailsPage = () => {
       </Box>
 
       {/* Body */}
-      <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }}>
+      <Box maxWidth="1200px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
         <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '2fr 1fr' }} gap={6}>
           {/* Left column */}
-          <Box display="flex" flexDirection="column" gap={6}>
+          <Box display="flex" flexDirection="column" gap={2}>
             {/* Contact Card */}
             <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
               <Box
@@ -282,9 +290,11 @@ const QuoteDetailsPage = () => {
                             <Typography variant="h6" fontWeight="600" color="primary.main">
                               {serviceSelection.service_details?.name}
                             </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {serviceSelection.service_details?.description}
-                            </Typography>
+                            {serviceSelection.service_details?.description && (
+                              <Typography variant="body2" color="text.secondary">
+                                {serviceSelection.service_details.description}
+                              </Typography>
+                            )}
                           </Box>
                           <Box
                             sx={{
@@ -304,6 +314,14 @@ const QuoteDetailsPage = () => {
                                 Final: ${parseFloat(serviceSelection.final_total_price || 0).toFixed(2)}
                               </Typography>
                             </Box>
+                            
+                            {/* Question Adjustments */}
+                            {parseFloat(serviceSelection.question_adjustments || 0) !== 0 && (
+                              <Typography variant="caption" sx={{ color: '#047857', display: 'block', mb: 1 }}>
+                                Question Adjustments: ${parseFloat(serviceSelection.question_adjustments || 0).toFixed(2)}
+                              </Typography>
+                            )}
+                            
                             {serviceSelection.package_quotes?.[0] && (
                               <Box>
                                 <Typography variant="caption" fontWeight="600" gutterBottom>
@@ -399,7 +417,7 @@ const QuoteDetailsPage = () => {
               </Card>
             )}
 
-            {/* All Services Question Responses */}
+            {/* Question Responses */}
             {service_selections?.some(service => service.question_responses?.length > 0) && (
               <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
                 <Box
@@ -441,6 +459,9 @@ const QuoteDetailsPage = () => {
                                     if (response.option_responses?.length > 0) {
                                       return response.option_responses.map(opt => opt.option_text).join(', ');
                                     }
+                                    if (response.text_answer) {
+                                      return response.text_answer;
+                                    }
                                     return 'Not answered';
                                   
                                   case 'quantity':
@@ -456,9 +477,9 @@ const QuoteDetailsPage = () => {
                                       return (
                                         <Box sx={{ mt: 1 }}>
                                           {response.sub_question_responses.map((subResp) => (
-                                            <Box key={subResp.id} sx={{ 
-                                              display: 'flex', 
-                                              justifyContent: 'space-between', 
+                                            <Box key={subResp.id} sx={{
+                                              display: 'flex',
+                                              justifyContent: 'space-between',
                                               py: 0.5,
                                               borderBottom: '1px solid rgba(0,0,0,0.1)'
                                             }}>
@@ -466,26 +487,26 @@ const QuoteDetailsPage = () => {
                                                 {subResp.sub_question_text}
                                               </Typography>
                                               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography 
-                                                  variant="body2" 
-                                                  sx={{ 
+                                                <Typography
+                                                  variant="body2"
+                                                  sx={{
                                                     fontWeight: 600,
                                                     color: subResp.answer ? 'success.main' : 'error.main'
                                                   }}
                                                 >
                                                   {formatYesNo(subResp.answer)}
                                                 </Typography>
-                                                {/* {parseFloat(subResp.price_adjustment || 0) !== 0 && (
+                                                {parseFloat(subResp.price_adjustment || 0) !== 0 && (
                                                   <Chip
-                                                    label={`${parseFloat(subResp.price_adjustment).toFixed(2)}`}
+                                                    label={`$${parseFloat(subResp.price_adjustment).toFixed(2)}`}
                                                     size="small"
-                                                    sx={{ 
-                                                      bgcolor: 'info.light', 
+                                                    sx={{
+                                                      bgcolor: 'info.light',
                                                       fontSize: '0.75rem',
                                                       height: 20
                                                     }}
                                                   />
-                                                )} */}
+                                                )}
                                               </Box>
                                             </Box>
                                           ))}
@@ -503,7 +524,7 @@ const QuoteDetailsPage = () => {
                               };
 
                               const answerDisplay = renderAnswerDisplay();
-
+                              
                               return (
                                 <Box
                                   key={response.id}
@@ -523,8 +544,8 @@ const QuoteDetailsPage = () => {
                                     <Chip
                                       label={response.question_type.replace('_', ' ').toUpperCase()}
                                       size="small"
-                                      sx={{ 
-                                        bgcolor: 'primary.light', 
+                                      sx={{
+                                        bgcolor: 'primary.light',
                                         color: 'primary.contrastText',
                                         fontSize: '0.7rem',
                                         height: 20,
@@ -546,11 +567,11 @@ const QuoteDetailsPage = () => {
                                     </Box>
                                   )}
                                   
-                                  {/* {parseFloat(response.price_adjustment || 0) !== 0 && (
+                                  {parseFloat(response.price_adjustment || 0) !== 0 && (
                                     <Typography variant="caption" color="text.secondary">
                                       Price Adjustment: ${parseFloat(response.price_adjustment || 0).toFixed(2)}
                                     </Typography>
-                                  )} */}
+                                  )}
                                 </Box>
                               );
                             })}
@@ -559,6 +580,52 @@ const QuoteDetailsPage = () => {
                         </Box>
                       )
                     ))}
+                    {/* Additional Information */}
+              {additional_data && (
+                <Card sx={{ border: "1px solid #334155" }}>
+                  <Box sx={{ p: 3, borderBottom: "1px solid #334155" }}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: "#3b82f6" }}>
+                        <Info />
+                      </Avatar>
+                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                        Additional Information
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack spacing={3}>
+                      {additional_data.signature && (
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
+                            Signature
+                          </Typography>
+                          <Typography >{additional_data.signature}</Typography>
+                        </Box>
+                      )}
+
+                      {additional_data.additional_notes && (
+                        <Box>
+                          <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
+                            Additional Notes
+                          </Typography>
+                          <Box
+                            sx={{
+                              border: "1px solid #334155",
+                              borderRadius: 1,
+                              p: 2,
+                            }}
+                          >
+                            <Typography variant="body2" >
+                              {additional_data.additional_notes}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      )}
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
                   </Box>
                 </CardContent>
               </Card>
@@ -648,49 +715,31 @@ const QuoteDetailsPage = () => {
                       ${parseFloat(final_total || 0).toFixed(2)}
                     </Typography>
                   </Box>
-                  {location_details && (
+                  
+                  {/* Service breakdown */}
+                  <Divider sx={{ my: 1 }} />
+                  <Typography variant="subtitle2" fontWeight="600" color="text.secondary">
+                    Service Breakdown:
+                  </Typography>
+                  {service_selections?.map((service) => (
                     <Box
+                      key={service.id}
                       sx={{
-                        mt: 1,
-                        p: 2,
-                        border: '1px solid',
-                        borderColor: 'grey.200',
-                        borderRadius: 1,
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        py: 0.5,
                       }}
                     >
-                      <Box display="flex" alignItems="center" gap={1} mb={0.5}>
-                        <LocationOn fontSize="small" />
-                        <Typography variant="subtitle2" fontWeight="600">
-                          Service Location
-                        </Typography>
-                      </Box>
-                      <Typography variant="body2">{location_details.name}</Typography>
                       <Typography variant="caption" color="text.secondary">
-                        {location_details.address}
+                        {service.service_details?.name}
                       </Typography>
-                      {location_details.trip_surcharge && (
-                        <Typography variant="caption" color="text.secondary" display="block">
-                          Trip Surcharge: ${parseFloat(location_details.trip_surcharge).toFixed(2)}
-                        </Typography>
-                      )}
-                    </Box>
-                  )}
-                  {/* {expires_at && (
-                    <Box
-                      sx={{
-                        mt: 1,
-                        p: 2,
-                        border: '1px solid',
-                        borderColor: 'warning.light',
-                        borderRadius: 1,
-                        bgcolor: 'warning.50',
-                      }}
-                    >
-                      <Typography variant="caption" color="warning.dark" fontWeight="600">
-                        Quote Expires: {new Date(expires_at).toLocaleDateString()}
+                      <Typography variant="caption">
+                        ${parseFloat(service.final_total_price || 0).toFixed(2)}
                       </Typography>
                     </Box>
-                  )} */}
+                  ))}
+                  
                   <Divider />
                   <Typography variant="caption" color="text.secondary" align="center">
                     Quote created on{' '}

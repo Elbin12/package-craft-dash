@@ -1,5 +1,5 @@
 "use client"
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -17,6 +17,9 @@ import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography } from "@mui/material"
 
+import SignatureCanvas from "react-signature-canvas";
+
+
 const steps = [
   "Your Information",
   "Select Services",
@@ -31,6 +34,8 @@ export const BookingWizard = () => {
   const [signature, setSignature] = useState('');
   const [addiditional_notes, setAdditionalNotes] = useState();
   const [termsAccepted, setTermsAccepted] = useState(false)
+
+  const sigCanvasRef = useRef(null);
 
   // Fetch if submission_id present
   const {
@@ -538,6 +543,31 @@ export const BookingWizard = () => {
 
   const progressPercentage = ((activeStep + 1) / steps.length) * 100
 
+  const handleSignatureEnd = () => {
+    if (sigCanvasRef.current) {
+      try {
+        // Fixed signature capture - use getCanvas() instead of getTrimmedCanvas()
+        const canvas = sigCanvasRef.current.getCanvas()
+        const dataUrl = canvas.toDataURL("image/png")
+
+        // Convert to Base64 (remove data:image/png;base64, prefix for backend)
+        const base64Data = dataUrl.split(",")[1]
+        setSignature(base64Data)
+        console.log("Signature captured as Base64:", base64Data.substring(0, 50) + "...")
+      } catch (error) {
+        console.error("Error capturing signature:", error)
+        // Fallback: try to get data URL directly
+        try {
+          const dataUrl = sigCanvasRef.current.toDataURL("image/png")
+          const base64Data = dataUrl.split(",")[1]
+          setSignature(base64Data)
+        } catch (fallbackError) {
+          console.error("Fallback signature capture failed:", fallbackError)
+        }
+      }
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
       {/* Header */}
@@ -614,18 +644,27 @@ export const BookingWizard = () => {
                     <Typography variant="subtitle2" gutterBottom>
                       Signature
                     </Typography>
-                    <input
-                      type="text"
-                      value={signature}
-                      onChange={(e) => setSignature(e.target.value)}
-                      placeholder="Type your full name as signature"
-                      style={{
-                        width: "100%",
-                        padding: "8px",
-                        borderRadius: "4px",
-                        border: "1px solid #ccc"
+                    <SignatureCanvas
+                      ref={sigCanvasRef}
+                      penColor="black"
+                      canvasProps={{
+                        width: 400,
+                        height: 150,
+                        className: "border border-gray-300 rounded bg-white",
                       }}
+                      onEnd={handleSignatureEnd}
                     />
+                    <div className="mt-2 flex gap-2">
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          sigCanvasRef.current.clear();
+                          setSignature('');
+                        }}
+                      >
+                        Clear
+                      </Button>
+                    </div>
                   </Box>
                 }
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -30,6 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
+import SignatureCanvas from 'react-signature-canvas';
 
 const statusStyles = {
   pending: { bgcolor: 'warning.light', color: 'warning.dark' },
@@ -59,6 +60,8 @@ const QuoteDetailsPage = () => {
     refetchOnFocus: true,
     refetchOnReconnect: true,
   });
+
+  const sigCanvas = useRef();
 
   if (isLoading) {
     return (
@@ -600,7 +603,11 @@ const QuoteDetailsPage = () => {
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
                           </Typography>
-                          <Typography >{additional_data.signature}</Typography>
+                          <img
+                            src={`data:image/png;base64,${additional_data.signature}`}
+                            alt="Signature"
+                            style={{ border: "1px solid #ccc", maxWidth: "200px" }}
+                          />
                         </Box>
                       )}
 

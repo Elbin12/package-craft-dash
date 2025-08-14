@@ -9,7 +9,7 @@ const MultiServiceSelectionForm = ({ data, onUpdate }) => {
   useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const response = await axios.get("http://localhost:8000/api/user/services/");
+        const response = await axios.get("https://site.cleanonthego.com/api/user/services/");
         const services = response.data;
         setServices(services);
 

@@ -1,5 +1,5 @@
 "use client"
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
@@ -155,6 +155,12 @@ export const BookingWizard = () => {
     setBookingData(transformedData);
   }
 }, [isSuccess, submissionData]);
+
+useLayoutEffect(() => {
+    if (isSuccess && submissionData) {
+      setActiveStep(3);
+    }
+  }, [isSuccess, submissionData]);
 
   // // Save to localStorage whenever bookingData changes
   // useEffect(() => {
@@ -638,7 +644,7 @@ export const BookingWizard = () => {
                 Back
               </Button>
 
-              <div className="flex items-center gap-4 w-full justify-end">
+              <div className="flex items-center justify-end w-full gap-3">
                 {activeStep === steps.length - 1 &&
                   <Box mb={2} className='w-1/3'>
                     <Typography variant="subtitle2" gutterBottom>
@@ -648,9 +654,7 @@ export const BookingWizard = () => {
                       ref={sigCanvasRef}
                       penColor="black"
                       canvasProps={{
-                        width: 400,
-                        height: 150,
-                        className: "border border-gray-300 rounded bg-white",
+                        className: "border border-gray-300 rounded bg-white w-full h-40 sm:h-32",
                       }}
                       onEnd={handleSignatureEnd}
                     />

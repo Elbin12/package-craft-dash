@@ -12,7 +12,11 @@ export const priceApi = createApi({
         data: payload,
       }),
     }),
+    getServices: builder.query({
+        query: ()=>({url:`services/`}),
+        providesTags: ['services'],
+    }),
   }),
 });
 
-export const { useCalculatePriceMutation } = priceApi;
+export const { useCalculatePriceMutation, useGetServicesQuery } = priceApi;

@@ -724,7 +724,7 @@ const QuoteDetailsPage = () => {
                   </Box>
                   
                   {/* Service breakdown */}
-                  <Divider sx={{ my: 1 }} />
+                  {/* <Divider sx={{ my: 1 }} />
                   <Typography variant="subtitle2" fontWeight="600" color="text.secondary">
                     Service Breakdown:
                   </Typography>
@@ -745,7 +745,7 @@ const QuoteDetailsPage = () => {
                         ${parseFloat(service.final_total_price || 0).toFixed(2)}
                       </Typography>
                     </Box>
-                  ))}
+                  ))} */}
                   
                   <Divider />
                   <Typography variant="caption" color="text.secondary" align="center">

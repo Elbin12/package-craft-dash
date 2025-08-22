@@ -2,28 +2,28 @@ import React, { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import axios from "axios";
+import { useGetServicesQuery } from "../../../store/api/user/priceApi";
 
 const MultiServiceSelectionForm = ({ data, onUpdate }) => {
-  const [services, setServices] = useState([]);
+  const { data: servicesData, error, isLoading } = useGetServicesQuery(
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  const services = servicesData || [];
 
   useEffect(() => {
-    const fetchInitialData = async () => {
-      try {
-        const response = await axios.get("http://localhost:8000/api/user/services/");
-        const services = response.data;
-        setServices(services);
+    if (services) {
+      onUpdate?.({
+        availableLocations: services.locations,
+        availableSizes: services.size_ranges,
+      });
+    }
+  }, [services, onUpdate]);
 
-        // onUpdate({
-        //   availableLocations: locations,
-        //   availableSizes: size_ranges,
-        // });
-      } catch (error) {
-        console.error("Error fetching initial data:", error);
-      }
-    };
-
-    fetchInitialData();
-  }, []);
+  if (isLoading) return <p>Loading...</p>;
+  if (error) return <p>Error fetching services</p>;
 
   const toggleService = (service) => {
     const existing = data.selectedServices || [];

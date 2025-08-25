@@ -25,7 +25,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { House } from 'lucide-react';
+import { House, ListPlus } from 'lucide-react';
 
 const drawerWidth = 280;
 
@@ -36,7 +36,7 @@ const menuItems = [
   { text: 'Service Management', icon: BusinessCenter, path: '/admin/services' },
   { text: 'Location Management', icon: LocationOn, path: '/admin/locations' },
   { text: 'House Size Info', icon: House, path: '/admin/house-size-info' },
-  // { text: 'Question Builder', icon: QuestionAnswer, path: '/admin/questions' },
+  { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 

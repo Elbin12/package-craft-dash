@@ -23,6 +23,7 @@ import storage from 'redux-persist/lib/storage';
 import persistStore from 'redux-persist/lib/persistStore';
 
 import bookingReducer from './slices/bookingSlice';
+import { addOnServicesApi } from './api/addOnServicesApi';
 
 const persistConfig = {
   key: 'booking',
@@ -55,6 +56,7 @@ export const store = configureStore({
     [houseSizesApi.reducerPath]: houseSizesApi.reducer,
     [questionSubQuestionsApi.reducerPath]: questionOptionsApi.reducer,
     [quoteApi.reducerPath]: quoteApi.reducer,
+    [addOnServicesApi.reducerPath]: addOnServicesApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -81,6 +83,7 @@ export const store = configureStore({
       .concat(houseSizesApi.middleware)
       .concat(questionSubQuestionsApi.middleware)
       .concat(quoteApi.middleware)
+      .concat(addOnServicesApi.middleware)
 });
 
 export const persistor = persistStore(store);

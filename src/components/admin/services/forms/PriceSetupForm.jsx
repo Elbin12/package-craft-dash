@@ -19,8 +19,10 @@ import {
   IconButton,
   Popover,
   Button,
+  Menu,
+  MenuItem,
 } from "@mui/material"
-import { Info } from "@mui/icons-material"
+import { Info, AttachMoney, Percent } from "@mui/icons-material"
 import { useCreateQuestionPricingMutation } from "../../../../store/api/questionsApi"
 import { useCreateOptionPricingMutation } from "../../../../store/api/optionPricing"
 import { servicesApi } from "../../../../store/api/servicesApi"
@@ -75,6 +77,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
               answer: "yes", // Assuming sub-questions are always yes/no
               priceType: mapFromApiPricingType(rule.yes_pricing_type),
               value: Number.parseFloat(rule.yes_value) || 0,
+              valueType: rule.value_type || "amount", // Default to amount
             })
           })
         })
@@ -87,6 +90,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
               answer: "yes",
               priceType: mapFromApiPricingType(rule.yes_pricing_type),
               value: Number.parseFloat(rule.yes_value) || 0,
+              valueType: rule.value_type || "amount", // Default to amount
             })
           } else if (question.options && question.options.length > 0) {
             const matchedOption = question.options.find((opt) => opt.id === rule.option)
@@ -97,6 +101,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                 optionId: matchedOption.id,
                 priceType: mapFromApiPricingType(rule.pricing_type),
                 value: Number.parseFloat(rule.value) || 0,
+                valueType: rule.value_type || "amount", // Default to amount
               })
             }
           }
@@ -114,6 +119,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     answer: undefined,
     optionId: undefined,
   })
+
+  // State for managing value type dropdown menus
+  const [valueTypeMenus, setValueTypeMenus] = useState({})
 
   const [createQuestionPricing, { isLoading }] = useCreateQuestionPricingMutation()
   const [createOptionPricing] = useCreateOptionPricingMutation()
@@ -136,6 +144,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
               answer: "yes",
               priceType: "ignore",
               value: 0,
+              valueType: "amount", // Default to amount
             },
           )
         } else if (question.question_type === "multiple_yes_no") {
@@ -151,6 +160,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                 answer: "yes",
                 priceType: "ignore",
                 value: 0,
+                valueType: "amount", // Default to amount
               },
             )
           })
@@ -167,6 +177,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                 optionId: option.id,
                 priceType: "ignore",
                 value: 0,
+                valueType: "amount", // Default to amount
               },
             )
           })
@@ -255,6 +266,28 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     handlePopoverClose()
   }
 
+  const handleValueTypeMenuOpen = (event, questionId, packageId, answer, optionId) => {
+    const menuKey = `${questionId}-${packageId}-${answer || 'undefined'}-${optionId || 'undefined'}`
+    setValueTypeMenus(prev => ({
+      ...prev,
+      [menuKey]: event.currentTarget
+    }))
+  }
+
+  const handleValueTypeMenuClose = (questionId, packageId, answer, optionId) => {
+    const menuKey = `${questionId}-${packageId}-${answer || 'undefined'}-${optionId || 'undefined'}`
+    setValueTypeMenus(prev => {
+      const newMenus = { ...prev }
+      delete newMenus[menuKey]
+      return newMenus
+    })
+  }
+
+  const handleValueTypeSelect = (questionId, packageId, answer, optionId, valueType) => {
+    updatePriceRule(questionId, packageId, "valueType", valueType, answer, optionId)
+    handleValueTypeMenuClose(questionId, packageId, answer, optionId)
+  }
+
   const getPriceTypeIcon = (priceType) => {
     switch (priceType) {
       case "upcharge":
@@ -303,6 +336,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
       package_id: rule.packageId,
       pricing_type: mapToApiPricingType(rule.priceType),
       value: rawValue.toFixed(2),
+      value_type: rule.valueType || "amount", // Include value_type in payload
     }
   }
 
@@ -450,28 +484,79 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                           <TableCell>{rowLabel}</TableCell>
                           {packages.map((pkg) => {
                             const rule = getPriceRule(currentQuestionId, pkg.id, "yes", undefined)
+                            const menuKey = `${currentQuestionId}-${pkg.id}-yes-undefined`
+                            
                             return (
                               <TableCell key={pkg.id} align="center">
                                 <Box display="flex" alignItems="center" gap={1}>
-                                  <TextField
-                                    size="small"
-                                    type="number"
-                                    value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
-                                    onChange={(e) => {
-                                      if (!isValueEditable(rule?.priceType)) return
-                                      updatePriceRule(
-                                        currentQuestionId,
-                                        pkg.id,
-                                        "value",
-                                        Number(e.target.value),
-                                        "yes",
-                                        undefined,
-                                      )
-                                    }}
-                                    disabled={!isValueEditable(rule?.priceType)}
-                                    placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
-                                    sx={{ width: 80 }}
-                                  />
+                                  <Box display="flex" alignItems="center" position="relative">
+                                    <TextField
+                                      size="small"
+                                      type="number"
+                                      value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
+                                      onChange={(e) => {
+                                        if (!isValueEditable(rule?.priceType)) return
+                                        updatePriceRule(
+                                          currentQuestionId,
+                                          pkg.id,
+                                          "value",
+                                          Number(e.target.value),
+                                          "yes",
+                                          undefined,
+                                        )
+                                      }}
+                                      disabled={!isValueEditable(rule?.priceType)}
+                                      placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
+                                      sx={{ 
+                                        width: 80,
+                                        '& .MuiInputBase-input': {
+                                          paddingLeft: '32px', // Make room for the icon
+                                        }
+                                      }}
+                                    />
+                                    <IconButton
+                                      size="small"
+                                      onClick={(e) => handleValueTypeMenuOpen(e, currentQuestionId, pkg.id, "yes", undefined)}
+                                      disabled={!isValueEditable(rule?.priceType)}
+                                      sx={{
+                                        position: 'absolute',
+                                        left: '4px',
+                                        zIndex: 1 ,
+                                        width: 20,
+                                        height: 20,
+                                        bgcolor: 'rgba(0, 0, 0, 0.1)',
+                                        '&:hover': {
+                                          bgcolor: 'rgba(0, 0, 0, 0.2)',
+                                        }
+                                      }}
+                                    >
+                                      {rule?.valueType === "percent" ? (
+                                        <Percent sx={{ fontSize: 12 }} />
+                                      ) : (
+                                        <AttachMoney sx={{ fontSize: 12 }} />
+                                      )}
+                                    </IconButton>
+                                    <Menu
+                                      anchorEl={valueTypeMenus[menuKey]}
+                                      open={Boolean(valueTypeMenus[menuKey])}
+                                      onClose={() => handleValueTypeMenuClose(currentQuestionId, pkg.id, "yes", undefined)}
+                                    >
+                                      <MenuItem 
+                                        onClick={() => handleValueTypeSelect(currentQuestionId, pkg.id, "yes", undefined, "amount")}
+                                        selected={rule?.valueType === "amount"}
+                                      >
+                                        <AttachMoney sx={{ mr: 1, fontSize: 16 }} />
+                                        Price
+                                      </MenuItem>
+                                      <MenuItem 
+                                        onClick={() => handleValueTypeSelect(currentQuestionId, pkg.id, "yes", undefined, "percent")}
+                                        selected={rule?.valueType === "percent"}
+                                      >
+                                        <Percent sx={{ mr: 1, fontSize: 16 }} />
+                                        Percent
+                                      </MenuItem>
+                                    </Menu>
+                                  </Box>
                                   <IconButton
                                     size="small"
                                     onClick={(e) => handlePopoverOpen(e, currentQuestionId, pkg.id, "yes")}
@@ -498,28 +583,79 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                         <TableCell>{option.option_text}</TableCell>
                         {packages.map((pkg) => {
                           const rule = getPriceRule(question.id, pkg.id, undefined, option.id)
+                          const menuKey = `${question.id}-${pkg.id}-undefined-${option.id}`
+                          
                           return (
                             <TableCell key={pkg.id} align="center">
                               <Box display="flex" alignItems="center" gap={1}>
-                                <TextField
-                                  size="small"
-                                  type="number"
-                                  value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
-                                  onChange={(e) => {
-                                    if (!isValueEditable(rule?.priceType)) return
-                                    updatePriceRule(
-                                      question.id,
-                                      pkg.id,
-                                      "value",
-                                      Number(e.target.value),
-                                      undefined,
-                                      option.id,
-                                    )
-                                  }}
-                                  disabled={!isValueEditable(rule?.priceType)}
-                                  placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
-                                  sx={{ width: 80 }}
-                                />
+                                <Box display="flex" alignItems="center" position="relative">
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
+                                    onChange={(e) => {
+                                      if (!isValueEditable(rule?.priceType)) return
+                                      updatePriceRule(
+                                        question.id,
+                                        pkg.id,
+                                        "value",
+                                        Number(e.target.value),
+                                        undefined,
+                                        option.id,
+                                      )
+                                    }}
+                                    disabled={!isValueEditable(rule?.priceType)}
+                                    placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
+                                    sx={{ 
+                                      width: 80,
+                                      '& .MuiInputBase-input': {
+                                        paddingLeft: '32px', // Make room for the icon
+                                      }
+                                    }}
+                                  />
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) => handleValueTypeMenuOpen(e, question.id, pkg.id, undefined, option.id)}
+                                    disabled={!isValueEditable(rule?.priceType)}
+                                    sx={{
+                                      position: 'absolute',
+                                      left: '4px',
+                                      zIndex: 1,
+                                      width: 20,
+                                      height: 20,
+                                      bgcolor: 'rgba(0, 0, 0, 0.1)',
+                                      '&:hover': {
+                                        bgcolor: 'rgba(0, 0, 0, 0.2)',
+                                      }
+                                    }}
+                                  >
+                                    {rule?.valueType === "percent" ? (
+                                      <Percent sx={{ fontSize: 12 }} />
+                                    ) : (
+                                      <AttachMoney sx={{ fontSize: 12 }} />
+                                    )}
+                                  </IconButton>
+                                  <Menu
+                                    anchorEl={valueTypeMenus[menuKey]}
+                                    open={Boolean(valueTypeMenus[menuKey])}
+                                    onClose={() => handleValueTypeMenuClose(question.id, pkg.id, undefined, option.id)}
+                                  >
+                                    <MenuItem 
+                                      onClick={() => handleValueTypeSelect(question.id, pkg.id, undefined, option.id, "amount")}
+                                      selected={rule?.valueType === "amount"}
+                                    >
+                                      <AttachMoney sx={{ mr: 1, fontSize: 16 }} />
+                                      Price
+                                    </MenuItem>
+                                    <MenuItem 
+                                      onClick={() => handleValueTypeSelect(question.id, pkg.id, undefined, option.id, "percent")}
+                                      selected={rule?.valueType === "percent"}
+                                    >
+                                      <Percent sx={{ mr: 1, fontSize: 16 }} />
+                                      Percent
+                                    </MenuItem>
+                                  </Menu>
+                                </Box>
                                 <IconButton
                                   size="small"
                                   onClick={(e) => handlePopoverOpen(e, question.id, pkg.id, undefined, option.id)}

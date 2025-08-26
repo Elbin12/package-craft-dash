@@ -2,6 +2,8 @@ import axios from 'axios';
 import { logout } from '../slices/authSlice';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'https://site.cleanonthego.com/api';
+export const residential_id = import.meta.env.VITE_HOUSES_API_RESIDENTIAL_ID
+export const commercial_id = import.meta.env.VITE_HOUSES_API_COMMERCIAL_ID
 
 // Create axios instance
 export const axiosInstance = axios.create({

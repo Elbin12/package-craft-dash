@@ -17,6 +17,9 @@ import {
   TableRow,
   Paper,
   InputAdornment,
+  Tab,
+  Tabs,
+  Skeleton,
 } from "@mui/material"
 import { Delete as DeleteIcon, Add as AddIcon, Save as SaveIcon } from "@mui/icons-material"
 import {
@@ -25,6 +28,7 @@ import {
   useDeleteHouseSizeMutation,
   useUpdateHouseSizesMutation,
 } from "../../store/api/houseSizesApi"
+import { commercial_id, residential_id } from "../../store/axios/axios"
 
 const parseNumber = (v) => {
   const n = Number.parseInt(v, 10)
@@ -32,7 +36,12 @@ const parseNumber = (v) => {
 }
 
 const HouseSizeInfo = () => {
-  const { data: fetched, isLoading: isFetching, isError, error } = useGetHouseSizesQuery()
+  const [propertyType, setPropertyType] = useState("residential")
+  const [type_id, setTypeId] = useState(residential_id);
+  
+  const { data: fetched, isLoading, isFetching, isError, error } = useGetHouseSizesQuery(type_id, {
+    refetchOnMountOrArgChange: true,
+  })
   const [createHouseSizes, { isLoading: isSaving }] = useCreateHouseSizesMutation()
   const [updateHouseSizes] = useUpdateHouseSizesMutation()
   const [deleteHouseSize] = useDeleteHouseSizeMutation()
@@ -42,6 +51,18 @@ const HouseSizeInfo = () => {
   const [packages, setPackages] = useState(["Package 1", "Package 2", "Package 3"])
   const [packageValues, setPackageValues] = useState({})
   const [savingRows, setSavingRows] = useState(new Set())
+
+  // Reset initialized state when property type changes
+  useEffect(() => {
+    setInitialized(false)
+    setRows([{ max: "", andUp: false }])
+    setPackageValues({})
+    setPackages(["Package 1", "Package 2", "Package 3"])
+  }, [fetched, propertyType])
+
+  useEffect(()=>{
+    setTypeId(propertyType === 'residential'? residential_id: commercial_id)
+  }, [propertyType])
 
   useEffect(() => {
     if (!initialized && Array.isArray(fetched)) {
@@ -85,6 +106,10 @@ const HouseSizeInfo = () => {
     }
     return result
   }, [rows])
+
+  const handlePropertyTypeChange = (event, newValue) => {
+    setPropertyType(newValue)
+  }
 
   const handleChangeMax = useCallback((index, value) => {
     setRows((prev) => {
@@ -268,6 +293,7 @@ const HouseSizeInfo = () => {
                 min_sqft: minParsed,
                 max_sqft: originalRow.andUp || originalRow.max === "" ? null : maxParsed,
                 order: i + 1,
+                property_type: type_id,
                 template_prices,
               },
               isNew: !originalRow.id,
@@ -278,6 +304,7 @@ const HouseSizeInfo = () => {
               min_sqft: minParsed,
               max_sqft: originalRow.andUp || originalRow.max === "" ? null : maxParsed,
               originalMaxValue: originalRow.max,
+              property_type: type_id,
               template_prices,
               order: i + 1,
             })
@@ -331,6 +358,34 @@ const HouseSizeInfo = () => {
 
   return (
     <Box sx={{ p: 3, background: "#fff", borderRadius: 2, boxShadow: 1 }}>
+      {/* Property Type Tabs */}
+      <Box sx={{ borderBottom: 1, borderColor: 'divider', mb: 3 }}>
+        <Tabs 
+          value={propertyType} 
+          onChange={handlePropertyTypeChange} 
+          aria-label="property type tabs"
+        >
+          <Tab 
+            label="Residential Sizes" 
+            value="residential" 
+            sx={{ 
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: propertyType === 'residential' ? 600 : 400
+            }}
+          />
+          <Tab 
+            label="Commercial Sizes" 
+            value="commercial" 
+            sx={{ 
+              textTransform: 'none',
+              fontSize: '1rem',
+              fontWeight: propertyType === 'commercial' ? 600 : 400
+            }}
+          />
+        </Tabs>
+      </Box>
+
       <Typography variant="h6" mb={2}>
         House Size Information
       </Typography>
@@ -340,147 +395,200 @@ const HouseSizeInfo = () => {
         Any row can be toggled to "And Up" (no upper bound). Rows after an "And Up" are removed.
       </Typography>
 
-      {isFetching && <Typography sx={{ mb: 2 }}>Loading existing ranges...</Typography>}
+      {isFetching ? (
+        <>
+          {/* Skeleton for Add Package Column button */}
+          <Box display="flex" justifyContent="flex-end" mb={2}>
+            <Skeleton variant="rectangular" width={162} height={32} sx={{ borderRadius: 1 }} />
+          </Box>
+          <TableContainer component={Paper} sx={{ mb: 2 }}>
+            <Table size="small">
+              <TableHead>
+                <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>Minimum</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 100 }}>Maximum</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 120 }}>Package 1</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", minWidth: 120 }}>Package 2</TableCell>
+                  <TableCell sx={{ fontWeight: "bold", width: 100 }}>And Up</TableCell>
+                  <TableCell sx={{ width: 60 }}></TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {[...Array(3)].map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell>
+                      <Skeleton variant="rectangular" width={100} height={35} sx={{borderRadius: 1}} />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton variant="rectangular" width={100} height={35} sx={{borderRadius: 1}}/>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton variant="rectangular" width={100} height={35} sx={{borderRadius: 1}}/>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton variant="rectangular" width={100} height={35} sx={{borderRadius: 1}}/>
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton variant="circular" width={20} height={20} />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton variant="circular" width={24} height={24} />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          {/* Skeleton for footer buttons */}
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+            <Skeleton variant="rectangular" width={150} height={28} sx={{ borderRadius: 1 }} />
+            <Skeleton variant="rectangular" width={85} height={28} sx={{ borderRadius: 1 }} />
+          </Stack>
+        </>
+        ) :
+          <>
+            <Box display="flex" justifyContent="flex-end" mb={2}>
+              <Button onClick={handleAddPackage} variant="outlined" size="small">
+                + Add Package Column
+              </Button>
+            </Box>
+
+            <TableContainer component={Paper} sx={{ mb: 2 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
+                    <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>Minimum</TableCell>
+                    <TableCell sx={{ fontWeight: "bold", minWidth: 100 }}>Maximum</TableCell>
+                    {packages.map((pkg) => (
+                      <TableCell key={pkg} sx={{ fontWeight: "bold", minWidth: 120 }}>
+                        {pkg}
+                      </TableCell>
+                    ))}
+                    <TableCell sx={{ fontWeight: "bold", width: 100 }}>And Up</TableCell>
+                    <TableCell sx={{ width: 60 }}></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {derivedRows.map((row, index) => {
+                    const errorText = getRowError(rows[index], index, derivedRows)
+                    const isRowSaving = savingRows.has(index)
+
+                    return (
+                      <TableRow key={index}>
+                        <TableCell>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                            <Typography variant="body2">Sq Ft</Typography>
+                            <Typography 
+                              variant="body1" 
+                              sx={{ 
+                                fontWeight: 500,  
+                                color: index === 0 ? 'text.primary' : 'primary.main'
+                              }}
+                            >
+                              {row.min === "" ? "-" : row.min}
+                            </Typography>
+                            {index > 0 && (
+                              <Typography variant="caption" color="text.secondary">
+                                (auto)
+                              </Typography>
+                            )}
+                          </Box>
+                        </TableCell>
+                        <TableCell>
+                          {!row.andUp ? (
+                            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                              <Typography variant="body2">to</Typography>
+                              <TextField
+                                size="small"
+                                type="number"
+                                placeholder="Maximum"
+                                value={rows[index]?.max || ""}
+                                onChange={(e) => handleChangeMax(index, e.target.value)}
+                                sx={{ width: 100 }}
+                                inputProps={{ min: 0 }}
+                                error={!!errorText}
+                                helperText={errorText}
+                              />
+                            </Box>
+                          ) : (
+                            <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                              And Up
+                            </Typography>
+                          )}
+                        </TableCell>
+                        {packages.map((pkg) => (
+                          <TableCell key={`${index}-${pkg}`}>
+                            <TextField
+                              size="small"
+                              placeholder="0"
+                              value={packageValues[index]?.[pkg] || ""}
+                              onChange={(e) => handlePackageValueChange(index, pkg, e.target.value)}
+                              sx={{ width: 100 }}
+                              InputProps={{
+                                startAdornment: <InputAdornment position="start">$</InputAdornment>,
+                              }}
+                            />
+                          </TableCell>
+                        ))}
+                        <TableCell>
+                          <Checkbox size="small" checked={rows[index]?.andUp || false} onChange={() => toggleAndUp(index)} />
+                        </TableCell>
+                        <TableCell>
+                          <IconButton 
+                            aria-label="delete" 
+                            size="small" 
+                            onClick={() => handleDeleteRow(index)} 
+                            color="error"
+                            disabled={savingRows.size > 0}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+
+            {derivedRows.length === 0 && !isFetching && (
+              <Typography sx={{ textAlign: "center", py: 4, color: "text.secondary" }}>
+                No ranges defined. Click "Add New Option" to start.
+              </Typography>
+            )}
+
+            <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
+              <Button
+                variant="outlined"
+                startIcon={<AddIcon />}
+                onClick={handleAddRow}
+                size="small"
+                data-testid="add-new-option"
+                disabled={rows.some((r) => r.andUp)}
+              >
+                + Add New Option
+              </Button>
+              
+              <Button
+                variant="contained"
+                startIcon={<SaveIcon />}
+                onClick={handleSaveAll}
+                size="small"
+                disabled={savingRows.size > 0 || rows.some((row, idx) => getRowError(row, idx, derivedRows))}
+                color="primary"
+              >
+                {savingRows.size > 0 ? 'Saving...' : 'Save All'}
+              </Button>
+            </Stack>
+          </> 
+        }
       {isError && (
         <Typography color="error" sx={{ mb: 2 }}>
           Failed to load ranges. {error?.toString ? error.toString() : ""}
         </Typography>
       )}
-
-      <Box display="flex" justifyContent="flex-end" mb={2}>
-        <Button onClick={handleAddPackage} variant="outlined" size="small">
-          + Add Package Column
-        </Button>
-      </Box>
-
-      <TableContainer component={Paper} sx={{ mb: 2 }}>
-        <Table size="small">
-          <TableHead>
-            <TableRow sx={{ backgroundColor: "#f5f5f5" }}>
-              <TableCell sx={{ fontWeight: "bold", minWidth: 80 }}>Minimum</TableCell>
-              <TableCell sx={{ fontWeight: "bold", minWidth: 100 }}>Maximum</TableCell>
-              {packages.map((pkg) => (
-                <TableCell key={pkg} sx={{ fontWeight: "bold", minWidth: 120 }}>
-                  Minimum <br /> {pkg}
-                </TableCell>
-              ))}
-              <TableCell sx={{ fontWeight: "bold", width: 100 }}>And Up</TableCell>
-              <TableCell sx={{ width: 60 }}></TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {derivedRows.map((row, index) => {
-              const errorText = getRowError(rows[index], index, derivedRows)
-              const isRowSaving = savingRows.has(index)
-
-              return (
-                <TableRow key={index}>
-                  <TableCell>
-                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                      <Typography variant="body2">Sq Ft</Typography>
-                      <Typography 
-                        variant="body1" 
-                        sx={{ 
-                          fontWeight: 500,
-                          color: index === 0 ? 'text.primary' : 'primary.main'
-                        }}
-                      >
-                        {row.min === "" ? "-" : row.min}
-                      </Typography>
-                      {index > 0 && (
-                        <Typography variant="caption" color="text.secondary">
-                          (auto)
-                        </Typography>
-                      )}
-                    </Box>
-                  </TableCell>
-                  <TableCell>
-                    {!row.andUp ? (
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Typography variant="body2">to</Typography>
-                        <TextField
-                          size="small"
-                          type="number"
-                          placeholder="Maximum"
-                          value={rows[index]?.max || ""}
-                          onChange={(e) => handleChangeMax(index, e.target.value)}
-                          sx={{ width: 100 }}
-                          inputProps={{ min: 0 }}
-                          error={!!errorText}
-                          helperText={errorText}
-                        />
-                      </Box>
-                    ) : (
-                      <Typography variant="body1" sx={{ fontWeight: 500 }}>
-                        And Up
-                      </Typography>
-                    )}
-                  </TableCell>
-                  {packages.map((pkg) => (
-                    <TableCell key={`${index}-${pkg}`}>
-                      <TextField
-                        size="small"
-                        placeholder="0"
-                        value={packageValues[index]?.[pkg] || ""}
-                        onChange={(e) => handlePackageValueChange(index, pkg, e.target.value)}
-                        sx={{ width: 100 }}
-                        InputProps={{
-                          startAdornment: <InputAdornment position="start">$</InputAdornment>,
-                        }}
-                      />
-                    </TableCell>
-                  ))}
-                  <TableCell>
-                    <Checkbox size="small" checked={rows[index]?.andUp || false} onChange={() => toggleAndUp(index)} />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton 
-                      aria-label="delete" 
-                      size="small" 
-                      onClick={() => handleDeleteRow(index)} 
-                      color="error"
-                      disabled={savingRows.size > 0}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
-      {derivedRows.length === 0 && !isFetching && (
-        <Typography sx={{ textAlign: "center", py: 4, color: "text.secondary" }}>
-          No ranges defined. Click "Add New Option" to start.
-        </Typography>
-      )}
-
-      <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={handleAddRow}
-          size="small"
-          data-testid="add-new-option"
-          disabled={rows.some((r) => r.andUp)}
-        >
-          + Add New Option
-        </Button>
-        
-        <Button
-          variant="contained"
-          startIcon={<SaveIcon />}
-          onClick={handleSaveAll}
-          size="small"
-          disabled={savingRows.size > 0 || rows.some((row, idx) => getRowError(row, idx, derivedRows))}
-          color="primary"
-        >
-          {savingRows.size > 0 ? 'Saving...' : 'Save All'}
-        </Button>
-      </Stack>
-
+      
       <Box sx={{ mt: 2, p: 2, bgcolor: 'info.light', borderRadius: 1 }}>
         <Typography variant="body2" color="info.contrastText">
           <strong>Note:</strong> When you save a row, all subsequent rows will also be updated automatically 

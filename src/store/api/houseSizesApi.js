@@ -7,7 +7,9 @@ export const houseSizesApi = createApi({
   tagTypes: ['HouseSize'],
   endpoints: (builder) => ({
     getHouseSizes: builder.query({
-      query: () => '',
+      query: (type) => ({
+        params: { property_type: type },
+      }),
       providesTags: ['HouseSize'],
     }),
     createHouseSizes: builder.mutation({

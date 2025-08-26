@@ -52,6 +52,10 @@ export const questionsApi = createApi({
         data: payload,
       }),
     }),
+    getOptionQuestions: builder.query({
+      query: () => ({url:'', params:{type:'quantity'}}),
+      providesTags: ['Option Questions'],
+    }),
   }),
 });
 
@@ -62,5 +66,6 @@ export const {
   useUpdateQuestionMutation,
   useDeleteQuestionMutation,
   useCreateQuestionPricingMutation,
-  useUpdateQuestionStatusMutation
+  useUpdateQuestionStatusMutation,
+  useGetOptionQuestionsQuery
 } = questionsApi;

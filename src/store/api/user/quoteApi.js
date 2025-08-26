@@ -7,7 +7,9 @@ export const quoteApi = createApi({
   tagTypes: ['quote'],
   endpoints: (builder) => ({
     getInitialData: builder.query({
-        query: ()=>({url:'initial-data/'}),
+        query: (type)=>({url:'initial-data/', 
+          params: { property_type: type }
+        }),
         providesTags: ['quote'],
     }),
     getServiceQuestions: builder.query({

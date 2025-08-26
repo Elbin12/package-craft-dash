@@ -44,6 +44,37 @@ export const addOnServicesApi = createApi({
       }),
       invalidatesTags: ['AddOn'],
     }),
+    // Quantity Discount endpoints
+    createQuantityDiscount: builder.mutation({
+      query: (data) => ({
+        url: 'quantity-discounts/',
+        method: 'POST',
+        data: data,
+      }),
+      invalidatesTags: ['QuantityDiscount'],
+    }),
+    getQuantityDiscounts: builder.query({
+      query: (questionId) => ({
+        url: `quantity-discounts/?question=${questionId}`,
+        method: 'GET',
+      }),
+      providesTags: ['QuantityDiscount'],
+    }),
+    updateQuantityDiscount: builder.mutation({
+      query: ({ id, ...data }) => ({
+        url: `quantity-discounts/${id}/`,
+        method: 'PUT',
+        data: data,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'QuantityDiscount', id }],
+    }),
+    deleteQuantityDiscount: builder.mutation({
+      query: (id) => ({
+        url: `quantity-discounts/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['QuantityDiscount'],
+    }),
   }),
 });
 
@@ -53,4 +84,10 @@ export const {
   useUpdateAddOnMutation,
   usePartialUpdateAddOnMutation,
   useDeleteAddOnMutation,
+
+  useCreateQuantityDiscountMutation,
+  useGetQuantityDiscountsQuery,
+  useUpdateQuantityDiscountMutation,
+  useDeleteQuantityDiscountMutation,
+  useLazyGetQuantityDiscountsQuery
 } = addOnServicesApi;

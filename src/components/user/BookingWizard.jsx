@@ -52,7 +52,7 @@ export const BookingWizard = () => {
     const saved = '';
     return saved ? JSON.parse(saved) : {
       submission_id: null,
-      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null },
+      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null, projectType: 'residential' },
       selectedServices: [],
       selectedService: null,
       selectedPackage: null,
@@ -78,6 +78,7 @@ export const BookingWizard = () => {
         contactId: null,
         selectedLocation: submissionData.location || null,
         selectedHouseSize: submissionData.house_sqft || null,
+        projectType: 'residential',
       },
       selectedServices: submissionData.service_selections.map((s) => ({
         id: s.service_details.id,

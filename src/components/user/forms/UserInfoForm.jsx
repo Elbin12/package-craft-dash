@@ -13,6 +13,7 @@ import {
 } from "@mui/material";
 import { LocationOn } from "@mui/icons-material";
 import { useGetInitialDataQuery } from "../../../store/api/user/quoteApi";
+import { commercial_id, residential_id } from "../../../store/axios/axios";
 
 // PlacesAutocomplete
 const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
@@ -172,8 +173,15 @@ export const UserInfoForm = ({ data, onUpdate }) => {
   const [sizeRanges, setSizeRanges] = useState([]);
 
   const [touched, setTouched] = useState({ phone: false, email: false });
+  const [type_id, setTypeId] = useState('Residential');
 
-  const { data: initialData } = useGetInitialDataQuery();
+  const { data: initialData } = useGetInitialDataQuery(type_id, {
+    refetchOnMountOrArgChange: true,
+  });
+
+  useEffect(()=>{
+    setTypeId(data?.userInfo?.projectType === 'residential'? 'Residential': 'Commercial')
+  }, [data?.userInfo?.projectType])
 
   useEffect(() => {
     if (initialData) {
@@ -502,7 +510,9 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           <MenuItem value="">Select House Size/Square Footage</MenuItem>
           {sizeRanges.map(size_range => (
             <MenuItem key={size_range.id} value={size_range.id}>
-              {size_range?.min_sqft} - {size_range?.max_sqft}
+              {size_range?.min_sqft} {size_range?.max_sqft === null 
+                ? "and above" 
+                : `- ${size_range?.max_sqft}`}
             </MenuItem>
           ))}
         </TextField>

@@ -52,7 +52,9 @@ export const BookingWizard = () => {
     const saved = '';
     return saved ? JSON.parse(saved) : {
       submission_id: null,
-      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null, projectType: 'residential' },
+      userInfo: { firstName: "", phone: "", email: "", address: "", latitude: "", longitude: "", googlePlaceId: "", contactId: null, selectedLocation: null, selectedHouseSize: null, projectType: 'residential',
+        emailConsent:null, lastName: '', smsConsent: null, customerStatus: null, heardAboutUs:'', floors: null, 
+       },
       selectedServices: [],
       selectedService: null,
       selectedPackage: null,
@@ -68,17 +70,26 @@ export const BookingWizard = () => {
     const transformedData = {
       submission_id: submissionData.id,
       userInfo: {
-        firstName: submissionData.customer_name || "",
+        firstName: submissionData.first_name || "",
+        lastName: submissionData.last_name || "",
         phone: submissionData.customer_phone || "",
         email: submissionData.customer_email || "",
-        address: submissionData.customer_address || "",
+        address: submissionData.street_address || "",
         latitude: submissionData.latitude || "",
         longitude: submissionData.longitude || "",
         googlePlaceId: submissionData.google_place_id || "",
         contactId: null,
         selectedLocation: submissionData.location || null,
-        selectedHouseSize: submissionData.house_sqft || null,
-        projectType: 'residential',
+        selectedHouseSize: submissionData.size_range || null,
+        projectType: submissionData?.property_type,
+        propertyName: submissionData?.property_name,
+        postalCode: submissionData?.property_name,
+        floors: submissionData?.num_floors,
+        customerStatus: submissionData?.is_previous_customer,
+        heardAboutUs: submissionData?.heard_about_us,
+        companyName: submissionData?.company_name,
+        smsConsent: submissionData?.allow_sms,
+        emailConsent: submissionData?.allow_email
       },
       selectedServices: submissionData.service_selections.map((s) => ({
         id: s.service_details.id,
@@ -309,21 +320,41 @@ useLayoutEffect(() => {
   const handleNext = async () => {
     if (activeStep === 0) {
       const {submission_id} = bookingData
-      const { firstName, phone, email, address, contactId } = bookingData.userInfo
-      if ([firstName, phone, email].some((v) => !v || v.trim() === "")) {
+      const { firstName, lastName, phone, email, address, smsConsent, emailConsent, floors, selectedLocation, selectedHouseSize,
+        propertyName, projectType, postalCode, heardAboutUs, companyName, customerStatus
+       } = bookingData.userInfo
+      if ([firstName, lastName, address, phone, heardAboutUs, email].some(
+          (v) => typeof v !== "string" || v.trim() === ""
+        ) ||
+        smsConsent === undefined ||
+        emailConsent === undefined ||
+        customerStatus === undefined) {
         return
       }
 
       const payload = {
-        customer_name: firstName,
+        first_name: firstName,
+        last_name: lastName,
         customer_phone: phone,
         customer_email: email,
-        customer_address: address,
+        street_address: address,
         latitude: bookingData.userInfo.latitude || undefined,
         longitude: bookingData.userInfo.longitude || undefined,
         google_place_id: bookingData.userInfo.googlePlaceId || undefined,
-        location: bookingData.userInfo.selectedLocation,
-        house_sqft: bookingData.userInfo?.selectedHouseSize
+        location: selectedLocation,
+        size_range: selectedHouseSize,
+        heard_about_us: heardAboutUs,
+        property_type: projectType,
+        num_floors: floors,
+        is_previous_customer: customerStatus,
+        allow_sms: smsConsent,
+        allow_email: emailConsent,
+        postal_code: postalCode,
+        company_name: companyName
+      }
+
+      if(projectType === 'commercial'){
+        payload.property_name = propertyName
       }
 
       try {
@@ -498,10 +529,17 @@ useLayoutEffect(() => {
       case 0: {
       const {
         firstName = "",
+        lastName="",
         phone = "",
         email = "",
         address = "",
-        selectedHouseSize = ""
+        selectedHouseSize = "",
+        smsConsent,
+        emailConsent,
+        customerStatus,
+        heardAboutUs = "",
+        floors= "",
+        selectedLocation
       } = bookingData.userInfo || {};
 
       const isNonEmpty = (v) =>
@@ -515,9 +553,18 @@ useLayoutEffect(() => {
 
       return (
         isNonEmpty(firstName) &&
+        isNonEmpty(lastName) &&
+        isNonEmpty(address) &&
+        isNonEmpty(floors) &&
+        isNonEmpty(heardAboutUs) &&
         isNonEmpty(String(selectedHouseSize)) &&
         isValidPhone(phone) &&
-        isValidEmail(email)
+        isValidEmail(email) &&
+        smsConsent !== undefined &&
+        emailConsent !== undefined &&
+        customerStatus !== undefined &&
+        selectedHouseSize !== null &&
+        selectedLocation !== null
       );
     }
       case 1:

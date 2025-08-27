@@ -179,9 +179,25 @@ export const UserInfoForm = ({ data, onUpdate }) => {
     refetchOnMountOrArgChange: true,
   });
 
-  useEffect(()=>{
-    setTypeId(data?.userInfo?.projectType === 'residential'? 'Residential': 'Commercial')
-  }, [data?.userInfo?.projectType])
+const prevTypeRef = useRef();
+
+useEffect(() => {
+  const newType = data?.userInfo?.projectType;
+  if (!newType) return;
+
+  setTypeId(newType === "residential" ? "Residential" : "Commercial");
+
+  if (prevTypeRef.current && prevTypeRef.current !== newType) {
+    onUpdate({
+      userInfo: {
+        ...data.userInfo,
+        selectedHouseSize: null,
+      },
+    });
+  }
+
+  prevTypeRef.current = newType;
+}, [data?.userInfo?.projectType]);
 
   useEffect(() => {
     if (initialData) {
@@ -326,10 +342,10 @@ export const UserInfoForm = ({ data, onUpdate }) => {
             </Typography>
             <Button
               variant={
-                data.userInfo?.smsConsent === "yes" ? "contained" : "outlined"
+                data.userInfo?.smsConsent === true ? "contained" : "outlined"
               }
               onClick={() =>
-                handleChange("smsConsent")({ target: { value: "yes" } })
+                handleChange("smsConsent")({ target: { value: true } })
               }
               sx={{ mr: 1 }}
             >
@@ -337,10 +353,10 @@ export const UserInfoForm = ({ data, onUpdate }) => {
             </Button>
             <Button
               variant={
-                data.userInfo?.smsConsent === "no" ? "contained" : "outlined"
+                data.userInfo?.smsConsent === false ? "contained" : "outlined"
               }
               onClick={() =>
-                handleChange("smsConsent")({ target: { value: "no" } })
+                handleChange("smsConsent")({ target: { value: false } })
               }
             >
               NO
@@ -384,10 +400,10 @@ export const UserInfoForm = ({ data, onUpdate }) => {
             </Typography>
             <Button
               variant={
-                data.userInfo?.emailConsent === "yes" ? "contained" : "outlined"
+                data.userInfo?.emailConsent === true ? "contained" : "outlined"
               }
               onClick={() =>
-                handleChange("emailConsent")({ target: { value: "yes" } })
+                handleChange("emailConsent")({ target: { value: true } })
               }
               sx={{ mr: 1 }}
             >
@@ -395,10 +411,10 @@ export const UserInfoForm = ({ data, onUpdate }) => {
             </Button>
             <Button
               variant={
-                data.userInfo?.emailConsent === "no" ? "contained" : "outlined"
+                data.userInfo?.emailConsent === false ? "contained" : "outlined"
               }
               onClick={() =>
-                handleChange("emailConsent")({ target: { value: "no" } })
+                handleChange("emailConsent")({ target: { value: false } })
               }
             >
               NO
@@ -491,12 +507,12 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           select
           fullWidth
           label="Are you a current or previous customer?"
-          value={data.userInfo?.customerStatus || ""}
+          value={data.userInfo?.customerStatus ?? ""}
           onChange={handleChange("customerStatus")}
         >
           <MenuItem value="">Please Select</MenuItem>
-          <MenuItem value="yes">Yes</MenuItem>
-          <MenuItem value="no">No</MenuItem>
+          <MenuItem value={true}>Yes</MenuItem>
+          <MenuItem value={false}>No</MenuItem>
         </TextField>
 
         {/* Tenth row: House Size (full width) */}
@@ -511,8 +527,8 @@ export const UserInfoForm = ({ data, onUpdate }) => {
           {sizeRanges.map(size_range => (
             <MenuItem key={size_range.id} value={size_range.id}>
               {size_range?.min_sqft} {size_range?.max_sqft === null 
-                ? "and above" 
-                : `- ${size_range?.max_sqft}`}
+                ? " sq ft And Up" 
+                : `- ${size_range?.max_sqft} sq ft`}
             </MenuItem>
           ))}
         </TextField>

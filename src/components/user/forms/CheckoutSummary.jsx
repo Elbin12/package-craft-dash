@@ -21,8 +21,8 @@ import {
   Collapse,
   IconButton,
 } from "@mui/material"
-import { Check, Close, ExpandMore, ExpandLess } from "@mui/icons-material"
-import { useGetQuoteDetailsQuery } from "../../../store/api/user/quoteApi"
+import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
+import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation } from "../../../store/api/user/quoteApi"
 import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 
@@ -40,6 +40,7 @@ export const CheckoutSummary = ({
 }) => {
   const [selectedPackages, setSelectedPackages] = useState({})
   const [expandedServices, setExpandedServices] = useState({})
+  const [selectedAddons, setSelectedAddons] = useState([])
 
   const {
     data: response,
@@ -51,9 +52,28 @@ export const CheckoutSummary = ({
     refetchOnReconnect: true,
   })
 
+  useEffect(() => {
+    if (response?.addons) {
+      const addonIds = response.addons.map((addon) => addon.id);
+      setSelectedAddons(addonIds);
+    }
+  }, [response]);
+  
+  const {
+    data: addonsResponse,
+    isLoading: addonsLoading,
+    isError: addonsError,
+  } = useGetAddonsQuery()
+
+  console.log(addonsResponse, 'response', addonsError)
+
+  const [addAddonsToSubmission] = useAddAddonsMutation()
+  const [removeAddonFromSubmission] = useDeleteAddonsMutation()
+
   const sigCanvasRef = useRef(null);
 
   const quoteData = useMemo(() => response, [response])
+  const addonsData = useMemo(() => addonsResponse || [], [addonsResponse])
 
   // Expand all services by default
   useEffect(() => {
@@ -116,6 +136,28 @@ export const CheckoutSummary = ({
     })
   }
 
+  const handleAddonToggle = async (addonId, isSelected) => {
+    try {
+      if (isSelected) {
+        // Remove addon
+        await removeAddonFromSubmission({
+          submissionId: data.submission_id,
+          addon_ids: [addonId]
+        }).unwrap()
+        setSelectedAddons(prev => prev.filter(id => id !== addonId))
+      } else {
+        // Add addon
+        await addAddonsToSubmission({
+          submissionId: data.submission_id,
+          addon_ids: {addon_ids:[addonId]}
+        }).unwrap()
+        setSelectedAddons(prev => [...prev, addonId])
+      }
+    } catch (error) {
+      console.error('Error toggling addon:', error)
+    }
+  }
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -176,11 +218,19 @@ export const CheckoutSummary = ({
     return total
   }
 
+  const calculateAddonsTotal = () => {
+    return selectedAddons.reduce((total, addonId) => {
+      const addon = addonsData.find(addon => addon.id === addonId)
+      return total + (addon ? Number.parseFloat(addon.base_price || 0) : 0)
+    }, 0)
+  }
+
   const totalSelectedPrice = calculateTotalSelectedPrice()
+  const addonsTotal = calculateAddonsTotal()
   const surchargeAmount = quoteData.quote_surcharge_applicable
     ? Number.parseFloat(quoteData.location_details?.trip_surcharge || 0)
     : 0
-  const finalTotal = formatPrice(totalSelectedPrice + surchargeAmount)
+  const finalTotal = formatPrice(totalSelectedPrice + addonsTotal + surchargeAmount)
 
   return (
     <Box>
@@ -229,6 +279,12 @@ export const CheckoutSummary = ({
                   Phone
                 </Typography>
                 <Typography variant="body1">{quoteData.customer_phone}</Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="caption" color="text.secondary">
+                  House sq ft
+                </Typography>
+                <Typography variant="body1">{quoteData?.size_range?.min_sqft} {quoteData?.size_range?.max_sqft===null? " sq ft And Up" : `- ${quoteData?.size_range?.max_sqft} sq ft`}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
@@ -480,6 +536,68 @@ export const CheckoutSummary = ({
           </Card>
         ))}
 
+        {/* Add-ons Section */}
+        {!addonsLoading && !addonsError && addonsData.length > 0 && (
+          <Card sx={{ mb: 3 }}>
+            <CardContent sx={{ p: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                Add-Ons
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Enhance your service with these additional options
+              </Typography>
+              <Grid container spacing={2}>
+                {addonsData.map((addon) => {
+                  const isSelected = selectedAddons.includes(addon.id)
+                  return (
+                    <Grid item xs={12} sm={6} md={4} key={addon.id}>
+                      <Card
+                        variant="outlined"
+                        sx={{
+                          cursor: "pointer",
+                          border: isSelected ? "2px solid #42bd3f" : "1px solid #e0e0e0",
+                          bgcolor: isSelected ? "#f8fff8" : "white",
+                          "&:hover": { borderColor: "#42bd3f" },
+                          borderRadius: 2,
+                          height: "100%",
+                        }}
+                        onClick={() => handleAddonToggle(addon.id, isSelected)}
+                      >
+                        <CardContent sx={{ p: 2 }}>
+                          <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2}>
+                            <Typography variant="h6" fontWeight={600}>
+                              {addon.name}
+                            </Typography>
+                            <IconButton
+                              size="small"
+                              sx={{
+                                color: isSelected ? "#42bd3f" : "#9e9e9e",
+                                bgcolor: isSelected ? "#f8fff8" : "transparent",
+                                border: isSelected ? "2px solid #42bd3f" : "2px solid #e0e0e0",
+                                "&:hover": {
+                                  bgcolor: isSelected ? "#f0fff0" : "#f5f5f5",
+                                },
+                              }}
+                            >
+                              {isSelected ? <Remove /> : <Add />}
+                            </IconButton>
+                          </Box>
+                          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                            {addon.description}
+                          </Typography>
+                          <Typography variant="h6" sx={{ color: "#42bd3f", fontWeight: 700 }}>
+                            ${formatPrice(addon.base_price)}
+                          </Typography>
+                        </CardContent>
+                      </Card>
+                    </Grid>
+                  )
+                })}
+              </Grid>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Additional Notes */}
         <Card sx={{ mb: 3 }}>
           <CardContent sx={{ p: 3 }}>
@@ -549,6 +667,38 @@ export const CheckoutSummary = ({
                 <Typography variant="body2" sx={{ color: '#023c8f' }}>
                   Please select a package above
                 </Typography>
+              </Box>
+            )}
+
+            {/* Add-ons in Summary */}
+            {selectedAddons.length > 0 && (
+              <Box mb={2}>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
+                  Add-ons
+                </Typography>
+                {selectedAddons.map((addonId) => {
+                  const addon = addonsData.find(a => a.id === addonId)
+                  if (addon) {
+                    return (
+                      <Box key={addon.id} mb={1}>
+                        <Box display="flex" justifyContent="space-between">
+                          <Box>
+                            <Typography variant="body1" fontWeight={500}>
+                              {addon.name}
+                            </Typography>
+                            <Typography variant="caption" color="text.secondary">
+                              Add-on service
+                            </Typography>
+                          </Box>
+                          <Typography variant="body1" fontWeight={600}>
+                            ${formatPrice(addon.base_price)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    )
+                  }
+                  return null
+                })}
               </Box>
             )}
 

@@ -35,6 +35,7 @@ import {
   ExpandLess,
   Check,
   Close,
+  Add,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
@@ -135,7 +136,7 @@ const QuoteDetailsPage = () => {
     property_type,
     num_floors,
     heard_about_us,
-    house_sqft,
+    size_range,
     location_details,
     status,
     total_base_price,
@@ -147,6 +148,8 @@ const QuoteDetailsPage = () => {
     service_selections,
     quote_surcharge_applicable,
     additional_data,
+    addons,
+    total_addons_price,
   } = quote;
 
   const formatPrice = (price) => {
@@ -220,28 +223,8 @@ const QuoteDetailsPage = () => {
       </Box>
 
       {/* Body */}
-      <Box maxWidth="1200px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
+      <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
         <Container maxWidth="lg">
-          {/* Quote Header */}
-          {/* <Box mb={4}>
-            <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center' }}>
-              Quote Summary
-            </Typography>
-            <Box display="flex" gap={2} flexWrap="wrap" alignItems="center" justifyContent="center">
-              <Typography variant="body1" color="text.secondary">
-                Quote #{quote.id}
-              </Typography>
-              <Chip
-                label={status?.replace("_", " ").toUpperCase()}
-                size="small"
-                sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600 }}
-              />
-              <Typography variant="body2" color="text.secondary">
-                {new Date(created_at).toLocaleDateString()}
-              </Typography>
-            </Box>
-          </Box> */}
-
           <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '2fr 1fr' }} gap={6}>
             {/* Left column */}
             <Box display="flex" flexDirection="column" gap={2}>
@@ -269,6 +252,12 @@ const QuoteDetailsPage = () => {
                         Phone
                       </Typography>
                       <Typography variant="body1">{customer_phone}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        House sq ft
+                      </Typography>
+                      <Typography variant="body1">{size_range?.min_sqft} {size_range?.max_sqft===null? " sq ft And Up" : `- ${size_range?.max_sqft} sq ft`}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
@@ -503,19 +492,94 @@ const QuoteDetailsPage = () => {
                 </Card>
               ))}
 
+              {/* Add-ons Section */}
+              {addons && addons.length > 0 && (
+                <Card>
+                  <Box sx={{ p: 3, py: 2}}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: "#023c8f" }}>
+                        <Add />
+                      </Avatar>
+                      <Box>
+                        <Typography variant="h6" sx={{ fontWeight: 600, color: '#023c8f' }}>
+                          Additional Services
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {addons.length} additional service{addons.length > 1 ? 's' : ''} selected
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </Box>
+                  <Divider />
+                  <Box sx={{ overflow: 'hidden' }}>
+                    {addons.map((addon, index) => (
+                      <Box
+                        key={addon.id}
+                        sx={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          p: 3,
+                          borderBottom: index < addons.length - 1 ? '1px solid #f0f0f0' : 'none',
+                          '&:hover': {
+                            bgcolor: '#f8f9fa',
+                          },
+                          transition: 'background-color 0.2s ease',
+                        }}
+                      >
+                        <Box sx={{ flex: 1, mr: 2 }}>
+                          <Typography 
+                            variant="subtitle1" 
+                            fontWeight={600}
+                            sx={{ color: '#023c8f', mb: 0.5 }}
+                          >
+                            {addon.name}
+                          </Typography>
+                          {addon.description && (
+                            <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{ 
+                                display: '-webkit-box',
+                                WebkitLineClamp: 2,
+                                WebkitBoxOrient: 'vertical',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                              }}
+                            >
+                              {addon.description}
+                            </Typography>
+                          )}
+                        </Box>
+                        <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
+                          <Typography 
+                            variant="h6" 
+                            fontWeight={700}
+                            sx={{ color: '#42bd3f' }}
+                          >
+                            ${formatPrice(addon.base_price)}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
+                  </Box>
+                </Card>
+              )}
+
               {/* Additional Information */}
               {additional_data && (
-                <Card sx={{ border: "1px solid #023c8f" }}>
-                  <Box sx={{ p: 3, borderBottom: "1px solid #023c8f" }}>
+                <Card >
+                  <Box sx={{ p: 3, py:2}}>
                     <Stack direction="row" alignItems="center" spacing={2}>
                       <Avatar sx={{ bgcolor: "#023c8f" }}>
                         <Info />
                       </Avatar>
-                      <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color:'#023c8f' }}>
                         Additional Information
                       </Typography>
                     </Stack>
                   </Box>
+                  <Divider />
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={3}>
                       {additional_data.signature && (
@@ -596,6 +660,23 @@ const QuoteDetailsPage = () => {
                         ${formatPrice(total_base_price || 0)}
                       </Typography>
                     </Box>
+                    
+                    {/* Add-ons Price */}
+                    {total_addons_price && parseFloat(total_addons_price) > 0 && (
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography variant="body2">Add-ons</Typography>
+                        <Typography variant="subtitle2">
+                          ${formatPrice(total_addons_price)}
+                        </Typography>
+                      </Box>
+                    )}
+                    
                     <Box
                       sx={{
                         display: 'flex',

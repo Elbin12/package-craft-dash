@@ -59,9 +59,29 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote', 'Submission'],
     }),
+    getAddons: builder.query({
+        query: ()=>({url:'addons/'}),
+        providesTags: ['addons'],
+    }),
+    addAddons: builder.mutation({
+      query: ({ submissionId, addon_ids }) => ({
+        url: `submissions/${submissionId}/addons/`,
+        method: 'POST',
+        data: addon_ids,
+      }),
+      invalidatesTags: ['Add addons'],
+    }),
+    deleteAddons: builder.mutation({
+      query: ({submissionId, addon_ids}) => ({
+        url: `submissions/${submissionId}/addons/`,
+        method: 'DELETE',
+        data: { addon_ids }
+      }),
+      invalidatesTags: ['addons'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
-  useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation
+  useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation
  } = quoteApi;

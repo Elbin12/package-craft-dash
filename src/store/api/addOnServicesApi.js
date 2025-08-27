@@ -19,7 +19,13 @@ export const addOnServicesApi = createApi({
         url: 'addons/',
         method: 'GET',
       }),
-      providesTags: ['AddOn'],
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'AddOn', id })),
+              { type: 'AddOn', id: 'LIST' }
+            ]
+          : [{ type: 'AddOn', id: 'LIST' }],
     }),
     updateAddOn: builder.mutation({
       query: ({ id, ...data }) => ({

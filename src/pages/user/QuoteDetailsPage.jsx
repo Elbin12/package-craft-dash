@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,6 +15,10 @@ import {
   Button,
   Stack,
   Avatar,
+  Container,
+  Grid,
+  Collapse,
+  IconButton,
 } from '@mui/material';
 import {
   Person,
@@ -27,6 +31,10 @@ import {
   Mail,
   Phone,
   Home,
+  ExpandMore,
+  ExpandLess,
+  Check,
+  Close,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
@@ -50,6 +58,8 @@ const formatYesNo = (val) => {
 const QuoteDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [expandedServices, setExpandedServices] = useState({});
+  
   const {
     data: quote,
     isLoading,
@@ -63,10 +73,31 @@ const QuoteDetailsPage = () => {
 
   const sigCanvas = useRef();
 
+  // Expand all services by default
+  useEffect(() => {
+    if (quote?.service_selections) {
+      const initialExpanded = {};
+      quote.service_selections.forEach((service) => {
+        initialExpanded[service.id] = true;
+      });
+      setExpandedServices(initialExpanded);
+    }
+  }, [quote]);
+
+  const toggleServiceExpansion = (serviceId) => {
+    setExpandedServices((prev) => ({
+      ...prev,
+      [serviceId]: !prev[serviceId],
+    }));
+  };
+
   if (isLoading) {
     return (
-      <Box p={4} display="flex" justifyContent="center" alignItems="center">
-        <CircularProgress />
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+        <CircularProgress sx={{ color: '#023c8f' }} />
+        <Typography variant="h6" sx={{ ml: 2 }}>
+          Loading quote details...
+        </Typography>
       </Box>
     );
   }
@@ -93,10 +124,17 @@ const QuoteDetailsPage = () => {
   }
 
   const {
-    customer_name,
+    first_name,
+    last_name,
+    company_name,
     customer_email,
     customer_phone,
     customer_address,
+    street_address,
+    postal_code,
+    property_type,
+    num_floors,
+    heard_about_us,
     house_sqft,
     location_details,
     status,
@@ -111,9 +149,35 @@ const QuoteDetailsPage = () => {
     additional_data,
   } = quote;
 
+  const formatPrice = (price) => {
+    const numPrice = typeof price === "string" ? Number.parseFloat(price) : price;
+    return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
+  };
+
+  const renderQuestionResponse = (response) => {
+    switch (response.question_type) {
+      case "yes_no":
+      case "conditional":
+        return response.yes_no_answer ? "Yes" : "No";
+      case "multiple_yes_no":
+        return (
+          response.sub_question_responses
+            .filter((sub) => sub.answer)
+            .map((sub) => sub.sub_question_text)
+            .join(", ") || "None selected"
+        );
+      case "quantity":
+        return response.option_responses.map((opt) => `${opt.option_text}: ${opt.quantity}`).join(", ");
+      case "describe":
+        return response.option_responses.map((opt) => opt.option_text).join(", ");
+      default:
+        return "N/A";
+    }
+  };
+
   return (
     <Box className="min-h-screen" sx={{ background: 'linear-gradient(135deg,#f0f4f9 0%,#e2e8f0 70%)', pb: 6 }}>
-      {/* Header */}
+      {/* Header - Keep existing navbar */}
       <Box
         sx={{
           bgcolor:'white',
@@ -128,16 +192,8 @@ const QuoteDetailsPage = () => {
         <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
           <Box display="flex" alignItems="center" justifyContent="space-between">
             <Box display="flex" alignItems="center" gap={2}>
-              {/* <Button
-                variant="text"
-                startIcon={<ArrowBack />}
-                onClick={() => navigate(-1)}
-                sx={{ textTransform: 'none' }}
-              >
-                Back
-              </Button> */}
               <Box>
-                <Typography variant="h4" fontWeight="bold">
+                <Typography variant="h4" color='#023c8f' fontWeight="600">
                   Quote Details
                 </Typography>
                 <Box display="flex" alignItems="center" gap={2} mt={0.5}>
@@ -165,430 +221,294 @@ const QuoteDetailsPage = () => {
 
       {/* Body */}
       <Box maxWidth="1200px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
-        <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '2fr 1fr' }} gap={6}>
-          {/* Left column */}
-          <Box display="flex" flexDirection="column" gap={2}>
-            {/* Contact Card */}
-            <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
-              <Box
-                sx={{
-                  background: 'linear-gradient(90deg,#2563eb,#7c3aed)',
-                  color: 'white',
-                  px: 3,
-                  py: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
-                }}
-              >
-                <Person fontSize="small" />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Contact Information
-                </Typography>
-              </Box>
-              <CardContent sx={{ pt: 2 }}>
-                <Box display="flex" flexDirection={{ xs: 'column', md: 'row' }} gap={4}>
-                  <Box flex="1" display="flex" flexDirection="column" gap={1}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Person color="action" />
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="600">
-                          {customer_name || '—'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Full Name
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Phone color="action" />
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="600">
-                          {customer_phone || '—'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Phone
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                  <Box flex="1" display="flex" flexDirection="column" gap={1}>
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Mail color="action" />
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="600">
-                          {customer_email || '—'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Email
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Box display="flex" alignItems="flex-start" gap={1}>
-                      <Home color="action" />
-                      <Box>
-                        <Typography variant="subtitle2" fontWeight="600">
-                          {customer_address || '—'}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          Address
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-                {house_sqft && (
-                  <>
-                    <Divider sx={{ my: 2 }} />
-                    <Box display="flex" alignItems="center" gap={1}>
-                      <Home color="action" />
-                      <Box>
-                        <Typography variant="body2">
-                          {house_sqft} sq ft
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          House Size
-                        </Typography>
-                      </Box>
-                    </Box>
-                  </>
-                )}
-              </CardContent>
-            </Card>
+        <Container maxWidth="lg">
+          {/* Quote Header */}
+          {/* <Box mb={4}>
+            <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center' }}>
+              Quote Summary
+            </Typography>
+            <Box display="flex" gap={2} flexWrap="wrap" alignItems="center" justifyContent="center">
+              <Typography variant="body1" color="text.secondary">
+                Quote #{quote.id}
+              </Typography>
+              <Chip
+                label={status?.replace("_", " ").toUpperCase()}
+                size="small"
+                sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600 }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {new Date(created_at).toLocaleDateString()}
+              </Typography>
+            </Box>
+          </Box> */}
 
-            {/* Services & Packages Card */}
-            {service_selections && service_selections.length > 0 && (
-              <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                <Box
-                  sx={{
-                    background: 'linear-gradient(90deg,#059669,#10b981)',
-                    color: 'white',
-                    px: 3,
-                    py: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <BusinessCenter fontSize="small" />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Services & Packages
+          <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '2fr 1fr' }} gap={6}>
+            {/* Left column */}
+            <Box display="flex" flexDirection="column" gap={2}>
+              {/* Customer Info */}
+              <Card>
+                <CardContent sx={{ p: 3 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                    Customer Information
                   </Typography>
-                  <Chip
-                    label={`${service_selections.length} Service${service_selections.length !== 1 ? 's' : ''}`}
-                    size="small"
-                    sx={{
-                      backgroundColor: 'rgba(255,255,255,0.2)',
-                      color: 'white',
-                      ml: 'auto',
-                    }}
-                  />
-                </Box>
-                <CardContent>
-                  <Box display="flex" flexDirection="column" gap={4}>
-                    {service_selections.map((serviceSelection, index) => (
-                      <Box key={serviceSelection.id}>
-                        <Box display="flex" flexDirection="column" gap={2}>
-                          <Box>
-                            <Typography variant="h6" fontWeight="600" color="primary.main">
-                              {serviceSelection.service_details?.name}
-                            </Typography>
-                            {serviceSelection.service_details?.description && (
-                              <Typography variant="body2" color="text.secondary">
-                                {serviceSelection.service_details.description}
-                              </Typography>
-                            )}
-                          </Box>
-                          <Box
-                            sx={{
-                              background: '#ecfdf5',
-                              borderRadius: 1,
-                              p: 2,
-                              border: '1px solid',
-                              borderColor: 'success.light',
-                            }}
-                          >
-                            <Box display="flex" alignItems="center" gap={1} mb={1}>
-                              <LocalOffer fontSize="small" sx={{ color: '#047857' }} />
-                              <Typography variant="subtitle2" fontWeight="600" sx={{ color: '#065f46' }}>
-                                {serviceSelection.selected_package_details?.name} - ${parseFloat(serviceSelection.selected_package_details?.base_price || 0).toFixed(2)}
-                              </Typography>
-                              <Typography variant="caption" sx={{ color: '#047857', ml: 'auto' }}>
-                                Final: ${parseFloat(serviceSelection.final_total_price || 0).toFixed(2)}
-                              </Typography>
-                            </Box>
-                            
-                            {/* Question Adjustments */}
-                            {parseFloat(serviceSelection.question_adjustments || 0) !== 0 && (
-                              <Typography variant="caption" sx={{ color: '#047857', display: 'block', mb: 1 }}>
-                                Question Adjustments: ${parseFloat(serviceSelection.question_adjustments || 0).toFixed(2)}
-                              </Typography>
-                            )}
-                            
-                            {serviceSelection.package_quotes?.[0] && (
-                              <Box>
-                                <Typography variant="caption" fontWeight="600" gutterBottom>
-                                  Package Features:
-                                </Typography>
-                                <Box display="flex" flexDirection="column" gap={1}>
-                                  {/* Included Features */}
-                                  {serviceSelection.package_quotes[0].included_features_details?.map((feature) => (
-                                    <Box
-                                      key={feature.id}
-                                      sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1,
-                                        p: 1,
-                                        borderRadius: 1,
-                                        background: 'rgba(16,185,129,0.08)',
-                                        border: '1px solid',
-                                        borderColor: 'success.light',
-                                      }}
-                                    >
-                                      <Box
-                                        sx={{
-                                          width: 8,
-                                          height: 8,
-                                          borderRadius: '50%',
-                                          background: '#10b981',
-                                        }}
-                                      />
-                                      <Typography variant="body2" sx={{ color: 'text.primary', fontSize: '0.875rem' }}>
-                                        {feature.name}
-                                      </Typography>
-                                      <Chip
-                                        label="Included"
-                                        size="small"
-                                        sx={{
-                                          ml: 'auto',
-                                          bgcolor: 'success.light',
-                                          fontSize: '0.7rem',
-                                          height: 20,
-                                        }}
-                                      />
-                                    </Box>
-                                  ))}
-                                  {/* Excluded Features */}
-                                  {serviceSelection.package_quotes[0].excluded_features_details?.map((feature) => (
-                                    <Box
-                                      key={feature.id}
-                                      sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 1,
-                                        p: 1,
-                                        borderRadius: 1,
-                                        background: 'rgba(107,114,128,0.04)',
-                                        border: '1px solid',
-                                        borderColor: 'grey.200',
-                                      }}
-                                    >
-                                      <Box
-                                        sx={{
-                                          width: 8,
-                                          height: 8,
-                                          borderRadius: '50%',
-                                          background: '#9ca3af',
-                                        }}
-                                      />
-                                      <Typography variant="body2" sx={{ color: 'text.secondary', fontSize: '0.875rem' }}>
-                                        {feature.name}
-                                      </Typography>
-                                      <Chip
-                                        label="Excluded"
-                                        size="small"
-                                        sx={{
-                                          ml: 'auto',
-                                          bgcolor: 'grey.100',
-                                          fontSize: '0.7rem',
-                                          height: 20,
-                                        }}
-                                      />
-                                    </Box>
-                                  ))}
-                                </Box>
-                              </Box>
-                            )}
-                          </Box>
-                        </Box>
-                        {index < service_selections.length - 1 && <Divider sx={{ my: 2 }} />}
-                      </Box>
-                    ))}
-                  </Box>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Name
+                      </Typography>
+                      <Typography variant="body1">{first_name} {last_name}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Email
+                      </Typography>
+                      <Typography variant="body1">{customer_email}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Phone
+                      </Typography>
+                      <Typography variant="body1">{customer_phone}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Property Type
+                      </Typography>
+                      <Typography variant="body1">{property_type?.charAt(0).toUpperCase() + property_type?.slice(1)}</Typography>
+                    </Grid>
+                    {company_name && (
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Company
+                        </Typography>
+                        <Typography variant="body1">{company_name}</Typography>
+                      </Grid>
+                    )}
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Floors
+                      </Typography>
+                      <Typography variant="body1">{num_floors}</Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary">
+                        Address
+                      </Typography>
+                      <Typography variant="body1">{street_address || customer_address}</Typography>
+                    </Grid>
+                    <Grid item xs={12}>
+                      <Typography variant="caption" color="text.secondary">
+                        Province, City
+                      </Typography>
+                      <Typography variant="body1">{location_details?.address}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Postal Code
+                      </Typography>
+                      <Typography variant="body1">{postal_code}</Typography>
+                    </Grid>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        How did you hear about us?
+                      </Typography>
+                      <Typography variant="body1">{heard_about_us?.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}</Typography>
+                    </Grid>
+                  </Grid>
                 </CardContent>
               </Card>
-            )}
 
-            {/* Question Responses */}
-            {service_selections?.some(service => service.question_responses?.length > 0) && (
-              <Card sx={{ borderRadius: 2, overflow: 'hidden' }}>
-                <Box
-                  sx={{
-                    background: 'linear-gradient(90deg,#9333ea,#c084fc)',
-                    color: 'white',
-                    px: 3,
-                    py: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
-                  }}
-                >
-                  <QuestionAnswer fontSize="small" />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Question Responses
-                  </Typography>
-                </Box>
-                <CardContent>
-                  <Box display="flex" flexDirection="column" gap={4}>
-                    {service_selections.map((service, serviceIndex) => (
-                      service.question_responses?.length > 0 && (
-                        <Box key={service.id}>
-                          {service_selections.length > 1 && (
-                            <Typography variant="h6" sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}>
-                              {service.service_details?.name}
-                            </Typography>
+              {/* Service Selections */}
+              {service_selections?.map((selection) => (
+                <Card key={selection.id}>
+                  {/* Service Header */}
+                  <Box
+                    sx={{
+                      px: 3,
+                      py: 0.5,
+                      backgroundColor: '#023c8f',
+                      color: 'white',
+                      cursor: "pointer",
+                      "&:hover": { bgcolor: "#012a6b" },
+                    }}
+                    onClick={() => toggleServiceExpansion(selection.id)}
+                  >
+                    <Box display="flex" alignItems="center" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="h6" fontWeight={600} sx={{ color: 'white' }}>
+                          {selection.service_details?.name}
+                        </Typography>
+                      </Box>
+                      <IconButton sx={{ color: 'white' }}>
+                        {expandedServices[selection.id] ? <ExpandLess /> : <ExpandMore />}
+                      </IconButton>
+                    </Box>
+                  </Box>
+
+                  {/* Collapsible Content */}
+                  <Collapse in={expandedServices[selection.id]} timeout="auto" unmountOnExit>
+                    <Box sx={{ px: 3, py: 1 }}>
+                      <Typography variant="body2" color="text.secondary" sx={{mb:1}}>
+                        {selection.service_details?.description}
+                      </Typography>
+                      
+                      {/* Service Disclaimers */}
+                      {(selection.service_details?.service_settings?.general_disclaimer || 
+                        selection.service_details?.service_settings?.bid_in_person_disclaimer) && (
+                        <Box sx={{ mb: 2 }}>
+                          {selection.service_details?.service_settings?.general_disclaimer && (
+                            <Box 
+                              sx={{ 
+                                backgroundColor: '#d9edf7',
+                                padding: '12px 16px',
+                                borderRadius: '6px',
+                                mb: 1,
+                                border: '1px solid #023c8f'
+                              }}
+                            >
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: '#023c8f',
+                                  fontWeight: 500,
+                                  fontSize: '13px'
+                                }}
+                              >
+                                <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
+                              </Typography>
+                            </Box>
                           )}
-                          <Box display="flex" flexDirection="column" gap={2}>
-                            {service.question_responses.map((response) => {
-                              const renderAnswerDisplay = () => {
-                                switch (response.question_type) {
-                                  case 'yes_no':
-                                  case 'conditional':
-                                    return formatYesNo(response.yes_no_answer);
-                                  
-                                  case 'describe':
-                                  case 'options':
-                                    if (response.option_responses?.length > 0) {
-                                      return response.option_responses.map(opt => opt.option_text).join(', ');
-                                    }
-                                    if (response.text_answer) {
-                                      return response.text_answer;
-                                    }
-                                    return 'Not answered';
-                                  
-                                  case 'quantity':
-                                    if (response.option_responses?.length > 0) {
-                                      return response.option_responses
-                                        .map(opt => `${opt.option_text} (Qty: ${opt.quantity})`)
-                                        .join(', ');
-                                    }
-                                    return 'Not answered';
-                                  
-                                  case 'multiple_yes_no':
-                                    if (response.sub_question_responses?.length > 0) {
-                                      return (
-                                        <Box sx={{ mt: 1 }}>
-                                          {response.sub_question_responses.map((subResp) => (
-                                            <Box key={subResp.id} sx={{
-                                              display: 'flex',
-                                              justifyContent: 'space-between',
-                                              py: 0.5,
-                                              borderBottom: '1px solid rgba(0,0,0,0.1)'
-                                            }}>
-                                              <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>
-                                                {subResp.sub_question_text}
-                                              </Typography>
-                                              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography
-                                                  variant="body2"
-                                                  sx={{
-                                                    fontWeight: 600,
-                                                    color: subResp.answer ? 'success.main' : 'error.main'
-                                                  }}
-                                                >
-                                                  {formatYesNo(subResp.answer)}
-                                                </Typography>
-                                                {parseFloat(subResp.price_adjustment || 0) !== 0 && (
-                                                  <Chip
-                                                    label={`$${parseFloat(subResp.price_adjustment).toFixed(2)}`}
-                                                    size="small"
-                                                    sx={{
-                                                      bgcolor: 'info.light',
-                                                      fontSize: '0.75rem',
-                                                      height: 20
-                                                    }}
-                                                  />
-                                                )}
-                                              </Box>
-                                            </Box>
-                                          ))}
-                                        </Box>
-                                      );
-                                    }
-                                    return 'Not answered';
-                                  
-                                  default:
-                                    if (response.text_answer) {
-                                      return response.text_answer;
-                                    }
-                                    return 'Not answered';
-                                }
-                              };
-
-                              const answerDisplay = renderAnswerDisplay();
-                              
-                              return (
-                                <Box
-                                  key={response.id}
-                                  sx={{
-                                    background: 'rgba(243,244,246,0.8)',
-                                    borderRadius: 1,
-                                    p: 3,
-                                    border: '1px solid',
-                                    borderColor: 'grey.200',
-                                    position: 'relative',
-                                  }}
-                                >
-                                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 1 }}>
-                                    <Typography variant="subtitle2" fontWeight="600" sx={{ flex: 1 }}>
-                                      {response.question_text}
-                                    </Typography>
-                                    <Chip
-                                      label={response.question_type.replace('_', ' ').toUpperCase()}
-                                      size="small"
-                                      sx={{
-                                        bgcolor: 'primary.light',
-                                        color: 'primary.contrastText',
-                                        fontSize: '0.7rem',
-                                        height: 20,
-                                        ml: 2
-                                      }}
-                                    />
-                                  </Box>
-                                  
-                                  {response.question_type !== 'multiple_yes_no' ? (
-                                    <Typography variant="body2" sx={{ mb: 1 }}>
-                                      <strong>Answer:</strong> {answerDisplay}
-                                    </Typography>
-                                  ) : (
-                                    <Box>
-                                      <Typography variant="body2" sx={{ mb: 1, fontWeight: 600 }}>
-                                        Responses:
-                                      </Typography>
-                                      {answerDisplay}
-                                    </Box>
-                                  )}
-                                  
-                                  {parseFloat(response.price_adjustment || 0) !== 0 && (
-                                    <Typography variant="caption" color="text.secondary">
-                                      Price Adjustment: ${parseFloat(response.price_adjustment || 0).toFixed(2)}
-                                    </Typography>
-                                  )}
-                                </Box>
-                              );
-                            })}
-                          </Box>
-                          {serviceIndex < service_selections.length - 1 && <Divider sx={{ my: 2 }} />}
+                          
+                          {selection.service_details?.service_settings?.bid_in_person_disclaimer && (
+                            <Box 
+                              sx={{ 
+                                backgroundColor: '#d9edf7',
+                                padding: '12px 16px',
+                                borderRadius: '6px',
+                                mb: 1,
+                                border: '1px solid #023c8f'
+                              }}
+                            >
+                              <Typography 
+                                variant="body2" 
+                                sx={{ 
+                                  color: '#023c8f',
+                                  fontWeight: 500,
+                                  fontSize: '13px'
+                                }}
+                              >
+                                <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
+                              </Typography>
+                            </Box>
+                          )}
                         </Box>
-                      )
-                    ))}
-                    {/* Additional Information */}
+                      )}
+
+                      {/* Selected Package Display */}
+                      {selection.package_quotes?.[0] && (
+                        <Box sx={{ mb: 3 }}>
+                          <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                            Selected Package
+                          </Typography>
+                          <Card
+                            variant="outlined"
+                            sx={{
+                              border: "2px solid #42bd3f",
+                              bgcolor: "#f8fff8",
+                              borderRadius: 3,
+                              minHeight: 220,
+                              display: "flex",
+                              flexDirection: "column",
+                              justifyContent: "space-between",
+                            }}
+                          >
+                            <CardContent sx={{ p: 4 }}>
+                              <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                                <Typography variant="h6" fontWeight={700}>
+                                  {selection.package_quotes[0].package_name}
+                                </Typography>
+                                <Chip
+                                  label="Selected"
+                                  sx={{
+                                    bgcolor: "#42bd3f",
+                                    color: "white",
+                                    fontWeight: 600,
+                                  }}
+                                />
+                              </Box>
+
+                              <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
+                                ${formatPrice(selection.package_quotes[0].total_price)}
+                              </Typography>
+
+                              {/* Features List */}
+                              <Box>
+                                {[
+                                  ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
+                                    ...f,
+                                    included: true,
+                                  })),
+                                  ...(selection.package_quotes[0].excluded_features_details || []).map((f) => ({
+                                    ...f,
+                                    included: false,
+                                  })),
+                                ].map((feature) => (
+                                  <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
+                                    {feature.included ? (
+                                      <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
+                                    ) : (
+                                      <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
+                                    )}
+                                    <Typography
+                                      variant="body2"
+                                      sx={{
+                                        color: feature.included ? "text.primary" : "text.disabled",
+                                        fontWeight: feature.included ? 500 : 400,
+                                      }}
+                                    >
+                                      {feature.name}
+                                    </Typography>
+                                  </Box>
+                                ))}
+                              </Box>
+                            </CardContent>
+                          </Card>
+                        </Box>
+                      )}
+
+                      {/* Question Responses */}
+                      {selection.question_responses?.length > 0 && (
+                        <Box mt={4}>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#023c8f' }} gutterBottom>
+                            Question Responses
+                          </Typography>
+                          <Grid container spacing={2}>
+                            {selection.question_responses.map((response) => (
+                              <Grid item xs={12} sm={6} key={response.id}>
+                                <Box p={2} sx={{ bgcolor: "#d9edf7", borderRadius: 1, border: "1px solid #023c8f" }}>
+                                  <Typography variant="body2" fontWeight={600} gutterBottom sx={{ color: '#023c8f' }}>
+                                    {response.question_text}
+                                  </Typography>
+                                  <Typography variant="body2" color="text.primary">
+                                    {renderQuestionResponse(response)}
+                                  </Typography>
+                                </Box>
+                              </Grid>
+                            ))}
+                          </Grid>
+                        </Box>
+                      )}
+                    </Box>
+                  </Collapse>
+                </Card>
+              ))}
+
+              {/* Additional Information */}
               {additional_data && (
-                <Card sx={{ border: "1px solid #334155" }}>
-                  <Box sx={{ p: 3, borderBottom: "1px solid #334155" }}>
+                <Card sx={{ border: "1px solid #023c8f" }}>
+                  <Box sx={{ p: 3, borderBottom: "1px solid #023c8f" }}>
                     <Stack direction="row" alignItems="center" spacing={2}>
-                      <Avatar sx={{ bgcolor: "#3b82f6" }}>
+                      <Avatar sx={{ bgcolor: "#023c8f" }}>
                         <Info />
                       </Avatar>
                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
@@ -623,7 +543,7 @@ const QuoteDetailsPage = () => {
                               p: 2,
                             }}
                           >
-                            <Typography variant="body2" >
+                            <Typography variant="body2">
                               {additional_data.additional_notes}
                             </Typography>
                           </Box>
@@ -633,136 +553,109 @@ const QuoteDetailsPage = () => {
                   </CardContent>
                 </Card>
               )}
-                  </Box>
-                </CardContent>
-              </Card>
-            )}
-          </Box>
+            </Box>
 
-          {/* Right column - pricing */}
-          <Box>
-            <Paper
-              elevation={3}
-              sx={{
-                borderRadius: 2,
-                position: 'sticky',
-                top: 80,
-                overflow: 'hidden',
-              }}
-            >
-              <Box
+            {/* Right column - pricing */}
+            <Box>
+              <Paper
+                elevation={3}
                 sx={{
-                  background: 'linear-gradient(90deg,#4f46e5,#6366f1)',
-                  color: 'white',
-                  px: 3,
-                  py: 2,
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 1,
+                  borderRadius: 2,
+                  position: 'sticky',
+                  top: 80,
+                  overflow: 'hidden',
                 }}
               >
-                <Receipt fontSize="small" />
-                <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                  Pricing Summary
-                </Typography>
-              </Box>
-              <CardContent>
-                <Box display="flex" flexDirection="column" gap={2}>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography variant="body2">Base Price</Typography>
-                    <Typography variant="subtitle2">
-                      ${parseFloat(total_base_price || 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography variant="body2">Surcharges</Typography>
-                    <Typography variant="subtitle2">
-                      ${parseFloat(total_surcharges || 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Typography variant="body2">Adjustments</Typography>
-                    <Typography variant="subtitle2">
-                      ${parseFloat(total_adjustments || 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                  <Divider />
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      background: 'rgba(243,244,246,0.5)',
-                      p: 1,
-                      borderRadius: 1,
-                    }}
-                  >
-                    <Typography variant="subtitle1" fontWeight="600">
-                      Final Total
-                    </Typography>
-                    <Typography variant="h6" color="primary">
-                      ${parseFloat(final_total || 0).toFixed(2)}
-                    </Typography>
-                  </Box>
-                  
-                  {/* Service breakdown */}
-                  {/* <Divider sx={{ my: 1 }} />
-                  <Typography variant="subtitle2" fontWeight="600" color="text.secondary">
-                    Service Breakdown:
+                <Box
+                  sx={{
+                    background: '#023c8f',
+                    color: 'white',
+                    px: 3,
+                    py: 2,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 1,
+                  }}
+                >
+                  <Receipt fontSize="small" />
+                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                    Pricing Summary
                   </Typography>
-                  {service_selections?.map((service) => (
+                </Box>
+                <CardContent>
+                  <Box display="flex" flexDirection="column" gap={2}>
                     <Box
-                      key={service.id}
                       sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        py: 0.5,
                       }}
                     >
-                      <Typography variant="caption" color="text.secondary">
-                        {service.service_details?.name}
-                      </Typography>
-                      <Typography variant="caption">
-                        ${parseFloat(service.final_total_price || 0).toFixed(2)}
+                      <Typography variant="body2">Base Price</Typography>
+                      <Typography variant="subtitle2">
+                        ${formatPrice(total_base_price || 0)}
                       </Typography>
                     </Box>
-                  ))} */}
-                  
-                  <Divider />
-                  <Typography variant="caption" color="text.secondary" align="center">
-                    Quote created on{' '}
-                    {new Date(created_at).toLocaleString(undefined, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Typography>
-                </Box>
-              </CardContent>
-            </Paper>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="body2">Surcharges</Typography>
+                      <Typography variant="subtitle2">
+                        ${formatPrice(total_surcharges || 0)}
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Typography variant="body2">Adjustments</Typography>
+                      <Typography variant="subtitle2">
+                        ${formatPrice(total_adjustments || 0)}
+                      </Typography>
+                    </Box>
+                    <Divider />
+                    <Box
+                      sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        background: 'rgba(243,244,246,0.5)',
+                        p: 1,
+                        borderRadius: 1,
+                      }}
+                    >
+                      <Typography variant="subtitle1" fontWeight="600">
+                        Final Total
+                      </Typography>
+                      <Typography variant="h5" fontWeight="500" color="#42bd3f">
+                        ${formatPrice(final_total || 0)}
+                      </Typography>
+                    </Box>
+                    
+                    <Divider />
+                    <Typography variant="caption" color="text.secondary" align="center">
+                      Quote created on{' '}
+                      {new Date(created_at).toLocaleString(undefined, {
+                        year: 'numeric',
+                        month: 'short',
+                        day: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Typography>
+                  </Box>
+                </CardContent>
+              </Paper>
+            </Box>
           </Box>
-        </Box>
+        </Container>
       </Box>
     </Box>
   );

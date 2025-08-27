@@ -496,9 +496,9 @@ useEffect(() => {
           onChange={handleChange("floors")}
         >
           <MenuItem value="">Please Select</MenuItem>
-          <MenuItem value="1">1 Story</MenuItem>
-          <MenuItem value="2">2 Story</MenuItem>
-          <MenuItem value="3">3 Story</MenuItem>
+          <MenuItem value="1">1 story</MenuItem>
+          <MenuItem value="2">2 story</MenuItem>
+          <MenuItem value="3">3 story</MenuItem>
           <MenuItem value="4+">4 Stories or more</MenuItem>
         </TextField>
 

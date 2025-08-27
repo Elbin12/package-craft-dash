@@ -36,10 +36,14 @@ import {
   Check,
   Close,
   Add,
+  Download,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
 import SignatureCanvas from 'react-signature-canvas';
+
+// PDF generation import
+import jsPDF from 'jspdf';
 
 const statusStyles = {
   pending: { bgcolor: 'warning.light', color: 'warning.dark' },
@@ -60,6 +64,7 @@ const QuoteDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [expandedServices, setExpandedServices] = useState({});
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   
   const {
     data: quote,
@@ -90,6 +95,332 @@ const QuoteDetailsPage = () => {
       ...prev,
       [serviceId]: !prev[serviceId],
     }));
+  };
+
+  // PDF Download Handler
+  const handleDownloadPDF = async () => {
+    if (!quote) return;
+    
+    setIsGeneratingPDF(true);
+    
+    try {
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 20;
+      const contentWidth = pageWidth - 2 * margin;
+      let yPosition = margin;
+
+      // Helper function to add new page if needed
+      const checkPageBreak = (requiredHeight = 10) => {
+        if (yPosition + requiredHeight > pageHeight - margin) {
+          pdf.addPage();
+          yPosition = margin;
+          return true;
+        }
+        return false;
+      };
+
+      // Header
+      pdf.setFontSize(24);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(2, 60, 143); // #023c8f
+      pdf.text('QUOTE DETAILS', margin, yPosition);
+      yPosition += 15;
+
+      // Quote ID and Status
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Quote ID: ${quote.id}`, margin, yPosition);
+      // pdf.text(`Status: ${status?.toUpperCase()}`, margin + 80, yPosition);
+      pdf.text(`Created: ${new Date(created_at).toLocaleDateString()}`, margin + 140, yPosition);
+      yPosition += 20;
+
+      // Customer Information Section
+      checkPageBreak(50);
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(2, 60, 143);
+      pdf.text('CUSTOMER INFORMATION', margin, yPosition);
+      yPosition += 10;
+
+      // Draw separator line
+      pdf.setDrawColor(2, 60, 143);
+      pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+      yPosition += 10;
+
+      // Customer details in two columns
+      pdf.setFontSize(10);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      
+      const leftCol = margin;
+      const rightCol = margin + contentWidth / 2;
+      let leftY = yPosition;
+      let rightY = yPosition;
+
+      // Left column
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Name:', leftCol, leftY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(`${first_name} ${last_name}`, leftCol + 25, leftY);
+      leftY += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Email:', leftCol, leftY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(customer_email, leftCol + 25, leftY);
+      leftY += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Phone:', leftCol, leftY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(customer_phone, leftCol + 25, leftY);
+      leftY += 8;
+
+      if (company_name) {
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Company:', leftCol, leftY);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(company_name, leftCol + 25, leftY);
+        leftY += 8;
+      }
+
+      // Right column
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Property Type:', rightCol, rightY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(property_type?.charAt(0).toUpperCase() + property_type?.slice(1), rightCol + 30, rightY);
+      rightY += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Floors:', rightCol, rightY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(num_floors, rightCol + 30, rightY);
+      rightY += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('House Size:', rightCol, rightY);
+      pdf.setFont('helvetica', 'normal');
+      const sizeText = `${size_range?.min_sqft}${size_range?.max_sqft === null ? ' sq ft And Up' : `- ${size_range?.max_sqft} sq ft`}`;
+      pdf.text(sizeText, rightCol + 30, rightY);
+      rightY += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Postal Code:', rightCol, rightY);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(postal_code, rightCol + 30, rightY);
+      rightY += 8;
+
+      yPosition = Math.max(leftY, rightY) + 5;
+
+      // Address
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Address:', leftCol, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(street_address || customer_address, leftCol + 25, yPosition);
+      yPosition += 8;
+
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Location:', leftCol, yPosition);
+      pdf.setFont('helvetica', 'normal');
+      pdf.text(location_details?.address || '', leftCol + 25, yPosition);
+      yPosition += 15;
+
+      // Services Section
+      if (service_selections?.length > 0) {
+        service_selections.forEach((selection, index) => {
+          checkPageBreak(30);
+          
+          pdf.setFontSize(16);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(2, 60, 143);
+          pdf.text(`SERVICE: ${selection.service_details?.name?.toUpperCase()}`, margin, yPosition);
+          yPosition += 10;
+
+          pdf.setDrawColor(2, 60, 143);
+          pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+          yPosition += 10;
+
+          // Service description
+          pdf.setFontSize(10);
+          pdf.setFont('helvetica', 'normal');
+          pdf.setTextColor(0, 0, 0);
+          if (selection.service_details?.description) {
+            const descLines = pdf.splitTextToSize(selection.service_details.description, contentWidth);
+            pdf.text(descLines, margin, yPosition);
+            yPosition += descLines.length * 5 + 5;
+          }
+
+          // Selected Package
+          if (selection.package_quotes?.[0]) {
+            const packageInfo = selection.package_quotes[0];
+            
+            checkPageBreak(25);
+            pdf.setFontSize(14);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(2, 60, 143);
+            pdf.text('Selected Package:', margin, yPosition);
+            yPosition += 8;
+
+            pdf.setFontSize(12);
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(0, 0, 0);
+            pdf.text(packageInfo.package_name, margin + 5, yPosition);
+            
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(66, 189, 63); // Green color
+            pdf.text(`${formatPrice(packageInfo.total_price)}`, margin + 120, yPosition);
+            yPosition += 10;
+
+            // Features
+            if (packageInfo.included_features_details?.length > 0) {
+              pdf.setFontSize(10);
+              pdf.setFont('helvetica', 'bold');
+              pdf.setTextColor(0, 0, 0);
+              pdf.text('Included Features:', margin + 5, yPosition);
+              yPosition += 6;
+
+              packageInfo.included_features_details.forEach(feature => {
+                checkPageBreak(6);
+                pdf.setFont('helvetica', 'normal');
+                pdf.text(`✓ ${feature.name}`, margin + 10, yPosition);
+                yPosition += 5;
+              });
+            }
+
+            if (packageInfo.excluded_features_details?.length > 0) {
+              pdf.setFont('helvetica', 'bold');
+              pdf.text('Not Included:', margin + 5, yPosition);
+              yPosition += 6;
+
+              packageInfo.excluded_features_details.forEach(feature => {
+                checkPageBreak(6);
+                pdf.setFont('helvetica', 'normal');
+                pdf.setTextColor(150, 150, 150);
+                pdf.text(`✗ ${feature.name}`, margin + 10, yPosition);
+                yPosition += 5;
+              });
+            }
+          }
+
+          yPosition += 10;
+        });
+      }
+
+      // Add-ons Section
+      if (addons?.length > 0) {
+        checkPageBreak(30);
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(2, 60, 143);
+        pdf.text('ADDITIONAL SERVICES', margin, yPosition);
+        yPosition += 10;
+
+        pdf.setDrawColor(2, 60, 143);
+        pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+        yPosition += 10;
+
+        addons.forEach(addon => {
+          checkPageBreak(15);
+          
+          pdf.setFontSize(12);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(0, 0, 0);
+          pdf.text(addon.name, margin, yPosition);
+          
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(66, 189, 63);
+          pdf.text(`${formatPrice(addon.base_price)}`, margin + 120, yPosition);
+          yPosition += 8;
+
+          if (addon.description) {
+            pdf.setFontSize(10);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(100, 100, 100);
+            const descLines = pdf.splitTextToSize(addon.description, contentWidth - 10);
+            pdf.text(descLines, margin + 5, yPosition);
+            yPosition += descLines.length * 4 + 5;
+          }
+        });
+
+        yPosition += 10;
+      }
+
+      // Pricing Summary
+      checkPageBreak(60);
+      
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(2, 60, 143);
+      pdf.text('PRICING SUMMARY', margin, yPosition);
+      yPosition += 10;
+
+      pdf.setDrawColor(2, 60, 143);
+      pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+      yPosition += 15;
+
+      // Pricing details
+      pdf.setFontSize(12);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+
+      pdf.text('Base Price:', margin, yPosition);
+      pdf.text(`${formatPrice(total_base_price || 0)}`, margin + 120, yPosition);
+      yPosition += 8;
+
+      if (total_addons_price && parseFloat(total_addons_price) > 0) {
+        pdf.text('Add-ons:', margin, yPosition);
+        pdf.text(`${formatPrice(total_addons_price)}`, margin + 120, yPosition);
+        yPosition += 8;
+      }
+
+      pdf.text('Surcharges:', margin, yPosition);
+      pdf.text(`${formatPrice(total_surcharges || 0)}`, margin + 120, yPosition);
+      yPosition += 8;
+
+      pdf.text('Adjustments:', margin, yPosition);
+      pdf.text(`${formatPrice(total_adjustments || 0)}`, margin + 120, yPosition);
+      yPosition += 15;
+
+      // Final total
+      pdf.setDrawColor(0, 0, 0);
+      pdf.line(margin, yPosition, margin + 140, yPosition);
+      yPosition += 8;
+
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Final Total:', margin, yPosition);
+      pdf.setTextColor(66, 189, 63);
+      pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
+      yPosition += 15;
+
+      // Footer
+      if (yPosition > pageHeight - 40) {
+        pdf.addPage();
+        yPosition = margin;
+      }
+
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Quote generated on ${new Date(created_at).toLocaleString()}`, margin, pageHeight - 15);
+      // pdf.text(`Valid until: ${new Date(expires_at).toLocaleDateString()}`, margin, pageHeight - 15);
+
+      // Generate filename
+      const customerName = `${first_name}_${last_name}`.replace(/\s+/g, '_');
+      const filename = `Quote_${quote.id.slice(0, 8)}_${customerName}.pdf`;
+      
+      // Save the PDF
+      pdf.save(filename);
+      
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   if (isLoading) {
@@ -218,6 +549,23 @@ const QuoteDetailsPage = () => {
                 </Box>
               </Box>
             </Box>
+            
+            {/* PDF Download Button */}
+            <Button
+              variant="contained"
+              startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPDF}
+              sx={{
+                bgcolor: '#023c8f',
+                '&:hover': { bgcolor: '#012a6b' },
+                borderRadius: 2,
+                textTransform: 'none',
+                fontWeight: 600,
+              }}
+            >
+              {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
+            </Button>
           </Box>
         </Box>
       </Box>

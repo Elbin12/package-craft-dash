@@ -34,6 +34,7 @@ export const BookingWizard = () => {
   const [signature, setSignature] = useState('');
   const [addiditional_notes, setAdditionalNotes] = useState();
   const [termsAccepted, setTermsAccepted] = useState(false)
+  const [isBidInPerson, setIsBidInPerson] = useState(false)
 
   // const sigCanvasRef = useRef(null);
 
@@ -458,10 +459,10 @@ useLayoutEffect(() => {
         return;
       }
 
-      if (!selectedPackages || selectedPackages.length === 0) {
-        alert("Please select at least one package before submitting.");
-        return;
-      }
+      // if (!selectedPackages || selectedPackages.length === 0) {
+      //   alert("Please select at least one package before submitting.");
+      //   return;
+      // }
 
       // Prepare the payload for quote submission
       const payload = {
@@ -572,6 +573,9 @@ useLayoutEffect(() => {
       case 2:
         return true; // Questions are optional, so always allow proceeding
       case 3:
+        if (isBidInPerson) {
+        return termsAccepted;
+      }
         return bookingData.selectedPackages && bookingData.selectedPackages.length === bookingData.selectedServices.length && termsAccepted && signature;
       default:
         return false
@@ -589,7 +593,7 @@ useLayoutEffect(() => {
       case 3:
         return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
         additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature}
-        isStepComplete={isStepComplete} handleNext={handleNext}
+        isStepComplete={isStepComplete} handleNext={handleNext} isBidInPerson={isBidInPerson} setIsBidInPerson={setIsBidInPerson}
         />;
       default:
         return "Unknown step";

@@ -65,6 +65,7 @@ const QuoteDetailsPage = () => {
   const navigate = useNavigate();
   const [expandedServices, setExpandedServices] = useState({});
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isBidInPerson, setIsBidInPerson] = useState(false)
   
   const {
     data: quote,
@@ -83,10 +84,16 @@ const QuoteDetailsPage = () => {
   useEffect(() => {
     if (quote?.service_selections) {
       const initialExpanded = {};
+      let bidInPerson = false
+
       quote.service_selections.forEach((service) => {
         initialExpanded[service.id] = true;
+        if (service.package_quotes.length === 0) {
+          bidInPerson = true
+        }
       });
       setExpandedServices(initialExpanded);
+      setIsBidInPerson(bidInPerson)
     }
   }, [quote]);
 
@@ -253,6 +260,36 @@ const QuoteDetailsPage = () => {
             yPosition += descLines.length * 5 + 5;
           }
 
+          // ✅ Add Disclaimer (just like site logic)
+          const generalDisclaimer = selection.service_details?.service_settings?.general_disclaimer;
+          const bidDisclaimer = selection.service_details?.service_settings?.bid_in_person_disclaimer;
+
+          if (!isBidInPerson && generalDisclaimer) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(2, 60, 143);
+            pdf.text("General Disclaimer:", margin, yPosition);
+            yPosition += 6;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            const disclaimerLines = pdf.splitTextToSize(generalDisclaimer, contentWidth);
+            pdf.text(disclaimerLines, margin + 5, yPosition);
+            yPosition += disclaimerLines.length * 5 + 8;
+          }
+
+          if (isBidInPerson && bidDisclaimer) {
+            pdf.setFont('helvetica', 'bold');
+            pdf.setTextColor(2, 60, 143);
+            pdf.text("Bid in Person Disclaimer:", margin, yPosition);
+            yPosition += 6;
+
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(0, 0, 0);
+            const disclaimerLines = pdf.splitTextToSize(bidDisclaimer, contentWidth);
+            pdf.text(disclaimerLines, margin + 5, yPosition);
+            yPosition += disclaimerLines.length * 5 + 8;
+          }
+
           // Selected Package
           if (selection.package_quotes?.[0]) {
             const packageInfo = selection.package_quotes[0];
@@ -367,8 +404,8 @@ const QuoteDetailsPage = () => {
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(0, 0, 0);
 
-      pdf.text('Base Price:', margin, yPosition);
-      pdf.text(`${formatPrice(total_base_price || 0)}`, margin + 120, yPosition);
+      pdf.text('Price:', margin, yPosition);
+      pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
       yPosition += 8;
 
       if (total_addons_price && parseFloat(total_addons_price) > 0) {
@@ -377,13 +414,13 @@ const QuoteDetailsPage = () => {
         yPosition += 8;
       }
 
-      pdf.text('Surcharges:', margin, yPosition);
-      pdf.text(`${formatPrice(total_surcharges || 0)}`, margin + 120, yPosition);
-      yPosition += 8;
+      // pdf.text('Surcharges:', margin, yPosition);
+      // pdf.text(`${formatPrice(total_surcharges || 0)}`, margin + 120, yPosition);
+      // yPosition += 8;
 
-      pdf.text('Adjustments:', margin, yPosition);
-      pdf.text(`${formatPrice(total_adjustments || 0)}`, margin + 120, yPosition);
-      yPosition += 15;
+      // pdf.text('Adjustments:', margin, yPosition);
+      // pdf.text(`${formatPrice(total_adjustments || 0)}`, margin + 120, yPosition);
+      // yPosition += 15;
 
       // Final total
       pdf.setDrawColor(0, 0, 0);
@@ -485,8 +522,12 @@ const QuoteDetailsPage = () => {
 
   const formatPrice = (price) => {
     const numPrice = typeof price === "string" ? Number.parseFloat(price) : price;
-    return isNaN(numPrice) ? "0.00" : numPrice.toFixed(2);
+    return numPrice
   };
+
+  const findFinalTotal = ()=> {
+    return formatPrice(total_base_price) + formatPrice(total_adjustments) + formatPrice(total_surcharges); 
+  }
 
   const renderQuestionResponse = (response) => {
     switch (response.question_type) {
@@ -693,51 +734,52 @@ const QuoteDetailsPage = () => {
                       {(selection.service_details?.service_settings?.general_disclaimer || 
                         selection.service_details?.service_settings?.bid_in_person_disclaimer) && (
                         <Box sx={{ mb: 2 }}>
-                          {selection.service_details?.service_settings?.general_disclaimer && (
-                            <Box 
-                              sx={{ 
-                                backgroundColor: '#d9edf7',
-                                padding: '12px 16px',
-                                borderRadius: '6px',
-                                mb: 1,
-                                border: '1px solid #023c8f'
-                              }}
-                            >
-                              <Typography 
-                                variant="body2" 
+                          {!isBidInPerson?
+                            selection.service_details?.service_settings?.general_disclaimer && (
+                              <Box 
                                 sx={{ 
-                                  color: '#023c8f',
-                                  fontWeight: 500,
-                                  fontSize: '13px'
+                                  backgroundColor: '#d9edf7',
+                                  padding: '12px 16px',
+                                  borderRadius: '6px',
+                                  mb: 1,
+                                  border: '1px solid #023c8f'
                                 }}
                               >
-                                <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
-                              </Typography>
-                            </Box>
-                          )}
-                          
-                          {selection.service_details?.service_settings?.bid_in_person_disclaimer && (
-                            <Box 
-                              sx={{ 
-                                backgroundColor: '#d9edf7',
-                                padding: '12px 16px',
-                                borderRadius: '6px',
-                                mb: 1,
-                                border: '1px solid #023c8f'
-                              }}
-                            >
-                              <Typography 
-                                variant="body2" 
+                                <Typography 
+                                  variant="body2" 
+                                  sx={{ 
+                                    color: '#023c8f',
+                                    fontWeight: 500,
+                                    fontSize: '13px'
+                                  }}
+                                >
+                                  <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
+                                </Typography>
+                              </Box>
+                            ):
+                            selection.service_details?.service_settings?.bid_in_person_disclaimer && (
+                              <Box 
                                 sx={{ 
-                                  color: '#023c8f',
-                                  fontWeight: 500,
-                                  fontSize: '13px'
+                                  backgroundColor: '#d9edf7',
+                                  padding: '12px 16px',
+                                  borderRadius: '6px',
+                                  mb: 1,
+                                  border: '1px solid #023c8f'
                                 }}
                               >
-                                <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
-                              </Typography>
-                            </Box>
-                          )}
+                                <Typography 
+                                  variant="body2" 
+                                  sx={{ 
+                                    color: '#023c8f',
+                                    fontWeight: 500,
+                                    fontSize: '13px'
+                                  }}
+                                >
+                                  <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
+                                </Typography>
+                              </Box>
+                            )
+                          }
                         </Box>
                       )}
 
@@ -915,7 +957,7 @@ const QuoteDetailsPage = () => {
               )}
 
               {/* Additional Information */}
-              {additional_data && (
+              {additional_data && (additional_data?.signature || additional_data?.additional_notes) && (
                 <Card >
                   <Box sx={{ p: 3, py:2}}>
                     <Stack direction="row" alignItems="center" spacing={2}>
@@ -930,7 +972,7 @@ const QuoteDetailsPage = () => {
                   <Divider />
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={3}>
-                      {additional_data.signature && (
+                      {!isBidInPerson && additional_data.signature && (
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
@@ -1003,9 +1045,9 @@ const QuoteDetailsPage = () => {
                         alignItems: 'center',
                       }}
                     >
-                      <Typography variant="body2">Base Price</Typography>
+                      <Typography variant="body2">Price</Typography>
                       <Typography variant="subtitle2">
-                        ${formatPrice(total_base_price || 0)}
+                        ${formatPrice(findFinalTotal() || 0)}
                       </Typography>
                     </Box>
                     
@@ -1025,7 +1067,7 @@ const QuoteDetailsPage = () => {
                       </Box>
                     )}
                     
-                    <Box
+                    {/* <Box
                       sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -1036,8 +1078,8 @@ const QuoteDetailsPage = () => {
                       <Typography variant="subtitle2">
                         ${formatPrice(total_surcharges || 0)}
                       </Typography>
-                    </Box>
-                    <Box
+                    </Box> */}
+                    {/* <Box
                       sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -1048,7 +1090,7 @@ const QuoteDetailsPage = () => {
                       <Typography variant="subtitle2">
                         ${formatPrice(total_adjustments || 0)}
                       </Typography>
-                    </Box>
+                    </Box> */}
                     <Divider />
                     <Box
                       sx={{

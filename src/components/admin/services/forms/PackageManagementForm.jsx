@@ -156,7 +156,7 @@ const PackageManagementForm = ({
     if (!selectedPackage) return;
 
     try {
-      await deletePackage(selectedPackage.id).unwrap();
+      await deletePackage({id:selectedPackage.id, serviceId:data.id}).unwrap();
       const updatedPackages = packages.filter(pkg => pkg.id !== selectedPackage?.id);
       setPackages(updatedPackages);
       onUpdate({ packages: updatedPackages });

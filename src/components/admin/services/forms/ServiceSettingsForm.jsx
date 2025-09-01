@@ -30,7 +30,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
   const [existingDiscounts, setExistingDiscounts] = useState([])
   const [editingDiscounts, setEditingDiscounts] = useState({})
 
-  const { data: optionQuestions, isLoading } = useGetOptionQuestionsQuery()
+  const { data: optionQuestions, isLoading } = useGetOptionQuestionsQuery(data.id)
   const [createQuantityDiscount] = useCreateQuantityDiscountMutation()
   const [updateQuantityDiscount] = useUpdateQuantityDiscountMutation()
   const [deleteQuantityDiscount] = useDeleteQuantityDiscountMutation()

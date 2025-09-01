@@ -53,6 +53,12 @@ export const servicesApi = createApi({
       }),
       invalidatesTags: ['Service'],
     }),
+    autoMapPackages: builder.mutation({
+      query: (serviceId) => ({
+        url: `${serviceId}/auto-map-packages/`,
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -63,5 +69,6 @@ export const {
   useUpdateServiceMutation,
   useDeleteServiceMutation,
   useCreateServiceSettingsMutation,
-  useUpdateServiceSettingsMutation
+  useUpdateServiceSettingsMutation,
+  useAutoMapPackagesMutation
 } = servicesApi;

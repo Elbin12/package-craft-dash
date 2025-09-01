@@ -1,5 +1,6 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery, BASE_URL } from '../axios/axios';
+import { servicesApi } from './servicesApi';
 
 export const packagesApi = createApi({
   reducerPath: 'packagesApi',
@@ -21,6 +22,16 @@ export const packagesApi = createApi({
         data: packageData,
       }),
       invalidatesTags: ['Package'],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data: created } = await queryFulfilled;
+          console.log(created, 'created')
+          // call autoMapPackages with the related serviceId
+          dispatch(
+            servicesApi.endpoints.autoMapPackages.initiate(created.service)
+          );
+        } catch {}
+      },
     }),
     updatePackage: builder.mutation({
       query: ({ id, ...packageData }) => ({
@@ -29,13 +40,30 @@ export const packagesApi = createApi({
         data: packageData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Package', id }],
+      async onQueryStarted(arg, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updated } = await queryFulfilled;
+          dispatch(
+            servicesApi.endpoints.autoMapPackages.initiate(updated.service)
+          );
+        } catch {}
+      },
     }),
     deletePackage: builder.mutation({
-      query: (id) => ({
+      query: ({id}) => ({
         url: `${id}/`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Package'],
+      async onQueryStarted({ id, serviceId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          console.log(serviceId, 'deleted')
+          dispatch(
+            servicesApi.endpoints.autoMapPackages.initiate(serviceId)
+          );
+        } catch {}
+      },
     }),
   }),
 });

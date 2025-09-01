@@ -36,7 +36,9 @@ export const CheckoutSummary = ({
   handleSignatureEnd,
   setSignature,
   isStepComplete,
-  handleNext
+  handleNext,
+  isBidInPerson,
+  setIsBidInPerson
 }) => {
   const [selectedPackages, setSelectedPackages] = useState({})
   const [expandedServices, setExpandedServices] = useState({})
@@ -79,10 +81,16 @@ export const CheckoutSummary = ({
   useEffect(() => {
     if (quoteData?.service_selections) {
       const initialExpanded = {}
+      let bidInPerson = false
+
       quoteData.service_selections.forEach((service) => {
         initialExpanded[service.id] = true
+        if (service.package_quotes.length === 0) {
+          bidInPerson = true
+        }
       })
       setExpandedServices(initialExpanded)
+      setIsBidInPerson(bidInPerson)
     }
   }, [quoteData])
 
@@ -366,149 +374,155 @@ export const CheckoutSummary = ({
                   {(selection.service_details.service_settings?.general_disclaimer || 
                     selection.service_details.service_settings?.bid_in_person_disclaimer) && (
                     <Box sx={{ mb: 2 }}>
-                      {selection.service_details.service_settings?.general_disclaimer && (
-                        <Box 
-                          sx={{ 
-                            backgroundColor: '#d9edf7',
-                            padding: '12px 16px',
-                            borderRadius: '6px',
-                            mb: 1,
-                            border: '1px solid #023c8f'
-                          }}
-                        >
-                          <Typography 
-                            variant="body2" 
+                      {!isBidInPerson?
+                        selection.service_details.service_settings?.general_disclaimer && (
+                          <Box 
                             sx={{ 
-                              color: '#023c8f',
-                              fontWeight: 500,
-                              fontSize: '13px'
+                              backgroundColor: '#d9edf7',
+                              padding: '12px 16px',
+                              borderRadius: '6px',
+                              mb: 1,
+                              border: '1px solid #023c8f'
                             }}
                           >
-                            <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
-                          </Typography>
-                        </Box>
-                      )}
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: '#023c8f',
+                                fontWeight: 500,
+                                fontSize: '13px'
+                              }}
+                            >
+                              <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
+                            </Typography>
+                          </Box>
+                        ):
+                        selection.service_details.service_settings?.bid_in_person_disclaimer && (
+                          <Box 
+                            sx={{ 
+                              backgroundColor: '#d9edf7',
+                              padding: '12px 16px',
+                              borderRadius: '6px',
+                              mb: 1,
+                              border: '1px solid #023c8f'
+                            }}
+                          >
+                            <Typography 
+                              variant="body2" 
+                              sx={{ 
+                                color: '#023c8f',
+                                fontWeight: 500,
+                                fontSize: '13px'
+                              }}
+                            >
+                              <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
+                            </Typography>
+                          </Box>
+                        )
+                      }
                       
-                      {selection.service_details.service_settings?.bid_in_person_disclaimer && (
-                        <Box 
-                          sx={{ 
-                            backgroundColor: '#d9edf7',
-                            padding: '12px 16px',
-                            borderRadius: '6px',
-                            mb: 1,
-                            border: '1px solid #023c8f'
-                          }}
-                        >
-                          <Typography 
-                            variant="body2" 
-                            sx={{ 
-                              color: '#023c8f',
-                              fontWeight: 500,
-                              fontSize: '13px'
-                            }}
-                          >
-                            <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
-                          </Typography>
-                        </Box>
-                      )}
                     </Box>
                   )}
                   {/* Package Selection */}
-                  <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
-                    Select Package
-                  </Typography>
-                  <FormControl component="fieldset" fullWidth>
-                    <RadioGroup
-                      value={selectedPackages[selection.id] || ""}
-                      onChange={(e) => {
-                        const packageQuote = selection.package_quotes.find((p) => p.id === e.target.value)
-                        if (packageQuote) {
-                          handlePackageSelect(selection.id, packageQuote)
-                        }
-                      }}
-                    >
-                      <Grid container spacing={3}>
-                        {selection.package_quotes.map((packageQuote) => (
-                          <Grid item xs={12} md={6} key={packageQuote.id}>
-                            <Card
-                              variant="outlined"
-                              sx={{
-                                cursor: "pointer",
-                                border:
-                                  selectedPackages[selection.id] === packageQuote.id
-                                    ? "2px solid #42bd3f"
-                                    : "1px solid #e0e0e0",
-                                bgcolor: selectedPackages[selection.id] === packageQuote.id ? "#f8fff8" : "white",
-                                "&:hover": { borderColor: "#42bd3f" },
-                                borderRadius: 3,
-                                minHeight: 220,
-                                display: "flex",
-                                flexDirection: "column",
-                                justifyContent: "space-between",
-                              }}
-                              onClick={() => handlePackageSelect(selection.id, packageQuote)}
-                            >
-                              <CardContent sx={{ p: 4 }}>
-                                <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                                  <Typography variant="h6" fontWeight={700}>
-                                    {packageQuote.package_name}
+                  {!isBidInPerson&&
+                  <>
+                    <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                      Select Package
+                    </Typography>
+                    <FormControl component="fieldset" fullWidth>
+                      <RadioGroup
+                        value={selectedPackages[selection.id] || ""}
+                        onChange={(e) => {
+                          const packageQuote = selection.package_quotes.find((p) => p.id === e.target.value)
+                          if (packageQuote) {
+                            handlePackageSelect(selection.id, packageQuote)
+                          }
+                        }}
+                      >
+                        <Grid container spacing={3}>
+                          {selection.package_quotes.map((packageQuote) => (
+                            <Grid item xs={12} md={6} key={packageQuote.id}>
+                              <Card
+                                variant="outlined"
+                                sx={{
+                                  cursor: "pointer",
+                                  border:
+                                    selectedPackages[selection.id] === packageQuote.id
+                                      ? "2px solid #42bd3f"
+                                      : "1px solid #e0e0e0",
+                                  bgcolor: selectedPackages[selection.id] === packageQuote.id ? "#f8fff8" : "white",
+                                  "&:hover": { borderColor: "#42bd3f" },
+                                  borderRadius: 3,
+                                  minHeight: 220,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "space-between",
+                                }}
+                                onClick={() => handlePackageSelect(selection.id, packageQuote)}
+                              >
+                                <CardContent sx={{ p: 4 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                                    <Typography variant="h6" fontWeight={700}>
+                                      {packageQuote.package_name}
+                                    </Typography>
+                                    <FormControlLabel
+                                      value={packageQuote.id}
+                                      control={
+                                        <Radio
+                                          sx={{
+                                            color: "#42bd3f",
+                                            "&.Mui-checked": { color: "#42bd3f" },
+                                          }}
+                                        />
+                                      }
+                                      label=""
+                                      sx={{ m: 0 }}
+                                    />
+                                  </Box>
+
+                                  <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
+                                    ${formatPrice(packageQuote.total_price)}
                                   </Typography>
-                                  <FormControlLabel
-                                    value={packageQuote.id}
-                                    control={
-                                      <Radio
-                                        sx={{
-                                          color: "#42bd3f",
-                                          "&.Mui-checked": { color: "#42bd3f" },
-                                        }}
-                                      />
-                                    }
-                                    label=""
-                                    sx={{ m: 0 }}
-                                  />
-                                </Box>
 
-                                <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                  ${formatPrice(packageQuote.total_price)}
-                                </Typography>
-
-                                {/* ✅ Professional Features List */}
-                                <Box>
-                                  {[
-                                    ...(packageQuote.included_features_details || []).map((f) => ({
-                                      ...f,
-                                      included: true,
-                                    })),
-                                    ...(packageQuote.excluded_features_details || []).map((f) => ({
-                                      ...f,
-                                      included: false,
-                                    })),
-                                  ].map((feature) => (
-                                    <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
-                                      {feature.included ? (
-                                        <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
-                                      ) : (
-                                        <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
-                                      )}
-                                      <Typography
-                                        variant="body2"
-                                        sx={{
-                                          color: feature.included ? "text.primary" : "text.disabled",
-                                          fontWeight: feature.included ? 500 : 400,
-                                        }}
-                                      >
-                                        {feature.name}
-                                      </Typography>
-                                    </Box>
-                                  ))}
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))}
-                      </Grid>
-                    </RadioGroup>
-                  </FormControl>
+                                  {/* ✅ Professional Features List */}
+                                  <Box>
+                                    {[
+                                      ...(packageQuote.included_features_details || []).map((f) => ({
+                                        ...f,
+                                        included: true,
+                                      })),
+                                      ...(packageQuote.excluded_features_details || []).map((f) => ({
+                                        ...f,
+                                        included: false,
+                                      })),
+                                    ].map((feature) => (
+                                      <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
+                                        {feature.included ? (
+                                          <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
+                                        ) : (
+                                          <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
+                                        )}
+                                        <Typography
+                                          variant="body2"
+                                          sx={{
+                                            color: feature.included ? "text.primary" : "text.disabled",
+                                            fontWeight: feature.included ? 500 : 400,
+                                          }}
+                                        >
+                                          {feature.name}
+                                        </Typography>
+                                      </Box>
+                                    ))}
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Grid>
+                          ))}
+                        </Grid>
+                      </RadioGroup>
+                    </FormControl>
+                  </>
+                  }
                   {/* Question Responses */}
                   {selection.question_responses?.length > 0 && (
                     <Box mt={4}>
@@ -662,7 +676,7 @@ export const CheckoutSummary = ({
                   return null
                 })}
               </Box>
-            ) : (
+            ) : !isBidInPerson && (
               <Box mb={2} p={2} sx={{ bgcolor: "#d9edf7", borderRadius: 1, textAlign: "center" }}>
                 <Typography variant="body2" sx={{ color: '#023c8f' }}>
                   Please select a package above
@@ -702,78 +716,82 @@ export const CheckoutSummary = ({
               </Box>
             )}
 
-            {surchargeAmount > 0 && (
+            {/* {surchargeAmount > 0 && (
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2">Trip Surcharge</Typography>
                 <Typography variant="body2">${formatPrice(surchargeAmount)}</Typography>
               </Box>
-            )}
+            )} */}
 
             <Divider sx={{ my: 2 }} />
 
-            <Box display="flex" justifyContent="space-between" mb={2}>
-              <Typography variant="h6" fontWeight={700}>
-                Total
-              </Typography>
-              <Typography variant="h6" fontWeight={700} color="success.main">
-                ${finalTotal}
-              </Typography>
-            </Box>
+            {/* {!isBidInPerson&& */}
+              <Box display="flex" justifyContent="space-between" mb={2}>
+                <Typography variant="h6" fontWeight={700}>
+                  Total
+                </Typography>
+                <Typography variant="h6" fontWeight={700} color="success.main">
+                  ${finalTotal}
+                </Typography>
+              </Box>
+            {/* } */}
 
             {/* Signature Section */}
-            <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '400px' } }}>
-              <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
-                Signature
-              </Typography>
-              <Box
-                sx={{
-                  border: '1px solid #e0e0e0',
-                  borderRadius: '8px',
-                  backgroundColor: 'white',
-                  width: '100%',
-                  height: { xs: 160, sm: 120 },
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'crosshair',
-                  '&:hover': {
-                    borderColor: '#023c8f',
-                  },
-                }}
-              >
-                <Box sx={{ width: "100%", height: "100%" }}>
-                  <SignatureCanvas
-                    ref={sigCanvasRef}
-                    penColor="black"
-                    canvasProps={{
-                      className: "w-full h-full",
-                    }}
-                    onEnd={()=>{handleSignatureEnd(sigCanvasRef)}}
-                  />
-                </Box>
-              </Box>
-              <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  size="small"
+            {!isBidInPerson&&
+              <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '400px' } }}>
+                <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
+                  Signature
+                </Typography>
+                <Box
                   sx={{
-                    color: '#023c8f',
-                    borderColor: '#023c8f',
+                    border: '1px solid #e0e0e0',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    width: '100%',
+                    height: { xs: 160, sm: 120 },
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'crosshair',
                     '&:hover': {
-                      backgroundColor: '#f5f5f5',
                       borderColor: '#023c8f',
                     },
                   }}
-                  onClick={() => {
-                    sigCanvasRef.current.clear();
-                    setSignature('');
-                  }}
                 >
-                  Clear
-                </Button>
+                  <Box sx={{ width: "100%", height: "100%" }}>
+                    <SignatureCanvas
+                      ref={sigCanvasRef}
+                      penColor="black"
+                      canvasProps={{
+                        className: "w-full h-full",
+                      }}
+                      onEnd={()=>{handleSignatureEnd(sigCanvasRef)}}
+                    />
+                  </Box>
+                </Box>
+                <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    sx={{
+                      color: '#023c8f',
+                      borderColor: '#023c8f',
+                      '&:hover': {
+                        backgroundColor: '#f5f5f5',
+                        borderColor: '#023c8f',
+                      },
+                    }}
+                    onClick={() => {
+                      sigCanvasRef.current.clear();
+                      setSignature('');
+                    }}
+                  >
+                    Clear
+                  </Button>
+                </Box>
               </Box>
-            </Box>
+            }
 
             <Box display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} alignItems={{ sm: "center" }}>
               <FormControlLabel
@@ -797,7 +815,7 @@ export const CheckoutSummary = ({
               <Button
                 variant="contained"
                 size="large"
-                disabled={Object.keys(selectedPackages).length === 0 || !termsAccepted || !isStepComplete(3)}
+                disabled={!isStepComplete(3)}
                 sx={{
                   bgcolor: "#42bd3f",
                   "&:hover": { bgcolor: "#369932" },

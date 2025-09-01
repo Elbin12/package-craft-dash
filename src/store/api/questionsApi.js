@@ -53,7 +53,7 @@ export const questionsApi = createApi({
       }),
     }),
     getOptionQuestions: builder.query({
-      query: () => ({url:'', params:{type:'quantity'}}),
+      query: (id) => ({url:'', params:{type:'quantity', service:id}}),
       providesTags: ['Option Questions'],
     }),
   }),

@@ -386,53 +386,57 @@ const QuoteDetailsPage = () => {
         yPosition += 10;
       }
 
-      // Pricing Summary
-      checkPageBreak(60);
-      
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setTextColor(2, 60, 143);
-      pdf.text('PRICING SUMMARY', margin, yPosition);
-      yPosition += 10;
+      if (status!=="declined"){
 
-      pdf.setDrawColor(2, 60, 143);
-      pdf.line(margin, yPosition, margin + contentWidth, yPosition);
-      yPosition += 15;
-
-      // Pricing details
-      pdf.setFontSize(12);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(0, 0, 0);
-
-      pdf.text('Price:', margin, yPosition);
-      pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
-      yPosition += 8;
-
-      if (total_addons_price && parseFloat(total_addons_price) > 0) {
-        pdf.text('Add-ons:', margin, yPosition);
-        pdf.text(`${formatPrice(total_addons_price)}`, margin + 120, yPosition);
+        // Pricing Summary
+        checkPageBreak(60);
+        
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(2, 60, 143);
+        pdf.text('PRICING SUMMARY', margin, yPosition);
+        yPosition += 10;
+  
+        pdf.setDrawColor(2, 60, 143);
+        pdf.line(margin, yPosition, margin + contentWidth, yPosition);
+        yPosition += 15;
+  
+        // Pricing details
+        pdf.setFontSize(12);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(0, 0, 0);
+  
+        pdf.text('Price:', margin, yPosition);
+        pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
         yPosition += 8;
+  
+        if (total_addons_price && parseFloat(total_addons_price) > 0) {
+          pdf.text('Add-ons:', margin, yPosition);
+          pdf.text(`${formatPrice(total_addons_price)}`, margin + 120, yPosition);
+          yPosition += 8;
+        }
+  
+        // pdf.text('Surcharges:', margin, yPosition);
+        // pdf.text(`${formatPrice(total_surcharges || 0)}`, margin + 120, yPosition);
+        // yPosition += 8;
+  
+        // pdf.text('Adjustments:', margin, yPosition);
+        // pdf.text(`${formatPrice(total_adjustments || 0)}`, margin + 120, yPosition);
+        // yPosition += 15;
+  
+        // Final total
+        pdf.setDrawColor(0, 0, 0);
+        pdf.line(margin, yPosition, margin + 140, yPosition);
+        yPosition += 8;
+  
+        pdf.setFontSize(16);
+        pdf.setFont('helvetica', 'bold');
+        pdf.text('Final Total:', margin, yPosition);
+        pdf.setTextColor(66, 189, 63);
+        pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
+        yPosition += 15;
       }
 
-      // pdf.text('Surcharges:', margin, yPosition);
-      // pdf.text(`${formatPrice(total_surcharges || 0)}`, margin + 120, yPosition);
-      // yPosition += 8;
-
-      // pdf.text('Adjustments:', margin, yPosition);
-      // pdf.text(`${formatPrice(total_adjustments || 0)}`, margin + 120, yPosition);
-      // yPosition += 15;
-
-      // Final total
-      pdf.setDrawColor(0, 0, 0);
-      pdf.line(margin, yPosition, margin + 140, yPosition);
-      yPosition += 8;
-
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Final Total:', margin, yPosition);
-      pdf.setTextColor(66, 189, 63);
-      pdf.text(`${formatPrice(final_total || 0)}`, margin + 120, yPosition);
-      yPosition += 15;
 
       // Footer
       if (yPosition > pageHeight - 40) {
@@ -592,21 +596,23 @@ const QuoteDetailsPage = () => {
             </Box>
             
             {/* PDF Download Button */}
-            <Button
-              variant="contained"
-              startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
-              onClick={handleDownloadPDF}
-              disabled={isGeneratingPDF}
-              sx={{
-                bgcolor: '#023c8f',
-                '&:hover': { bgcolor: '#012a6b' },
-                borderRadius: 2,
-                textTransform: 'none',
-                fontWeight: 600,
-              }}
-            >
-              {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
-            </Button>
+            {status!=="declined"&&
+              <Button
+                variant="contained"
+                startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
+                onClick={handleDownloadPDF}
+                disabled={isGeneratingPDF}
+                sx={{
+                  bgcolor: '#023c8f',
+                  '&:hover': { bgcolor: '#012a6b' },
+                  borderRadius: 2,
+                  textTransform: 'none',
+                  fontWeight: 600,
+                }}
+              >
+                {isGeneratingPDF ? 'Generating PDF...' : 'Download PDF'}
+              </Button>
+            }
           </Box>
         </Box>
       </Box>
@@ -614,7 +620,11 @@ const QuoteDetailsPage = () => {
       {/* Body */}
       <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
         <Container maxWidth="lg">
-          <Box display="grid" gridTemplateColumns={{ xs: '1fr', lg: '2fr 1fr' }} gap={6}>
+          <Box display="grid"  gridTemplateColumns={
+              status !== "declined"
+                ? { xs: "1fr", lg: "2fr 1fr" }
+                : "1fr"
+            } gap={6}>
             {/* Left column */}
             <Box display="flex" flexDirection="column" gap={2}>
               {/* Customer Info */}
@@ -695,6 +705,56 @@ const QuoteDetailsPage = () => {
                   </Grid>
                 </CardContent>
               </Card>
+              
+              {status === "declined" && (
+                <Card
+                  sx={{
+                    backgroundColor: "#fefefe",
+                    border: "1px solid #e5e7eb",
+                    borderRadius: "8px",
+                    boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                    mb: 2,
+                  }}
+                >
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack direction="row" spacing={2.5} alignItems="flex-start">
+                      <Avatar 
+                        sx={{ 
+                          bgcolor: "#ef4444", 
+                          width: 40, 
+                          height: 40,
+                          fontSize: "1.1rem"
+                        }}
+                      >
+                        ✕
+                      </Avatar>
+                      <Box sx={{ flex: 1 }}>
+                        <Typography 
+                          variant="h6" 
+                          sx={{ 
+                            color: "#dc2626",
+                            fontWeight: 600,
+                            fontSize: "1.1rem",
+                            mb: 1
+                          }}
+                        >
+                          Quote Declined
+                        </Typography>
+                        <Typography 
+                          variant="body2" 
+                          sx={{ 
+                            color: "#6b7280",
+                            lineHeight: 1.5,
+                            fontSize: "0.95rem"
+                          }}
+                        >
+                          We’d be happy to work with you on adjustments or create a new proposal tailored to your needs.
+                        </Typography>
+                      </Box>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Service Selections */}
               {service_selections?.map((selection) => (
@@ -784,76 +844,78 @@ const QuoteDetailsPage = () => {
                       )}
 
                       {/* Selected Package Display */}
-                      {selection.package_quotes?.[0] && (
-                        <Box sx={{ mb: 3 }}>
-                          <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
-                            Selected Package
-                          </Typography>
-                          <Card
-                            variant="outlined"
-                            sx={{
-                              border: "2px solid #42bd3f",
-                              bgcolor: "#f8fff8",
-                              borderRadius: 3,
-                              minHeight: 220,
-                              display: "flex",
-                              flexDirection: "column",
-                              justifyContent: "space-between",
-                            }}
-                          >
-                            <CardContent sx={{ p: 4 }}>
-                              <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                                <Typography variant="h6" fontWeight={700}>
-                                  {selection.package_quotes[0].package_name}
-                                </Typography>
-                                <Chip
-                                  label="Selected"
-                                  sx={{
-                                    bgcolor: "#42bd3f",
-                                    color: "white",
-                                    fontWeight: 600,
-                                  }}
-                                />
-                              </Box>
-
-                              <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                ${formatPrice(selection.package_quotes[0].total_price)}
+                      {status!=="declined"&&
+                        selection.package_quotes?.[0] && (
+                            <Box sx={{ mb: 3 }}>
+                              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                                Selected Package
                               </Typography>
-
-                              {/* Features List */}
-                              <Box>
-                                {[
-                                  ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
-                                    ...f,
-                                    included: true,
-                                  })),
-                                  ...(selection.package_quotes[0].excluded_features_details || []).map((f) => ({
-                                    ...f,
-                                    included: false,
-                                  })),
-                                ].map((feature) => (
-                                  <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
-                                    {feature.included ? (
-                                      <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
-                                    ) : (
-                                      <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
-                                    )}
-                                    <Typography
-                                      variant="body2"
-                                      sx={{
-                                        color: feature.included ? "text.primary" : "text.disabled",
-                                        fontWeight: feature.included ? 500 : 400,
-                                      }}
-                                    >
-                                      {feature.name}
+                              <Card
+                                variant="outlined"
+                                sx={{
+                                  border: "2px solid #42bd3f",
+                                  bgcolor: "#f8fff8",
+                                  borderRadius: 3,
+                                  minHeight: 220,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  justifyContent: "space-between",
+                                }}
+                              >
+                                <CardContent sx={{ p: 4 }}>
+                                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+                                    <Typography variant="h6" fontWeight={700}>
+                                      {selection.package_quotes[0].package_name}
                                     </Typography>
+                                    <Chip
+                                      label="Selected"
+                                      sx={{
+                                        bgcolor: "#42bd3f",
+                                        color: "white",
+                                        fontWeight: 600,
+                                      }}
+                                    />
                                   </Box>
-                                ))}
-                              </Box>
-                            </CardContent>
-                          </Card>
-                        </Box>
-                      )}
+
+                                  <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
+                                    ${formatPrice(selection.package_quotes[0].total_price)}
+                                  </Typography>
+
+                                  {/* Features List */}
+                                  <Box>
+                                    {[
+                                      ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
+                                        ...f,
+                                        included: true,
+                                      })),
+                                      ...(selection.package_quotes[0].excluded_features_details || []).map((f) => ({
+                                        ...f,
+                                        included: false,
+                                      })),
+                                    ].map((feature) => (
+                                      <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
+                                        {feature.included ? (
+                                          <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
+                                        ) : (
+                                          <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
+                                        )}
+                                        <Typography
+                                          variant="body2"
+                                          sx={{
+                                            color: feature.included ? "text.primary" : "text.disabled",
+                                            fontWeight: feature.included ? 500 : 400,
+                                          }}
+                                        >
+                                          {feature.name}
+                                        </Typography>
+                                      </Box>
+                                    ))}
+                                  </Box>
+                                </CardContent>
+                              </Card>
+                            </Box>
+                          )
+                      }
 
                       {/* Question Responses */}
                       {selection.question_responses?.length > 0 && (
@@ -1010,49 +1072,35 @@ const QuoteDetailsPage = () => {
             </Box>
 
             {/* Right column - pricing */}
-            <Box>
-              <Paper
-                elevation={3}
-                sx={{
-                  borderRadius: 2,
-                  position: 'sticky',
-                  top: 80,
-                  overflow: 'hidden',
-                }}
-              >
-                <Box
+            {status!=="declined" &&
+              <Box>
+                <Paper
+                  elevation={3}
                   sx={{
-                    background: '#023c8f',
-                    color: 'white',
-                    px: 3,
-                    py: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1,
+                    borderRadius: 2,
+                    position: 'sticky',
+                    top: 80,
+                    overflow: 'hidden',
                   }}
                 >
-                  <Receipt fontSize="small" />
-                  <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                    Pricing Summary
-                  </Typography>
-                </Box>
-                <CardContent>
-                  <Box display="flex" flexDirection="column" gap={2}>
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Typography variant="body2">Price</Typography>
-                      <Typography variant="subtitle2">
-                        ${formatPrice(findFinalTotal() || 0)}
-                      </Typography>
-                    </Box>
-                    
-                    {/* Add-ons Price */}
-                    {total_addons_price && parseFloat(total_addons_price) > 0 && (
+                  <Box
+                    sx={{
+                      background: '#023c8f',
+                      color: 'white',
+                      px: 3,
+                      py: 2,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 1,
+                    }}
+                  >
+                    <Receipt fontSize="small" />
+                    <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                      Pricing Summary
+                    </Typography>
+                  </Box>
+                  <CardContent>
+                    <Box display="flex" flexDirection="column" gap={2}>
                       <Box
                         sx={{
                           display: 'flex',
@@ -1060,71 +1108,87 @@ const QuoteDetailsPage = () => {
                           alignItems: 'center',
                         }}
                       >
-                        <Typography variant="body2">Add-ons</Typography>
+                        <Typography variant="body2">Price</Typography>
                         <Typography variant="subtitle2">
-                          ${formatPrice(total_addons_price)}
+                          ${formatPrice(findFinalTotal() || 0)}
                         </Typography>
                       </Box>
-                    )}
-                    
-                    {/* <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Typography variant="body2">Surcharges</Typography>
-                      <Typography variant="subtitle2">
-                        ${formatPrice(total_surcharges || 0)}
-                      </Typography>
-                    </Box> */}
-                    {/* <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <Typography variant="body2">Adjustments</Typography>
-                      <Typography variant="subtitle2">
-                        ${formatPrice(total_adjustments || 0)}
-                      </Typography>
-                    </Box> */}
-                    <Divider />
-                    <Box
-                      sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        background: 'rgba(243,244,246,0.5)',
-                        p: 1,
-                        borderRadius: 1,
-                      }}
-                    >
-                      <Typography variant="subtitle1" fontWeight="600">
-                        Final Total
-                      </Typography>
-                      <Typography variant="h5" fontWeight="500" color="#42bd3f">
-                        ${formatPrice(final_total || 0)}
+                      
+                      {/* Add-ons Price */}
+                      {total_addons_price && parseFloat(total_addons_price) > 0 && (
+                        <Box
+                          sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Typography variant="body2">Add-ons</Typography>
+                          <Typography variant="subtitle2">
+                            ${formatPrice(total_addons_price)}
+                          </Typography>
+                        </Box>
+                      )}
+                      
+                      {/* <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography variant="body2">Surcharges</Typography>
+                        <Typography variant="subtitle2">
+                          ${formatPrice(total_surcharges || 0)}
+                        </Typography>
+                      </Box> */}
+                      {/* <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Typography variant="body2">Adjustments</Typography>
+                        <Typography variant="subtitle2">
+                          ${formatPrice(total_adjustments || 0)}
+                        </Typography>
+                      </Box> */}
+                      <Divider />
+                      <Box
+                        sx={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          background: 'rgba(243,244,246,0.5)',
+                          p: 1,
+                          borderRadius: 1,
+                        }}
+                      >
+                        <Typography variant="subtitle1" fontWeight="600">
+                          Final Total
+                        </Typography>
+                        <Typography variant="h5" fontWeight="500" color="#42bd3f">
+                          ${formatPrice(final_total || 0)}
+                        </Typography>
+                      </Box>
+                      
+                      <Divider />
+                      <Typography variant="caption" color="text.secondary" align="center">
+                        Quote created on{' '}
+                        {new Date(created_at).toLocaleString(undefined, {
+                          year: 'numeric',
+                          month: 'short',
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })}
                       </Typography>
                     </Box>
-                    
-                    <Divider />
-                    <Typography variant="caption" color="text.secondary" align="center">
-                      Quote created on{' '}
-                      {new Date(created_at).toLocaleString(undefined, {
-                        year: 'numeric',
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </Typography>
-                  </Box>
-                </CardContent>
-              </Paper>
-            </Box>
+                  </CardContent>
+                </Paper>
+              </Box>
+            }
           </Box>
         </Container>
       </Box>

@@ -20,11 +20,16 @@ import {
   Chip,
   Collapse,
   IconButton,
+  Dialog,
+  DialogTitle,
+  DialogActions,
+  DialogContent,
 } from "@mui/material"
 import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
-import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation } from "../../../store/api/user/quoteApi"
+import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation } from "../../../store/api/user/quoteApi"
 import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
+import { useNavigate } from "react-router-dom"
 
 export const CheckoutSummary = ({
   data,
@@ -43,6 +48,10 @@ export const CheckoutSummary = ({
   const [selectedPackages, setSelectedPackages] = useState({})
   const [expandedServices, setExpandedServices] = useState({})
   const [selectedAddons, setSelectedAddons] = useState([])
+  const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
+  const [isDeclineLoading, setIsDeclineLoading] = useState(false)
+
+  const navigate = useNavigate();
 
   const {
     data: response,
@@ -71,6 +80,7 @@ export const CheckoutSummary = ({
 
   const [addAddonsToSubmission] = useAddAddonsMutation()
   const [removeAddonFromSubmission] = useDeleteAddonsMutation()
+  const [declineQuote] = useDeclineQuoteMutation()
 
   const sigCanvasRef = useRef(null);
 
@@ -164,6 +174,30 @@ export const CheckoutSummary = ({
     } catch (error) {
       console.error('Error toggling addon:', error)
     }
+  }
+
+  const handleDeclineClick = () => {
+    setDeclineDialogOpen(true)
+  }
+
+  const handleDeclineConfirm = async () => {
+    try {
+      setIsDeclineLoading(true)
+      await declineQuote({ submissionId: data.submission_id }).unwrap()
+      
+      // Redirect to details page after successful decline
+      navigate(`/quote/details/${data.submission_id}`)
+    } catch (error) {
+      console.error('Error declining quote:', error)
+      // You might want to show a toast/snackbar error message here
+    } finally {
+      setIsDeclineLoading(false)
+      setDeclineDialogOpen(false)
+    }
+  }
+
+  const handleDeclineCancel = () => {
+    setDeclineDialogOpen(false)
   }
 
   if (isLoading) {
@@ -812,21 +846,41 @@ export const CheckoutSummary = ({
                 sx={{ flex: 1 }}
               />
 
-              <Button
-                variant="contained"
-                size="large"
-                disabled={!isStepComplete(3)}
-                sx={{
-                  bgcolor: "#42bd3f",
-                  "&:hover": { bgcolor: "#369932" },
-                  "&:disabled": { bgcolor: "#e0e0e0" },
-                  fontWeight: 600,
-                  minWidth: { xs: "100%", sm: "200px" },
-                }}
-                onClick={handleNext}
-              >
-                Accept Quote
-              </Button>
+              <Box display="flex" gap={2} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  onClick={handleDeclineClick}
+                  sx={{
+                    color: "#d32f2f",
+                    borderColor: "#d32f2f",
+                    "&:hover": {
+                      bgcolor: "#ffeaea",
+                      borderColor: "#d32f2f",
+                    },
+                    fontWeight: 600,
+                    minWidth: { xs: "48%", sm: "120px" },
+                  }}
+                >
+                  Decline
+                </Button>
+
+                <Button
+                  variant="contained"
+                  size="large"
+                  disabled={!isStepComplete(3)}
+                  sx={{
+                    bgcolor: "#42bd3f",
+                    "&:hover": { bgcolor: "#369932" },
+                    "&:disabled": { bgcolor: "#e0e0e0" },
+                    fontWeight: 600,
+                    minWidth: { xs: "48%", sm: "120px" },
+                  }}
+                  onClick={handleNext}
+                >
+                  Accept Quote
+                </Button>
+              </Box>
             </Box>
 
             <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
@@ -835,6 +889,54 @@ export const CheckoutSummary = ({
           </CardContent>
         </Card>
       </Container>
+
+      {/* Decline Confirmation Dialog */}
+      <Dialog open={declineDialogOpen} onClose={handleDeclineCancel} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ color: "#023c8f", fontWeight: 600 }}>Decline Quote</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            Are you sure you want to decline this quote? This action cannot be undone.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            You will be redirected to the quote details page after declining.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 3, gap: 2 }}>
+          <Button
+            onClick={handleDeclineCancel}
+            variant="outlined"
+            sx={{
+              color: "#023c8f",
+              borderColor: "#023c8f",
+              "&:hover": {
+                backgroundColor: "#f5f5f5",
+                borderColor: "#023c8f",
+              },
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeclineConfirm}
+            variant="contained"
+            disabled={isDeclineLoading}
+            sx={{
+              bgcolor: "#d32f2f",
+              "&:hover": { bgcolor: "#b71c1c" },
+              "&:disabled": { bgcolor: "#e0e0e0" },
+            }}
+          >
+            {isDeclineLoading ? (
+              <>
+                <CircularProgress size={20} sx={{ mr: 1, color: "white" }} />
+                Declining...
+              </>
+            ) : (
+              "Decline Quote"
+            )}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   )
 }

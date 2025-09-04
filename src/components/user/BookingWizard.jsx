@@ -170,6 +170,9 @@ export const BookingWizard = () => {
 }, [isSuccess, submissionData]);
 
 useLayoutEffect(() => {
+  if(submissionData?.status.includes("submitted", "declined")){
+    navigate(`/quote/details/${submissionData?.id}`)
+  }
     if (isSuccess && submissionData) {
       setActiveStep(3);
     }

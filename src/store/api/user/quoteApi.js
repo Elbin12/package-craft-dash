@@ -79,9 +79,18 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['addons'],
     }),
+    DeclineQuote: builder.mutation({
+      query: ({ submissionId }) => ({
+        url: `submissions/${submissionId}/decline/`,
+        method: 'POST',
+        // Add any required body parameters if needed
+      }),
+      invalidatesTags: ['Quote'], // Adjust tags as needed
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
-  useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation
+  useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
+  useDeclineQuoteMutation
  } = quoteApi;

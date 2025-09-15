@@ -25,9 +25,9 @@ import {
 import { Info, AttachMoney, Percent } from "@mui/icons-material"
 import { useCreateQuestionPricingMutation } from "../../../../store/api/questionsApi"
 import { useCreateOptionPricingMutation } from "../../../../store/api/optionPricing"
-import { servicesApi } from "../../../../store/api/servicesApi"
+import { servicesApi, useGetBasePricesQuery,  } from "../../../../store/api/servicesApi"
 import { useDispatch } from "react-redux"
-import { useCreateSubQuestionPricingMutation } from "../../../../store/api/questionSubQuestionsApi"
+import { useCreateSubQuestionPricingMutation, useUpdateServicePackageSizeMappingMutation } from "../../../../store/api/questionSubQuestionsApi"
 
 const mapFromApiPricingType = (apiType) => {
   switch (apiType) {
@@ -59,7 +59,18 @@ const flattenQuestions = (questionsArray) => {
 }
 
 const PriceSetupForm = ({ data, onUpdate }) => {
-  const packages = data.packages || []
+  const { data: basePrices = [], isLoading: basePriceLoading } = useGetBasePricesQuery(data.id,{
+    refetchOnMountOrArgChange: true,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,}
+  )
+  const [updateBasePrice] = useUpdateServicePackageSizeMappingMutation()
+
+  const [editingPrices, setEditingPrices] = useState({})
+
+  console.log(editingPrices, 'editingPrices')
+
+  const packages = data.packages.filter((f)=>f.is_active) || []
   const topLevelQuestions = data.questions || []
 
   // Flatten all questions for easier state management
@@ -184,7 +195,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
         }
       })
     })
+    if (JSON.stringify(rules) !== JSON.stringify(priceRules)) {
     setPriceRules(rules)
+  }
   }, [flattenedQuestions, packages])
 
   const isValueEditable = (priceType) => !["ignore", "bid_in_person"].includes(priceType)
@@ -255,16 +268,30 @@ const PriceSetupForm = ({ data, onUpdate }) => {
   }
 
   const handlePriceTypeSelect = (priceType) => {
-    updatePriceRule(
-      popoverAnchor.questionId,
-      popoverAnchor.packageId,
-      "priceType",
-      priceType,
-      popoverAnchor.answer,
-      popoverAnchor.optionId,
-    )
+    if (popoverAnchor.basePriceId) {
+      // Base Price case
+      setEditingPrices((prev) => ({
+        ...prev,
+        [popoverAnchor.basePriceId]: {
+          ...(prev[popoverAnchor.basePriceId] || {}),
+          priceType,
+          value: prev[popoverAnchor.basePriceId]?.value ?? 0, // keep value
+        },
+      }))
+    } else {
+      // Question Pricing case
+      updatePriceRule(
+        popoverAnchor.questionId,
+        popoverAnchor.packageId,
+        "priceType",
+        priceType,
+        popoverAnchor.answer,
+        popoverAnchor.optionId,
+      )
+    }
     handlePopoverClose()
   }
+
 
   const handleValueTypeMenuOpen = (event, questionId, packageId, answer, optionId) => {
     const menuKey = `${questionId}-${packageId}-${answer || 'undefined'}-${optionId || 'undefined'}`
@@ -717,52 +744,202 @@ const PriceSetupForm = ({ data, onUpdate }) => {
   }
 
   return (
-    <Box>
+    <>
+    <Box mb={4}>
       <Typography variant="h6" gutterBottom>
-        Price Setup
+        Base Price Setup
       </Typography>
-      {topLevelQuestions.map((question) => renderQuestionTable(question))}
-      <Popover
-        open={Boolean(popoverAnchor.element)}
-        anchorEl={popoverAnchor.element}
-        onClose={handlePopoverClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-        transformOrigin={{ vertical: "top", horizontal: "center" }}
-      >
-        <Box p={2}>
-          <Typography variant="subtitle2" gutterBottom>
-            Select Price Type
-          </Typography>
-          <RadioGroup
-            value={
-              getPriceRule(
-                popoverAnchor.questionId,
-                popoverAnchor.packageId,
-                popoverAnchor.answer,
-                popoverAnchor.optionId,
-              )?.priceType || "ignore"
-            }
-            onChange={(e) => handlePriceTypeSelect(e.target.value)}
-          >
-            {["upcharge", "discount", "ignore", "bid_in_person"].map((type) => (
-              <FormControlLabel
-                key={type}
-                value={type}
-                control={<Radio size="small" />}
-                label={
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Typography variant="body2">{type.replace(/_/g, " ")}</Typography>
-                    <Tooltip title={`Type: ${type}`}>
-                      <Info fontSize="small" />
-                    </Tooltip>
-                  </Box>
-                }
-              />
-            ))}
-          </RadioGroup>
-        </Box>
-      </Popover>
-    </Box>
+
+      {basePriceLoading ? (
+        <Typography>Loading base prices...</Typography>
+        ) : (
+          ["Residential", "Commercial"].map((type) => {
+            const ranges = basePrices.filter((r) => r.property_type_name === type)
+            if (!ranges.length) return null
+
+            return (
+              <Box key={type} mb={4} p={2} border={1} borderColor="grey.300" borderRadius={1}>
+                <Typography variant="subtitle1" fontWeight="bold" fontSize={24} mb={2}>
+                  {type}
+                </Typography>
+
+                <TableContainer component={Paper}>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Building Size</TableCell>
+                        {packages.map((pkg) => (
+                          <TableCell key={pkg.id} align="center">
+                            {pkg.name}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {ranges.map((range) => (
+                        <TableRow key={range.id}>
+                          <TableCell>
+                            {range.min_sqft === 0
+                              ? `Less than ${range.max_sqft} sq ft`
+                              : `${range.min_sqft} – ${range.max_sqft} sq ft`}
+                          </TableCell>
+
+                          {packages.map((pkg) => {
+                            const sp = range.service_prices.find((p) => p.service_package_name === pkg.name)
+                            if (!sp) return <TableCell key={pkg.id} />
+
+                            const menuKey = `base-${sp.id}-${pkg.id}`
+
+                            return (
+                              <TableCell key={pkg.id} align="center">
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <TextField
+                                    size="small"
+                                    type="number"
+                                    value={
+                                      ["ignore", "bid_in_person"].includes(
+                                        editingPrices[sp.id]?.priceType || sp.pricing_type
+                                      )
+                                        ? "" // hide value when disabled
+                                        : editingPrices[sp.id]?.value ?? sp.price
+                                    }
+                                    disabled={["ignore", "bid_in_person"].includes(
+                                      editingPrices[sp.id]?.priceType || sp.pricing_type
+                                    )}
+                                    onChange={(e) =>
+                                      setEditingPrices((prev) => ({
+                                        ...prev,
+                                        [sp.id]: {
+                                          ...(prev[sp.id] || { priceType: sp.pricing_type || "ignore" }),
+                                          value: e.target.value,
+                                        },
+                                      }))
+                                    }
+                                    sx={{ width: 100 }}
+                                  />
+
+                                  <IconButton
+                                    size="small"
+                                    onClick={(e) =>
+                                      setPopoverAnchor({
+                                        element: e.currentTarget,
+                                        basePriceId: sp.id,
+                                        packageId: pkg.id,
+                                      })
+                                    }
+                                    sx={{
+                                      bgcolor: getPriceTypeColor(editingPrices[sp.id]?.priceType || sp.pricing_type || "ignore"),
+                                      color: "white",
+                                      width: 24,
+                                      height: 24,
+                                    }}
+                                  >
+                                    <Typography fontSize="small">
+                                      {getPriceTypeIcon(editingPrices[sp.id]?.priceType || sp.pricing_type || "ignore")}
+                                    </Typography>
+                                  </IconButton>
+                                </Box>
+                              </TableCell>
+                            )
+                          })}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+
+                <Box display="flex" justifyContent="flex-end" mt={2}>
+                  <Button
+                    variant="contained"
+                    onClick={async () => {
+                      try {
+                        const updates = Object.entries(editingPrices).map(([id, price]) =>
+                          updateBasePrice({
+                            id,
+                            price: Number(price.value),
+                            pricing_type: price.priceType,
+                          }).unwrap()
+                        )
+                        await Promise.all(updates)
+                        await refetchBasePrices()
+                        setEditingPrices({})
+                        alert(`${type} base prices updated!`)
+                      } catch (err) {
+                        console.error(err)
+                        alert("Failed to update base prices")
+                      }
+                    }}
+                  >
+                    Save {type}
+                  </Button>
+                </Box>
+              </Box>
+            )
+          })
+        )}
+      </Box>
+
+      <Box>
+        <Typography variant="h6" gutterBottom>
+          Price Setup
+        </Typography>
+        {topLevelQuestions.map((question) => renderQuestionTable(question))}
+        <Popover
+          open={Boolean(popoverAnchor.element)}
+          anchorEl={popoverAnchor.element}
+          onClose={handlePopoverClose}
+          anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+          transformOrigin={{ vertical: "top", horizontal: "center" }}
+        >
+          <Box p={2}>
+            <Typography variant="subtitle2" gutterBottom>
+              Select Price Type
+            </Typography>
+            <RadioGroup
+              value={
+                popoverAnchor.basePriceId
+                  ? (
+                      editingPrices[popoverAnchor.basePriceId]?.priceType ||
+                      basePrices
+                        .flatMap(bp => bp.service_prices)
+                        .find(sp => sp.id === popoverAnchor.basePriceId)?.pricing_type ||
+                      "ignore"
+                    )
+                  : (
+                      getPriceRule(
+                        popoverAnchor.questionId,
+                        popoverAnchor.packageId,
+                        popoverAnchor.answer,
+                        popoverAnchor.optionId,
+                      )?.priceType || "ignore"
+                    )
+              }
+              onChange={(e) => handlePriceTypeSelect(e.target.value)}
+            >
+              {(
+                popoverAnchor.basePriceId
+                      ? ["upcharge", "bid_in_person"]
+                      : ["upcharge", "discount", "ignore", "bid_in_person"]
+                  ).map((type) => (
+                      <FormControlLabel
+                        key={type}
+                        value={type}
+                        control={<Radio size="small" />}
+                        label={
+                          <Box display="flex" alignItems="center" gap={1}>
+                            <Typography variant="body2">{type.replace(/_/g, " ")}</Typography>
+                            <Tooltip title={`Type: ${type}`}>
+                              <Info fontSize="small" />
+                            </Tooltip>
+                          </Box>
+                        }
+                      />
+                    ))}
+            </RadioGroup>
+          </Box>
+        </Popover>
+      </Box>
+    </>
   )
 }
 

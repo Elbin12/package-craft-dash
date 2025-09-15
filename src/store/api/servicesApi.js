@@ -59,6 +59,10 @@ export const servicesApi = createApi({
         method: 'POST',
       }),
     }),
+    getBasePrices: builder.query({
+      query: (id) => ({ url: `${id}/mapped-sizes/` }),
+      providesTags: ['Service'],
+    }),
   }),
 });
 
@@ -70,5 +74,6 @@ export const {
   useDeleteServiceMutation,
   useCreateServiceSettingsMutation,
   useUpdateServiceSettingsMutation,
-  useAutoMapPackagesMutation
+  useAutoMapPackagesMutation,
+  useGetBasePricesQuery,
 } = servicesApi;

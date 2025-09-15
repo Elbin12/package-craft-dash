@@ -30,13 +30,20 @@ export const questionSubQuestionsApi = createApi({
       invalidatesTags: ['Sub-Question'],
     }),
     createSubQuestionPricing: builder.mutation({
-        query: (data) => ({
-          url: 'sub-questions/bulk-pricing/',
-          method: 'POST',
-          data: data,
-        }),
-        invalidatesTags: ['Sub-Question-Pricing'],
+      query: (data) => ({
+        url: 'sub-questions/bulk-pricing/',
+        method: 'POST',
+        data: data,
       }),
+      invalidatesTags: ['Sub-Question-Pricing'],
+    }),
+    updateServicePackageSizeMapping: builder.mutation({
+      query: (body) => ({
+        url: `service-package-size-mappings/${body?.id}/update/`,
+        method: "PATCH",
+        data: body,
+      }),
+    }),
   }),
 });
 
@@ -44,5 +51,6 @@ export const {
   useCreateQuestionSubQuestionMutation,
   useUpdateQuestionSubQuestionMutation,
   useDeleteQuestionSubQuestionMutation,
-  useCreateSubQuestionPricingMutation
+  useCreateSubQuestionPricingMutation,
+  useUpdateServicePackageSizeMappingMutation
 } = questionSubQuestionsApi;

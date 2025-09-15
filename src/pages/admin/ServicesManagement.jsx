@@ -70,6 +70,8 @@ const ServicesManagement = () => {
   const [createService] = useCreateServiceMutation();
   const [updateService] = useUpdateServiceMutation();
   const [deleteService] = useDeleteServiceMutation();
+
+  const [loadingEdit, setLoadingEdit] = useState(false);
   
   // const services = [];
   // const isLoading = false;
@@ -81,6 +83,9 @@ const ServicesManagement = () => {
 
 const handleEditService = async (service) => {
   console.log(service, 'service from handleEditService');
+  dispatch(setEditingService(service));
+  dispatch(setWizardOpen(true));
+  setLoadingEdit(true);
   
   try {
     const fullServiceData = await dispatch(
@@ -90,11 +95,13 @@ const handleEditService = async (service) => {
     console.log(fullServiceData, 'from handleEditService');
 
     dispatch(setEditingService(fullServiceData));
-    dispatch(setWizardOpen(true));
+    // dispatch(setWizardOpen(true));
   } catch (error) {
     console.error('Failed to fetch service details:', error);
     dispatch(setEditingService(service));
     dispatch(setWizardOpen(true));
+  } finally {
+    setLoadingEdit(false);
   }
 };
 
@@ -239,6 +246,7 @@ const handleEditService = async (service) => {
         setServiceData={setServiceData}
         setActiveStep={setActiveStep}
         activeStep={activeStep}
+        loadingEdit={loadingEdit}
       />
 
       {/* Delete Confirmation Dialog */}

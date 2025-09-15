@@ -32,11 +32,11 @@ const ServiceDetailsForm = ({
           return 'Service name must be at least 3 characters';
         }
         break;
-      case 'description':
-        if (!value || value.trim().length < 10) {
-          return 'Description must be at least 10 characters';
-        }
-        break;
+      // case 'description':
+      //   if (!value || value.trim().length < 10) {
+      //     return 'Description must be at least 10 characters';
+      //   }
+      //   break;
     }
     return '';
   };
@@ -79,7 +79,7 @@ const ServiceDetailsForm = ({
           onChange={handleChange('description')}
           onBlur={handleBlur('description')}
           placeholder="Describe what this service includes..."
-          required
+          // required
           error={!!errors.description}
           helperText={errors.description}
         />

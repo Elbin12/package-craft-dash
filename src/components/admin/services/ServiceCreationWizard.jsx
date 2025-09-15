@@ -14,6 +14,7 @@ import {
   IconButton,
   Alert,
   CircularProgress,
+  Skeleton,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import ServiceDetailsForm from './forms/ServiceDetailsForm';
@@ -53,6 +54,7 @@ export const ServiceCreationWizard = ({
   activeStep,
   setActiveStep,
   setServiceData,
+  loadingEdit
 }) => { 
   
   const [savedSteps, setSavedSteps] = useState({
@@ -120,8 +122,8 @@ export const ServiceCreationWizard = ({
   const validateStep = (step) => {
     switch (step) {
       case 0:
-        if (!serviceData.name || !serviceData.description) {
-          setStepErrors({ 0: 'Name and description are required' });
+        if (!serviceData.name) {
+          setStepErrors({ 0: 'Service name is required.' });
           return false;
         }
         break;
@@ -361,35 +363,45 @@ export const ServiceCreationWizard = ({
                 </Step>
               ))}
             </Stepper>
+            {loadingEdit ? (
+              <Box>
+                <Skeleton variant="text" width={200} height={40} sx={{ mb: 3 }} />
+                <Skeleton variant="rectangular" width="100%" height={300} sx={{ mb: 2 }} />
+                <Skeleton variant="text" width="40%" />
+              </Box>
+            ) : (
+            <>
 
-            <Box sx={{ minHeight: '400px' }}>
-              {stepErrors[activeStep] && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {stepErrors[activeStep]}
-                </Alert>
-              )}
-              {getStepContent(activeStep)}
-            </Box>
+              <Box sx={{ minHeight: '400px' }}>
+                {stepErrors[activeStep] && (
+                  <Alert severity="error" sx={{ mb: 2 }}>
+                    {stepErrors[activeStep]}
+                  </Alert>
+                )}
+                {getStepContent(activeStep)}
+              </Box>
 
-            <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
-              <Button
-                color="inherit"
-                disabled={activeStep === 0}
-                onClick={handleBack}
-                sx={{ mr: 1 }}
-              >
-                Back
-              </Button>
-              <Box sx={{ flex: '1 1 auto' }} />
-              <Button 
-                onClick={handleNext} 
-                variant="contained"
-                disabled={isLoading}
-                startIcon={isLoading ? <CircularProgress size={20} /> : null}
-              >
-                {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
-              </Button>
-            </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'row', pt: 2 }}>
+                <Button
+                  color="inherit"
+                  disabled={activeStep === 0}
+                  onClick={handleBack}
+                  sx={{ mr: 1 }}
+                >
+                  Back
+                </Button>
+                <Box sx={{ flex: '1 1 auto' }} />
+                <Button 
+                  onClick={handleNext} 
+                  variant="contained"
+                  disabled={isLoading}
+                  startIcon={isLoading ? <CircularProgress size={20} /> : null}
+                >
+                  {activeStep === steps.length - 1 ? 'Finish' : 'Next'}
+                </Button>
+              </Box>
+            </>
+          )}
           </CardContent>
         </Card>
       </DialogContent>

@@ -30,6 +30,7 @@ import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDe
 import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { useNavigate } from "react-router-dom"
+import DisclaimerBox from "../DisclaimerBox"
 
 export const CheckoutSummary = ({
   data,
@@ -404,57 +405,29 @@ export const CheckoutSummary = ({
                       {selection.service_details.description}
                     </Typography>
                   
-                  {/* Service Disclaimers */}
                   {(selection.service_details.service_settings?.general_disclaimer || 
                     selection.service_details.service_settings?.bid_in_person_disclaimer) && (
-                    <Box sx={{ mb: 2 }}>
-                      {!isBidInPerson?
+                    <Box>
+                      {!isBidInPerson ?
                         selection.service_details.service_settings?.general_disclaimer && (
-                          <Box 
-                            sx={{ 
-                              backgroundColor: '#d9edf7',
-                              padding: '12px 16px',
-                              borderRadius: '6px',
-                              mb: 1,
-                              border: '1px solid #023c8f'
-                            }}
-                          >
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                color: '#023c8f',
-                                fontWeight: 500,
-                                fontSize: '13px'
-                              }}
-                            >
-                              <strong>General:</strong> {selection.service_details.service_settings.general_disclaimer}
-                            </Typography>
-                          </Box>
-                        ):
+                          <DisclaimerBox 
+                            title="Disclaimer"
+                            content={selection.service_details.service_settings.general_disclaimer}
+                            bgColor="#f5f5f5"
+                            textColor="#333"
+                            borderColor="#ddd"
+                          />
+                        ) :
                         selection.service_details.service_settings?.bid_in_person_disclaimer && (
-                          <Box 
-                            sx={{ 
-                              backgroundColor: '#d9edf7',
-                              padding: '12px 16px',
-                              borderRadius: '6px',
-                              mb: 1,
-                              border: '1px solid #023c8f'
-                            }}
-                          >
-                            <Typography 
-                              variant="body2" 
-                              sx={{ 
-                                color: '#023c8f',
-                                fontWeight: 500,
-                                fontSize: '13px'
-                              }}
-                            >
-                              <strong>Bid in Person:</strong> {selection.service_details.service_settings.bid_in_person_disclaimer}
-                            </Typography>
-                          </Box>
+                          <DisclaimerBox 
+                            title="Notice"
+                            content={selection.service_details.service_settings.bid_in_person_disclaimer}
+                            bgColor="#fffbf0"
+                            textColor="#8a6d3b"
+                            borderColor="#f0ad4e"
+                          />
                         )
                       }
-                      
                     </Box>
                   )}
                   {/* Package Selection */}
@@ -559,24 +532,47 @@ export const CheckoutSummary = ({
                   }
                   {/* Question Responses */}
                   {selection.question_responses?.length > 0 && (
-                    <Box mt={4}>
-                      <Typography variant="subtitle1" fontWeight={600} sx={{ color: '#023c8f' }} gutterBottom>
+                    <Box mt={3}>
+                      <Typography
+                        variant="subtitle1"
+                        fontWeight={600}
+                        sx={{ color: "#023c8f", mb: 1 }}
+                      >
                         Your Responses
                       </Typography>
-                      <Grid container spacing={2}>
-                        {selection.question_responses.map((response) => (
-                          <Grid item xs={12} sm={6} key={response.id}>
-                            <Box p={2} sx={{ bgcolor: "#d9edf7", borderRadius: 1, border: "1px solid #023c8f" }}>
-                              <Typography variant="body2" fontWeight={600} gutterBottom sx={{ color: '#023c8f' }}>
-                                {response.question_text}
+
+                      <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0 }}>
+                        {selection.question_responses.map((response, index) => (
+                          <Box
+                            key={response.id}
+                            component="li"
+                            sx={{ mb: 0.1, display: "flex", alignItems: "flex-start" }}
+                          >
+                            <Typography
+                              variant="body1"
+                              fontWeight={600}
+                              sx={{ minWidth: "24px", color: "#023c8f", mr: 1 }}
+                            >
+                              {index + 1}.
+                            </Typography>
+                            <Box sx={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                              <Typography
+                                variant="body2"
+                                fontWeight={600}
+                                sx={{ color: "#023c8f" }}
+                              >
+                                {response.question_text}:
                               </Typography>
-                              <Typography variant="body2" color="text.primary">
+                              <Typography
+                                variant="body2"
+                                sx={{ color: "#023c8f", textAlign: "right", ml: 2 }}
+                              >
                                 {renderQuestionResponse(response)}
                               </Typography>
                             </Box>
-                          </Grid>
+                          </Box>
                         ))}
-                      </Grid>
+                      </Box>
                     </Box>
                   )}
                 </Box>

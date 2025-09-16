@@ -486,8 +486,17 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         onChange={handleChange("general_disclaimer")}
         fullWidth
         multiline
-        rows={2}
+        minRows={2}
+        maxRows={10}
+        InputProps={{
+          sx: {
+            '& textarea': {
+              resize: 'vertical',   // allow dragging resize
+            },
+          },
+        }}
       />
+
 
       <TextField
         label="Bid in Person Disclaimer"
@@ -495,7 +504,15 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         onChange={handleChange("bid_in_person_disclaimer")}
         fullWidth
         multiline
-        rows={2}
+        minRows={2}
+        maxRows={10}
+        InputProps={{
+          sx: {
+            '& textarea': {
+              resize: 'vertical',   // allow dragging resize
+            },
+          },
+        }}
       />
 
       <Box mt={3}>

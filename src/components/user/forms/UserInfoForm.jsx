@@ -108,11 +108,40 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
         if (status === "OK" && results && results[0]) {
           const place = results[0];
           const loc = place.geometry.location;
+
+          // Extract postal code and city/province from address components
+          let postalCode = "";
+          let city = "";
+          let province = "";
+
+          console.log(place.address_components)
+
+          // console.log()
+
+          if (place.address_components) {
+            place.address_components.forEach((comp) => {
+              if (comp.types.includes("postal_code")) {
+                postalCode = comp.long_name;
+              }
+              if (comp.types.includes("locality")) {
+                city = comp.long_name;
+              }
+              if (
+                comp.types.includes("administrative_area_level_1") || // Province/State
+                comp.types.includes("administrative_area_level_2")
+              ) {
+                province = comp.long_name;
+              }
+            });
+          }
+
           onSelect({
             address: place.formatted_address,
             latitude: loc.lat(),
             longitude: loc.lng(),
             placeId: prediction.place_id,
+            postalCode,
+            provinceCity: `${city}`,
           });
         }
       }
@@ -216,6 +245,18 @@ useEffect(() => {
   };
 
   const handlePlaceSelect = (place) => {
+    let matchedLocationId = "";
+    if (place.provinceCity && locations.length > 0) {
+      const match = locations.find(
+        (loc) =>
+          loc.name.toLowerCase() === place.provinceCity.toLowerCase()
+      );
+      if (match) {
+        matchedLocationId = match.id;
+      }
+    }
+
+    console.log(place.provinceCity, place.postalCode,'gg')
     onUpdate({
       userInfo: {
         ...data.userInfo,
@@ -223,6 +264,8 @@ useEffect(() => {
         latitude: place.latitude,
         longitude: place.longitude,
         googlePlaceId: place.placeId,
+        postalCode: place.postalCode || "",
+        selectedLocation: matchedLocationId || data.userInfo?.selectedLocation || "",
       },
     });
   };

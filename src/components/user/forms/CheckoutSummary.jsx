@@ -879,9 +879,11 @@ export const CheckoutSummary = ({
               </Box>
             </Box>
 
-            <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
-              Final price confirmed after service completion
-            </Typography>
+            {isBidInPerson &&
+              <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>
+                Final price confirmed after service completion
+              </Typography>
+            }
           </CardContent>
         </Card>
       </Container>

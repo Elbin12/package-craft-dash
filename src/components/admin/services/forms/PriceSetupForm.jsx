@@ -535,9 +535,11 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                       disabled={!isValueEditable(rule?.priceType)}
                                       placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
                                       sx={{ 
-                                        width: 80,
+                                        width: 100,
+                                        minWidth: 80,
                                         '& .MuiInputBase-input': {
                                           paddingLeft: '32px', // Make room for the icon
+                                          textAlign: 'right',
                                         }
                                       }}
                                     />
@@ -634,9 +636,11 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                     disabled={!isValueEditable(rule?.priceType)}
                                     placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
                                     sx={{ 
-                                      width: 80,
+                                      width: 100,
+                                      minWidth:80,
                                       '& .MuiInputBase-input': {
                                         paddingLeft: '32px', // Make room for the icon
+                                        textAlign: 'right',
                                       }
                                     }}
                                   />
@@ -815,7 +819,9 @@ const PriceSetupForm = ({ data, onUpdate }) => {
                                         },
                                       }))
                                     }
-                                    sx={{ width: 100 }}
+                                    sx={{ width: 100, '& .MuiInputBase-input': {
+                                      textAlign: 'right',
+                                    } }}
                                   />
 
                                   <IconButton

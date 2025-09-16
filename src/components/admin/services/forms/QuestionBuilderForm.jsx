@@ -23,8 +23,9 @@ import {
   Tooltip,
   Checkbox,
   FormControlLabel,
+  ClickAwayListener,
 } from "@mui/material"
-import { Add, Block, Delete, Edit, Restore } from "@mui/icons-material"
+import { Add, Block, Delete, Edit, Restore, Save } from "@mui/icons-material"
 import {
   useCreateQuestionMutation,
   useDeleteQuestionMutation,
@@ -74,6 +75,10 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [editingOptionId, setEditingOptionId] = useState(null)
   const [editingOptionText, setEditingOptionText] = useState("")
 
+  const [editingOrderValue, setEditingOrderValue] = useState("")
+  const [editingMaxQty, setEditingMaxQty] = useState("")
+
+
   const [editingSubQuestionId, setEditingSubQuestionId] = useState(null)
   const [editingSubQuestionText, setEditingSubQuestionText] = useState("")
 
@@ -93,6 +98,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [updateQuestion] = useUpdateQuestionMutation()
   const [deleteQuestion] = useDeleteQuestionMutation()
   const [updateQuestionStatus] = useUpdateQuestionStatusMutation()
+
+  console.log(optionInputs, 'optioninputs')
 
   useEffect(() => {
     setQuestions(data.questions || [])
@@ -355,21 +362,26 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     }))
   }
 
-  const handleAddOptionToQuestion = async (questionId, optionText, maxQty = 1, forChild = false, parentQuestionId = null) => {
+  const handleAddOptionToQuestion = async (questionId, optionText, maxQty = 1, forChild = false, parentQuestionId = null, customOrder = null) => {
     if (!optionText.trim()) return
+
+    // Add quantity-specific fields if it's a quantity question
+      const currentQuestion = forChild 
+        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
+        : questions.find(q => q.id === questionId)
+
+    const existingOptions = currentQuestion?.options || []
+    const nextOrder = customOrder || (existingOptions.length > 0 ? Math.max(...existingOptions.map(opt => opt.order || 0)) + 1 : 1)
+
+    console.log(nextOrder, customOrder, 'orderssssss')
 
     try {
       const payload = {
         question: questionId,
         question_id: questionId,
         option_text: optionText.trim(),
-        order: 1,
+        order: nextOrder,
       }
-      
-      // Add quantity-specific fields if it's a quantity question
-      const currentQuestion = forChild 
-        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
-        : questions.find(q => q.id === questionId)
       
       if (currentQuestion?.question_type === "quantity") {
         payload.allow_quantity = true
@@ -436,15 +448,24 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     subQuestionText,
     forChild = false,
     parentQuestionId = null,
+    customOrder = null
   ) => {
     if (!subQuestionText.trim()) return
 
     try {
+      // Calculate the order based on existing sub-questions or use custom order
+      const currentQuestion = forChild 
+        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
+        : questions.find(q => q.id === questionId)
+        
+      const existingSubQuestions = currentQuestion?.sub_questions || []
+      const nextOrder = customOrder || (existingSubQuestions.length > 0 ? Math.max(...existingSubQuestions.map(subQ => subQ.order || 0)) + 1 : 1)
+
       const payload = {
         question: questionId,
         parent_question: questionId,
         sub_question_text: subQuestionText.trim(),
-        order: 1,
+        order: nextOrder,
       }
       const subQuestionResult = await createQuestionSubQuestion(payload).unwrap()
 
@@ -588,54 +609,110 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
               }}
             >
               {editingOptionId === option.id ? (
-                <TextField
-                  size="small"
-                  value={editingOptionText}
-                  onChange={(e) => setEditingOptionText(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter" && editingOptionText.trim()) {
-                      try {
-                        const result = await updateQuestionOption({
-                          id: option.id,
-                          option_text: editingOptionText.trim(),
-                          question: question.id,
-                        }).unwrap()
+                <ClickAwayListener onClickAway={() => setEditingOptionId(null)}>
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "center", flex: 1 }}>
+                    <TextField
+                      size="small"
+                      label="Option Text"
+                      value={editingOptionText}
+                      onChange={(e) => setEditingOptionText(e.target.value)}
+                      sx={{ flex: 1 }}
+                      variant="standard"
+                      autoFocus
+                    />
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Order"
+                      value={editingOrderValue}
+                      onChange={(e) => setEditingOrderValue(e.target.value)}
+                      inputProps={{ min: 1, style: { width: '60px' } }}
+                      variant="standard"
+                    />
+                    {question.question_type === "quantity" && (
+                      <>
+                        <TextField
+                          size="small"
+                          type="number"
+                          label="Max Qty"
+                          value={editingMaxQty ?? option.max_quantity ?? 1}
+                          onChange={(e) => setEditingMaxQty(e.target.value)}
+                          inputProps={{ min: 1 }}
+                          variant="standard"
+                          sx={{ width: 100 }}
+                        />
+                      </>
+                    )}
+                    <Box sx={{ display: "flex", gap: 0.5 }}>
+                      <IconButton
+                        size="small"
+                        onClick={async () => {
+                          if (editingOptionText.trim()) {
+                            try {
+                              const result = await updateQuestionOption({
+                                id: option.id,
+                                option_text: editingOptionText.trim(),
+                                order: parseInt(editingOrderValue) || option.order || 1,
+                                question: question.id,
+                                ...(question.question_type === "quantity" && {
+                                  allow_quantity: true,
+                                  max_quantity: parseInt(editingMaxQty) || option.max_quantity || 1,
+                                }),
+                              }).unwrap()
 
-                        const updatedQuestions = questions.map((q) => {
-                          if (!isChild && q.id === question.id) {
-                            return {
-                              ...q,
-                              options: q.options.map((opt) => (opt.id === option.id ? result : opt)),
+                              const updatedQuestions = questions.map((q) => {
+                                if (!isChild && q.id === question.id) {
+                                  return {
+                                    ...q,
+                                    options: q.options.map((opt) => (opt.id === option.id ? result : opt))
+                                      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                  }
+                                }
+                                if (isChild && q.id === parentQuestionId) {
+                                  return {
+                                    ...q,
+                                    child_questions: q.child_questions.map((child) =>
+                                      child.id === question.id
+                                        ? {
+                                            ...child,
+                                            options: child.options.map((opt) => (opt.id === option.id ? result : opt))
+                                              .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                          }
+                                        : child,
+                                    ),
+                                  }
+                                }
+                                return q
+                              })
+
+                              setQuestions(updatedQuestions)
+                              onUpdate({ questions: updatedQuestions })
+                              setEditingOptionId(null)
+                              setEditingOrderValue("")
+                              setEditingMaxQty("")
+
+                            } catch (err) {
+                              console.error("Failed to update option:", err)
                             }
                           }
-                          if (isChild && q.id === parentQuestionId) {
-                            return {
-                              ...q,
-                              child_questions: q.child_questions.map((child) =>
-                                child.id === question.id
-                                  ? {
-                                      ...child,
-                                      options: child.options.map((opt) => (opt.id === option.id ? result : opt)),
-                                    }
-                                  : child,
-                              ),
-                            }
-                          }
-                          return q
-                        })
-
-                        setQuestions(updatedQuestions)
-                        setEditingOptionId(null)
-                      } catch (err) {
-                        console.error("Failed to update option:", err)
-                      }
-                    } else if (e.key === "Escape") {
-                      setEditingOptionId(null)
-                    }
-                  }}
-                  onBlur={() => setEditingOptionId(null)}
-                  autoFocus
-                />
+                        }}
+                        sx={{ p: 0, color: "#4CAF50" }}
+                      >
+                        <Save sx={{ fontSize: "19px" }} />
+                      </IconButton>
+                      {/* <IconButton
+                        size="small"
+                        onClick={() => {
+                          setEditingOptionId(null)
+                          setEditingOrderValue("")
+                        }}
+                        sx={{ p: 0, color: "#f44336" }}
+                      >
+                        <Delete sx={{ fontSize: "14px" }} />
+                      </IconButton> */}
+                    </Box>
+                  </Box>
+                </ClickAwayListener>
               ) : (
                 <>
                   <Typography variant="body2">{option.option_text || option}</Typography>
@@ -644,12 +721,21 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       (Max: {option.max_quantity || 1})
                     </Typography>
                   )}
+                  <Typography 
+                    variant="body2" 
+                    color="text.secondary" 
+                    sx={{ fontSize: "10px", minWidth: "20px" }}
+                  >
+                    #{option.order || 1}
+                  </Typography>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
                     <IconButton
                       size="small"
                       onClick={() => {
                         setEditingOptionId(option.id)
                         setEditingOptionText(option.option_text || "")
+                        setEditingOrderValue((option.order || 1).toString())
+                        setEditingMaxQty(question?.question_type === "quantity"? option?.max_quantity:null)
                       }}
                       sx={{ p: 0 }}
                     >
@@ -681,6 +767,50 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 [isChild ? `child_${question.id}` : question.id]: e.target.value,
               }))
             }
+            // onKeyDown={(e) => {
+            //   if (e.key === "Enter") {
+            //     e.preventDefault()
+            //     if (isChild) {
+            //       handleAddOptionToQuestion(
+            //         question.id,
+            //         optionInputs[`child_${question.id}`] || "",
+            //         optionInputs[`child_${question.id}_maxQty`] || 1,
+            //         true,
+            //         parentQuestionId,
+            //       )
+            //       setOptionInputs((prev) => ({ 
+            //         ...prev, 
+            //         [`child_${question.id}`]: "",
+            //         [`child_${question.id}_maxQty`]: ""
+            //       }))
+            //     } else {
+            //       handleAddOptionToQuestion(
+            //         question.id, 
+            //         optionInputs[question.id] || "",
+            //         optionInputs[`${question.id}_maxQty`] || 1
+            //       )
+            //       setOptionInputs((prev) => ({ 
+            //         ...prev, 
+            //         [question.id]: "",
+            //         [`${question.id}_maxQty`]: ""
+            //       }))
+            //     }
+            //   }
+            // }}
+            sx={{ minWidth: "150px" }}
+          />
+
+          <TextField
+            type="number"
+            size="small"
+            label="Order"
+            value={isChild ? optionInputs[`child_${question.id}_order`] || "" : optionInputs[`${question.id}_order`] || ""}
+            onChange={(e) =>
+              setOptionInputs((prev) => ({
+                ...prev,
+                [isChild ? `child_${question.id}_order` : `${question.id}_order`]: e.target.value,
+              }))
+            }
             onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault()
@@ -691,28 +821,36 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     optionInputs[`child_${question.id}_maxQty`] || 1,
                     true,
                     parentQuestionId,
+                    optionInputs[`child_${question.id}_order`] || 1 // pass order
                   )
                   setOptionInputs((prev) => ({ 
                     ...prev, 
                     [`child_${question.id}`]: "",
-                    [`child_${question.id}_maxQty`]: ""
+                    [`child_${question.id}_maxQty`]: "",
+                    [`child_${question.id}_order`]: ""
                   }))
                 } else {
                   handleAddOptionToQuestion(
                     question.id, 
                     optionInputs[question.id] || "",
-                    optionInputs[`${question.id}_maxQty`] || 1
+                    optionInputs[`${question.id}_maxQty`] || 1,
+                    false,
+                    null,
+                    optionInputs[`${question.id}_order`] || 1 // pass order
                   )
                   setOptionInputs((prev) => ({ 
                     ...prev, 
                     [question.id]: "",
-                    [`${question.id}_maxQty`]: ""
+                    [`${question.id}_maxQty`]: "",
+                    [`${question.id}_order`]: ""
                   }))
                 }
               }
             }}
-            sx={{ minWidth: "150px" }}
+            sx={{ width: "100px" }}
+            inputProps={{ min: 1 }}
           />
+
           
           {/* Max Quantity Input for quantity type questions */}
           {question.question_type === "quantity" && (
@@ -727,36 +865,36 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   [isChild ? `child_${question.id}_maxQty` : `${question.id}_maxQty`]: e.target.value,
                 }))
               }
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault()
-                  if (isChild) {
-                    handleAddOptionToQuestion(
-                      question.id,
-                      optionInputs[`child_${question.id}`] || "",
-                      optionInputs[`child_${question.id}_maxQty`] || 1,
-                      true,
-                      parentQuestionId,
-                    )
-                    setOptionInputs((prev) => ({ 
-                      ...prev, 
-                      [`child_${question.id}`]: "",
-                      [`child_${question.id}_maxQty`]: ""
-                    }))
-                  } else {
-                    handleAddOptionToQuestion(
-                      question.id, 
-                      optionInputs[question.id] || "",
-                      optionInputs[`${question.id}_maxQty`] || 1
-                    )
-                    setOptionInputs((prev) => ({ 
-                      ...prev, 
-                      [question.id]: "",
-                      [`${question.id}_maxQty`]: ""
-                    }))
-                  }
-                }
-              }}
+              // onKeyDown={(e) => {
+              //   if (e.key === "Enter") {
+              //     e.preventDefault()
+              //     if (isChild) {
+              //       handleAddOptionToQuestion(
+              //         question.id,
+              //         optionInputs[`child_${question.id}`] || "",
+              //         optionInputs[`child_${question.id}_maxQty`] || 1,
+              //         true,
+              //         parentQuestionId,
+              //       )
+              //       setOptionInputs((prev) => ({ 
+              //         ...prev, 
+              //         [`child_${question.id}`]: "",
+              //         [`child_${question.id}_maxQty`]: ""
+              //       }))
+              //     } else {
+              //       handleAddOptionToQuestion(
+              //         question.id, 
+              //         optionInputs[question.id] || "",
+              //         optionInputs[`${question.id}_maxQty`] || 1
+              //       )
+              //       setOptionInputs((prev) => ({ 
+              //         ...prev, 
+              //         [question.id]: "",
+              //         [`${question.id}_maxQty`]: ""
+              //       }))
+              //     }
+              //   }
+              // }}
               sx={{ width: "100px" }}
               inputProps={{ min: 1 }}
             />
@@ -771,26 +909,37 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   optionInputs[`child_${question.id}_maxQty`] || 1,
                   true,
                   parentQuestionId,
+                  optionInputs[`child_${question.id}_order`] || 1
                 )
                 setOptionInputs((prev) => ({ 
                   ...prev, 
                   [`child_${question.id}`]: "",
-                  [`child_${question.id}_maxQty`]: ""
+                  [`child_${question.id}_maxQty`]: "",
+                  [`child_${question.id}_order`]: ""
                 }))
               } else {
                 handleAddOptionToQuestion(
                   question.id, 
                   optionInputs[question.id] || "",
-                  optionInputs[`${question.id}_maxQty`] || 1
+                  optionInputs[`${question.id}_maxQty`] || 1,
+                  false,
+                  null,
+                  optionInputs[`${question.id}_order`] || 1
                 )
                 setOptionInputs((prev) => ({ 
                   ...prev, 
                   [question.id]: "",
-                  [`${question.id}_maxQty`]: ""
+                  [`${question.id}_maxQty`]: "",
+                  [`${question.id}_order`]: ""
                 }))
               }
             }}
-            disabled={!(isChild ? optionInputs[`child_${question.id}`] : optionInputs[question.id])?.trim()}
+            disabled={
+              !(isChild 
+                ? optionInputs[`child_${question.id}`]?.trim() && optionInputs[`child_${question.id}_order`]
+                : optionInputs[question.id]?.trim() && optionInputs[`${question.id}_order`]
+              )
+            }
             variant="outlined"
             size="small"
           >
@@ -823,67 +972,99 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
               }}
             >
               {editingSubQuestionId === subQuestion.id ? (
-                <TextField
-                  size="small"
-                  value={editingSubQuestionText}
-                  onChange={(e) => setEditingSubQuestionText(e.target.value)}
-                  onKeyDown={async (e) => {
-                    if (e.key === "Enter" && editingSubQuestionText.trim()) {
-                      try {
-                        const result = await updateQuestionSubQuestion({
-                          id: subQuestion.id,
-                          sub_question_text: editingSubQuestionText.trim(),
-                          question: question.id,
-                        }).unwrap()
+                <ClickAwayListener onClickAway={() => setEditingSubQuestionId(null)}>
+                  <Box sx={{ display: "flex", gap: 1, alignItems: "center", flex: 1 }}>
+                    <TextField
+                      size="small"
+                      label="Sub-Question Text"
+                      value={editingSubQuestionText}
+                      onChange={(e) => setEditingSubQuestionText(e.target.value)}
+                      sx={{ flex: 1 }}
+                      variant="standard"
+                    />
+                    <TextField
+                      size="small"
+                      type="number"
+                      label="Order"
+                      value={editingOrderValue}
+                      onChange={(e) => setEditingOrderValue(e.target.value)}
+                      inputProps={{ min: 1, style: { width: '60px' } }}
+                      variant="standard"
+                    />
+                    <Box sx={{ display: "flex", gap: 0.5 }}>
+                      <IconButton
+                        size="small"
+                        onClick={async () => {
+                          if (editingSubQuestionText.trim()) {
+                            try {
+                              const result = await updateQuestionSubQuestion({
+                                id: subQuestion.id,
+                                sub_question_text: editingSubQuestionText.trim(),
+                                order: parseInt(editingOrderValue) || subQuestion.order || 1,
+                                question: question.id,
+                              }).unwrap()
 
-                        const updatedQuestions = questions.map((q) => {
-                          if (!isChild && q.id === question.id) {
-                            return {
-                              ...q,
-                              sub_questions: q.sub_questions.map((subQ) =>
-                                subQ.id === subQuestion.id ? result : subQ,
-                              ),
+                              const updatedQuestions = questions.map((q) => {
+                                if (!isChild && q.id === question.id) {
+                                  return {
+                                    ...q,
+                                    sub_questions: q.sub_questions
+                                      .map((subQ) => (subQ.id === subQuestion.id ? result : subQ))
+                                      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                  }
+                                }
+                                if (isChild && q.id === parentQuestionId) {
+                                  return {
+                                    ...q,
+                                    child_questions: q.child_questions.map((child) =>
+                                      child.id === question.id
+                                        ? {
+                                            ...child,
+                                            sub_questions: child.sub_questions
+                                              .map((subQ) => (subQ.id === subQuestion.id ? result : subQ))
+                                              .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                          }
+                                        : child,
+                                    ),
+                                  }
+                                }
+                                return q
+                              })
+
+                              setQuestions(updatedQuestions)
+                              onUpdate({ questions: updatedQuestions })
+                              setEditingSubQuestionId(null)
+                              setEditingOrderValue("")
+                            } catch (err) {
+                              console.error("Failed to update sub-question:", err)
                             }
                           }
-                          if (isChild && q.id === parentQuestionId) {
-                            return {
-                              ...q,
-                              child_questions: q.child_questions.map((child) =>
-                                child.id === question.id
-                                  ? {
-                                      ...child,
-                                      sub_questions: child.sub_questions.map((subQ) =>
-                                        subQ.id === subQuestion.id ? result : subQ,
-                                      ),
-                                    }
-                                  : child,
-                              ),
-                            }
-                          }
-                          return q
-                        })
-
-                        setQuestions(updatedQuestions)
-                        setEditingSubQuestionId(null)
-                      } catch (err) {
-                        console.error("Failed to update sub-question:", err)
-                      }
-                    } else if (e.key === "Escape") {
-                      setEditingSubQuestionId(null)
-                    }
-                  }}
-                  onBlur={() => setEditingSubQuestionId(null)}
-                  autoFocus
-                />
+                        }}
+                        sx={{ p: 0, color: "#4CAF50" }}
+                        autoFocus
+                      >
+                        <Save sx={{ fontSize: "19px" }} />
+                      </IconButton>
+                    </Box>
+                  </Box>
+                </ClickAwayListener>
               ) : (
                 <>
                   <Typography variant="body2">{subQuestion.sub_question_text || subQuestion}</Typography>
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ fontSize: "10px", minWidth: "20px" }}
+                  >
+                    #{subQuestion.order || 1}
+                  </Typography>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
                     <IconButton
                       size="small"
                       onClick={() => {
                         setEditingSubQuestionId(subQuestion.id)
                         setEditingSubQuestionText(subQuestion.sub_question_text || "")
+                        setEditingOrderValue((subQuestion.order || 1).toString())
                       }}
                       sx={{ p: 0 }}
                     >
@@ -917,23 +1098,20 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 [isChild ? `child_${question.id}` : question.id]: e.target.value,
               }))
             }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault()
-                if (isChild) {
-                  handleAddSubQuestionToQuestion(
-                    question.id,
-                    subQuestionInputs[`child_${question.id}`] || "",
-                    true,
-                    parentQuestionId,
-                  )
-                  setSubQuestionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
-                } else {
-                  handleAddSubQuestionToQuestion(question.id, subQuestionInputs[question.id] || "")
-                  setSubQuestionInputs((prev) => ({ ...prev, [question.id]: "" }))
-                }
-              }
-            }}
+          />
+          <TextField
+            size="small"
+            type="number"
+            label="Order"
+            value={isChild ? subQuestionInputs[`child_${question.id}_order`] || "" : subQuestionInputs[`${question.id}_order`] || ""}
+            onChange={(e) =>
+              setSubQuestionInputs((prev) => ({
+                ...prev,
+                [isChild ? `child_${question.id}_order` : `${question.id}_order`]: e.target.value,
+              }))
+            }
+            sx={{ width: "100px" }}
+            inputProps={{ min: 1 }}
           />
           <Button
             onClick={() => {
@@ -943,14 +1121,34 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   subQuestionInputs[`child_${question.id}`] || "",
                   true,
                   parentQuestionId,
+                  subQuestionInputs[`child_${question.id}_order`] || 1
                 )
-                setSubQuestionInputs((prev) => ({ ...prev, [`child_${question.id}`]: "" }))
+                setSubQuestionInputs((prev) => ({
+                  ...prev,
+                  [`child_${question.id}`]: "",
+                  [`child_${question.id}_order`]: ""
+                }))
               } else {
-                handleAddSubQuestionToQuestion(question.id, subQuestionInputs[question.id] || "")
-                setSubQuestionInputs((prev) => ({ ...prev, [question.id]: "" }))
+                handleAddSubQuestionToQuestion(
+                  question.id,
+                  subQuestionInputs[question.id] || "",
+                  false,
+                  null,
+                  subQuestionInputs[`${question.id}_order`] || 1
+                )
+                setSubQuestionInputs((prev) => ({
+                  ...prev,
+                  [question.id]: "",
+                  [`${question.id}_order`]: ""
+                }))
               }
             }}
-            disabled={!(isChild ? subQuestionInputs[`child_${question.id}`] : subQuestionInputs[question.id])?.trim()}
+            disabled={
+              !(isChild 
+                ? subQuestionInputs[`child_${question.id}`]?.trim() && subQuestionInputs[`child_${question.id}_order`]
+                : subQuestionInputs[question.id]?.trim() && subQuestionInputs[`${question.id}_order`]
+              )
+            }
             variant="outlined"
             size="small"
           >

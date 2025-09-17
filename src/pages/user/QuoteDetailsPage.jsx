@@ -68,7 +68,6 @@ const QuoteDetailsPage = () => {
   const navigate = useNavigate();
   const [expandedServices, setExpandedServices] = useState({});
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  const [isBidInPerson, setIsBidInPerson] = useState(false)
   
   const {
     data: quote,
@@ -82,23 +81,16 @@ const QuoteDetailsPage = () => {
   });
 
   const sigCanvas = useRef();
-
-  // Expand all services by default
   useEffect(() => {
     if (quote?.service_selections) {
-      const initialExpanded = {};
-      let bidInPerson = false
-
-      quote.service_selections.forEach((service) => {
-        initialExpanded[service.id] = true;
-        if (service.package_quotes.length === 0) {
-          bidInPerson = true
-        }
+      const allExpanded = {};
+      quote.service_selections.forEach((s) => {
+        allExpanded[s.id] = true;
       });
-      setExpandedServices(initialExpanded);
-      setIsBidInPerson(bidInPerson)
+      setExpandedServices(allExpanded);
     }
   }, [quote]);
+
 
   const toggleServiceExpansion = (serviceId) => {
     setExpandedServices((prev) => ({
@@ -165,6 +157,7 @@ const QuoteDetailsPage = () => {
     additional_data,
     addons,
     total_addons_price,
+    is_bid_in_person
   } = quote;
 
   const formatPrice = (price) => {
@@ -267,10 +260,10 @@ const QuoteDetailsPage = () => {
       <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
         <Container maxWidth="lg">
           <Box display="grid"  gridTemplateColumns={
-              status !== "declined"
-                ? { xs: "1fr", lg: "2fr 1fr" }
-                : "1fr"
-            } gap={6}>
+              is_bid_in_person || status === "declined"
+                  ? "1fr"
+                  : { xs: "1fr", lg: "2fr 1fr" }
+              } gap={6}>
             {/* Left column */}
             <Box display="flex" flexDirection="column" gap={2}>
               {/* Customer Info */}
@@ -440,7 +433,7 @@ const QuoteDetailsPage = () => {
                       {(selection.service_details.service_settings?.general_disclaimer || 
                       selection.service_details.service_settings?.bid_in_person_disclaimer) && (
                       <Box>
-                        {!isBidInPerson ?
+                        {!is_bid_in_person ?
                           selection.service_details.service_settings?.general_disclaimer && (
                             <DisclaimerBox 
                               title="Disclaimer"
@@ -464,7 +457,7 @@ const QuoteDetailsPage = () => {
                     )}
 
                       {/* Selected Package Display */}
-                      {status!=="declined"&&
+                      {!is_bid_in_person && status!=="declined"&&
                         selection.package_quotes?.[0] && (
                             <Box sx={{ mb: 3 }}>
                               <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
@@ -677,7 +670,7 @@ const QuoteDetailsPage = () => {
                   <Divider />
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={3}>
-                      {!isBidInPerson && additional_data.signature && (
+                      {!is_bid_in_person && additional_data.signature && (
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
@@ -715,7 +708,7 @@ const QuoteDetailsPage = () => {
             </Box>
 
             {/* Right column - pricing */}
-            {status!=="declined" &&
+            {!is_bid_in_person && status!=="declined" &&
               <Box>
                 <Paper
                   elevation={3}

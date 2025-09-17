@@ -22,12 +22,12 @@ export default function DisclaimerBox({ title, content, bgColor, textColor }) {
         overflow: "hidden",
       }}
     >
-      <Typography
+      {/* <Typography
         variant="subtitle2"
         sx={{ color: textColor, mb: 1, fontWeight: "bold" }}
       >
         {title}:
-      </Typography>
+      </Typography> */}
 
       <Typography
         variant="body2"

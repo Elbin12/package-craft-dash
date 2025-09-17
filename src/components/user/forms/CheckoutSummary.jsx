@@ -90,19 +90,7 @@ export const CheckoutSummary = ({
 
   // Expand all services by default
   useEffect(() => {
-    if (quoteData?.service_selections) {
-      const initialExpanded = {}
-      let bidInPerson = false
-
-      quoteData.service_selections.forEach((service) => {
-        initialExpanded[service.id] = true
-        if (service.package_quotes.length === 0) {
-          bidInPerson = true
-        }
-      })
-      setExpandedServices(initialExpanded)
-      setIsBidInPerson(bidInPerson)
-    }
+      setIsBidInPerson(quoteData?.is_bid_in_person)
   }, [quoteData])
 
   useEffect(() => {
@@ -273,7 +261,7 @@ export const CheckoutSummary = ({
   const surchargeAmount = quoteData.quote_surcharge_applicable
     ? Number.parseFloat(quoteData.location_details?.trip_surcharge || 0)
     : 0
-  const finalTotal = formatPrice(totalSelectedPrice + addonsTotal + surchargeAmount)
+  const finalTotal = formatPrice(totalSelectedPrice + addonsTotal)
 
   return (
     <Box>

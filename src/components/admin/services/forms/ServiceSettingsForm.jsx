@@ -480,41 +480,6 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         label="Apply Trip Charge To Bid"
       />
 
-      <TextField
-        label="General Disclaimer"
-        value={data?.settings?.general_disclaimer || ""}
-        onChange={handleChange("general_disclaimer")}
-        fullWidth
-        multiline
-        minRows={2}
-        maxRows={10}
-        InputProps={{
-          sx: {
-            '& textarea': {
-              resize: 'vertical',   // allow dragging resize
-            },
-          },
-        }}
-      />
-
-
-      <TextField
-        label="Bid in Person Disclaimer"
-        value={data?.settings?.bid_in_person_disclaimer || ""}
-        onChange={handleChange("bid_in_person_disclaimer")}
-        fullWidth
-        multiline
-        minRows={2}
-        maxRows={10}
-        InputProps={{
-          sx: {
-            '& textarea': {
-              resize: 'vertical',   // allow dragging resize
-            },
-          },
-        }}
-      />
-
       <Box mt={3}>
         <Typography variant="h6" gutterBottom>
           Quantity Discounts
@@ -532,6 +497,44 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
           </>
         )}
       </Box>
+      <Box display={"flex"} flexDirection="column" alignItems={"center"} gap={2}>
+        <Typography variant="h5">Disclaimers</Typography>
+        <TextField
+          label="General Disclaimer"
+          value={data?.settings?.general_disclaimer || ""}
+          onChange={handleChange("general_disclaimer")}
+          fullWidth
+          multiline
+          minRows={2}
+          maxRows={10}
+          InputProps={{
+            sx: {
+              '& textarea': {
+                resize: 'vertical',   // allow dragging resize
+              },
+            },
+          }}
+        />
+
+
+        <TextField
+          label="Bid in Person Disclaimer"
+          value={data?.settings?.bid_in_person_disclaimer || ""}
+          onChange={handleChange("bid_in_person_disclaimer")}
+          fullWidth
+          multiline
+          minRows={2}
+          maxRows={10}
+          InputProps={{
+            sx: {
+              '& textarea': {
+                resize: 'vertical',   // allow dragging resize
+              },
+            },
+          }}
+        />
+      </Box>
+
     </Box>
   )
 }

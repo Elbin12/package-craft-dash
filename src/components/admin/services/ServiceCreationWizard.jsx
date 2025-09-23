@@ -15,6 +15,7 @@ import {
   Alert,
   CircularProgress,
   Skeleton,
+  StepButton,
 } from '@mui/material';
 import { Close } from '@mui/icons-material';
 import ServiceDetailsForm from './forms/ServiceDetailsForm';
@@ -96,9 +97,9 @@ export const ServiceCreationWizard = ({
       setSavedSteps({
         0: true,
         1: true,
-        2: true,
-        3: true,
-        4: true
+        2: editData.packages && editData.packages.length > 0 ? true : false,
+        3: editData.questions && editData.questions.length > 0 ? true : false,
+        4: editData.questions && editData.questions.length > 0 ? true : false
       });
     } else if (!editData && open) {
       setServiceData({
@@ -356,13 +357,38 @@ export const ServiceCreationWizard = ({
       <DialogContent>
         <Card sx={{ mt: 2 }}>
           <CardContent>
-            <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-              {steps.map((label) => (
-                <Step key={label}>
-                  <StepLabel>{label}</StepLabel>
+            <Stepper activeStep={activeStep} sx={{ mb: 4 }} nonLinear>
+              {steps.map((label, index) => (
+                <Step key={index}>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    {/* Clickable index */}
+                    <Box
+                      onClick={() => {
+                        if (savedSteps[index] || index === activeStep) {
+                          setActiveStep(index);
+                        }
+                      }}
+                      sx={{
+                        width: { xs: 12, sm: 24, md: 26 },
+                        height: { xs: 12, sm: 24, md: 26 },
+                        borderRadius: '50%',
+                        backgroundColor: activeStep === index ? 'primary.main' : 'grey.400',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: { xs:'0.5rem', sm:'0.6rem', md:'0.8rem' },
+                        cursor: 'pointer', // show pointer only for index
+                      }}
+                    >
+                      {index + 1}
+                    </Box>
+                    <Typography sx={{fontSize:{xs:'0.5rem', sm:'0.7rem', md:'1rem'}}}>{label}</Typography>
+                  </Box>
                 </Step>
               ))}
             </Stepper>
+            
             {loadingEdit ? (
               <Box>
                 <Skeleton variant="text" width={200} height={40} sx={{ mb: 3 }} />

@@ -26,7 +26,7 @@ export const houseSizesApi = createApi({
         method: 'PATCH',
         data: sizes,
       }),
-      invalidatesTags: ['HouseSize'],
+      invalidatesTags: [],
     }),
     deleteHouseSize: builder.mutation({
       query: (id) => ({

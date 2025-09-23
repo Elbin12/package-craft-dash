@@ -59,7 +59,7 @@ const flattenQuestions = (questionsArray) => {
 }
 
 const PriceSetupForm = ({ data, onUpdate }) => {
-  const { data: basePrices = [], isLoading: basePriceLoading } = useGetBasePricesQuery(data.id,{
+  const { data: basePrices = [], isLoading: basePriceLoading, refetch: refetchBasePrices } = useGetBasePricesQuery(data.id,{
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,}

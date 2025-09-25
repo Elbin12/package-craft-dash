@@ -286,7 +286,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
               const optionKey = `${serviceId}_${question.id}_${option.id}`
               const quantityKey = `${serviceId}_${question.id}_${option.id}_quantity`
               const isSelected = Boolean(data.questionAnswers?.[optionKey])
-              const quantity = data.questionAnswers?.[quantityKey] || 1
+              const quantity = data.questionAnswers?.[quantityKey] !== undefined? data.questionAnswers[quantityKey]: 1
 
               return (
                 <Box 
@@ -331,11 +331,31 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                         size="small"
                         value={quantity}
                         onChange={(e) => {
-                          const newQuantity = Math.min(
-                            Math.max(1, Number.parseInt(e.target.value) || 1),
-                            option.max_quantity,
-                          )
-                          handleQuantityChange(serviceId, question.id, option.id, newQuantity)
+                          const inputValue = e.target.value
+                          
+                          // Allow empty string for editing
+                          if (inputValue === '') {
+                            handleQuantityChange(serviceId, question.id, option.id, '')
+                            return
+                          }
+                          
+                          const numericValue = Number.parseInt(inputValue)
+                          
+                          // Only update if it's a valid number
+                          if (!isNaN(numericValue)) {
+                            const newQuantity = Math.min(
+                              Math.max(1, numericValue),
+                              option.max_quantity,
+                            )
+                            handleQuantityChange(serviceId, question.id, option.id, newQuantity)
+                          }
+                        }}
+                        onBlur={(e) => {
+                          // Ensure valid value when user leaves the field
+                          const inputValue = e.target.value
+                          if (inputValue === '' || isNaN(Number.parseInt(inputValue))) {
+                            handleQuantityChange(serviceId, question.id, option.id, 1)
+                          }
                         }}
                         inputProps={{
                           min: 1,

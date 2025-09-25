@@ -31,6 +31,11 @@ import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { useNavigate } from "react-router-dom"
 import DisclaimerBox from "../DisclaimerBox"
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { FreeMode, Navigation, Pagination, Virtual } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/free-mode';
+import 'swiper/css/pagination';
 
 export const CheckoutSummary = ({
   data,
@@ -89,6 +94,16 @@ export const CheckoutSummary = ({
   const addonsData = useMemo(() => addonsResponse || [], [addonsResponse])
 
   // Expand all services by default
+  useEffect(() => {
+    if (quoteData?.service_selections) {
+      const allExpanded = {};
+      quoteData.service_selections.forEach((s) => {
+        allExpanded[s.id] = true;
+      });
+      setExpandedServices(allExpanded);
+    }
+  }, [quoteData]);
+
   useEffect(() => {
       setIsBidInPerson(quoteData?.is_bid_in_person)
   }, [quoteData])
@@ -265,20 +280,20 @@ export const CheckoutSummary = ({
 
   return (
     <Box>
-      <Container maxWidth="lg">
+      <Container maxWidth="lg" sx={{p:"0rem"}}>
         {/* Quote Header */}
         <Box mb={4}>
-          <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center' }}>
+          <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center', fontSize:{ xs: "1.8rem", sm: "1.9rem", md: "2.2rem"} }}>
             Quote Summary
           </Typography>
           <Box display="flex" gap={2} flexWrap="wrap" alignItems="center" justifyContent="center">
-            <Typography variant="body1" color="text.secondary">
+            <Typography variant="body1" color="text.secondary" sx={{fontSize:{ xs: "0.8rem", sm: "0.9rem", md: "1rem"}}}>
               Quote #{quoteData.id}
             </Typography>
             <Chip
               label={quoteData.status.replace("_", " ").toUpperCase()}
               size="small"
-              sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600 }}
+              sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600, fontSize:{ xs: "0.7rem", sm: "0.8rem", md: "0.8rem"} }}
             />
             <Typography variant="body2" color="text.secondary">
               {new Date(quoteData.created_at).toLocaleDateString()}
@@ -287,9 +302,9 @@ export const CheckoutSummary = ({
         </Box>
 
         {/* Customer Info */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+        <Card sx={{ mb: 2 }}>
+          <CardContent sx={{ px: {xs:2, md:3}, py: 0.5 }}>
+            <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f', fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"} }}>
               Customer Information
             </Typography>
             <Grid container spacing={2}>
@@ -297,63 +312,63 @@ export const CheckoutSummary = ({
                 <Typography variant="caption" color="text.secondary">
                   Name
                 </Typography>
-                <Typography variant="body1">{quoteData.first_name} {quoteData.last_name}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.first_name} {quoteData.last_name}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Email
                 </Typography>
-                <Typography variant="body1">{quoteData.customer_email}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.customer_email}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Phone
                 </Typography>
-                <Typography variant="body1">{quoteData.customer_phone}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.customer_phone}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   House sq ft
                 </Typography>
-                <Typography variant="body1">{quoteData?.size_range?.min_sqft} {quoteData?.size_range?.max_sqft===null? " sq ft And Up" : `- ${quoteData?.size_range?.max_sqft} sq ft`}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData?.size_range?.min_sqft} {quoteData?.size_range?.max_sqft===null? " sq ft And Up" : `- ${quoteData?.size_range?.max_sqft} sq ft`}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Property Type
                 </Typography>
-                <Typography variant="body1">{quoteData.property_type?.charAt(0).toUpperCase() + quoteData.property_type?.slice(1)}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.property_type?.charAt(0).toUpperCase() + quoteData.property_type?.slice(1)}</Typography>
               </Grid>
               {quoteData.company_name && (
                 <Grid item xs={12} sm={6}>
                   <Typography variant="caption" color="text.secondary">
                     Company
                   </Typography>
-                  <Typography variant="body1">{quoteData.company_name}</Typography>
+                  <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.company_name}</Typography>
                 </Grid>
               )}
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Floors
                 </Typography>
-                <Typography variant="body1">{quoteData.num_floors}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.num_floors}</Typography>
               </Grid>
               <Grid item xs={12}>
                 <Typography variant="caption" color="text.secondary">
                   Address
                 </Typography>
-                <Typography variant="body1">{quoteData.street_address}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.street_address}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   Postal Code
                 </Typography>
-                <Typography variant="body1">{quoteData.postal_code}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.postal_code}</Typography>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <Typography variant="caption" color="text.secondary">
                   How did you hear about us?
                 </Typography>
-                <Typography variant="body1">{quoteData.heard_about_us?.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}</Typography>
+                <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{quoteData.heard_about_us?.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}</Typography>
               </Grid>
             </Grid>
           </CardContent>
@@ -374,22 +389,31 @@ export const CheckoutSummary = ({
                 }}
                 onClick={() => toggleServiceExpansion(selection.id)}
               >
-                <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box display="flex" alignItems="center" justifyContent="space-between"
+                  sx={{
+                    minHeight: { xs: 48, sm: 36 },
+                    gap: 1,
+                  }}
+                >
                   <Box>
-                    <Typography variant="h6" fontWeight={600} sx={{ color: 'white' }}>
+                    <Typography variant="h6" fontWeight={600} sx={{ color: 'white', fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"},flex: 1,
+                        whiteSpace: "normal",
+                        wordBreak: "break-word"
+                      }}
+                    >
                       {selection.service_details.name}
                     </Typography>
                   </Box>
-                  <IconButton sx={{ color: 'white' }}>
-                    {expandedServices[selection.id] ? <ExpandLess /> : <ExpandMore />}
+                  <IconButton sx={{ color: 'white', padding:0 }}>
+                    {expandedServices[selection.id] ? <ExpandLess sx={{fontSize: { xs: "1.125rem", sm: "1.5rem", lg: "1.625rem" }}}/> : <ExpandMore sx={{fontSize: { xs: "1.125rem", sm: "1.5rem", lg: "1.625rem" }}}/>}
                   </IconButton>
                 </Box>
               </Box>
 
               {/* Collapsible Content */}
               <Collapse in={expandedServices[selection.id]} timeout="auto" unmountOnExit>
-                <Box sx={{ px: 3, py:1 }}>
-                  <Typography variant="body2" color="text.secondary" sx={{mb:1}}>
+                <Box sx={{ px: {xs:1.5, md:3}, py: 1 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontSize: { xs: "0.75rem", sm: "0.875rem", md:'1rem' } }}>
                       {selection.service_details.description}
                     </Typography>
                   
@@ -421,22 +445,36 @@ export const CheckoutSummary = ({
                   {/* Package Selection */}
                   {!isBidInPerson&&
                   <>
-                    <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                    <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f', fontSize:{ xs: "1.2rem", sm: "1.5rem", md: "1.6rem"} }}>
                       Select Package
                     </Typography>
                     <FormControl component="fieldset" fullWidth>
-                      <RadioGroup
+                      <Box
                         value={selectedPackages[selection.id] || ""}
                         onChange={(e) => {
-                          const packageQuote = selection.package_quotes.find((p) => p.id === e.target.value)
+                          const packageQuote = selection.package_quotes.find((p) => p.id === e.target.value);
                           if (packageQuote) {
-                            handlePackageSelect(selection.id, packageQuote)
+                            handlePackageSelect(selection.id, packageQuote);
                           }
                         }}
                       >
-                        <Grid container spacing={3}>
+                        <Swiper 
+                          modules={[FreeMode, Pagination]} 
+                          spaceBetween={10} 
+                          slidesPerView={"auto"}
+                          pagination={{
+                            clickable: true,
+                          }} 
+                          freeMode={true}
+                          style={{ margin:0 }}
+                          breakpoints={{
+                            768: {
+                              spaceBetween: 20,
+                            },
+                          }}
+                        >
                           {selection.package_quotes.map((packageQuote) => (
-                            <Grid item xs={12} md={6} key={packageQuote.id}>
+                            <SwiperSlide key={packageQuote.id} style={{ width: "auto" }}>
                               <Card
                                 variant="outlined"
                                 sx={{
@@ -445,22 +483,29 @@ export const CheckoutSummary = ({
                                     selectedPackages[selection.id] === packageQuote.id
                                       ? "2px solid #42bd3f"
                                       : "1px solid #e0e0e0",
-                                  bgcolor: selectedPackages[selection.id] === packageQuote.id ? "#f8fff8" : "white",
+                                  // bgcolor: selectedPackages[selection.id] === packageQuote.id ? "#f8fff8" : "white",
                                   "&:hover": { borderColor: "#42bd3f" },
                                   borderRadius: 3,
-                                  minHeight: 220,
+                                  height:"100%",
+                                  width: "fit-content", // responsive height
+                                  flexShrink: 0,    
+                                  maxWidth: 280,
+                                  minWidth: 310,
+                                  minHeight: { xs: 180, sm: 200, md: 220 }, // responsive height
                                   display: "flex",
                                   flexDirection: "column",
                                   justifyContent: "space-between",
                                 }}
-                                onClick={() => handlePackageSelect(selection.id, packageQuote)}
                               >
-                                <CardContent sx={{ p: 4 }}>
-                                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-                                    <Typography variant="h6" fontWeight={700}>
+                                <CardContent sx={{ p: { xs: 2, sm: 3, md: 3 },textAlign: "center", }}>
+                                    <Typography
+                                      variant="h6"
+                                      fontWeight={700}
+                                      sx={{ fontSize: { xs: "1.6rem", sm: "1.8rem", md: "2rem" }, justifySelf: "start" }}
+                                    >
                                       {packageQuote.package_name}
                                     </Typography>
-                                    <FormControlLabel
+                                    {/* <FormControlLabel
                                       value={packageQuote.id}
                                       control={
                                         <Radio
@@ -472,15 +517,43 @@ export const CheckoutSummary = ({
                                       }
                                       label=""
                                       sx={{ m: 0 }}
-                                    />
-                                  </Box>
+                                    /> */}
 
-                                  <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
+                                  <Typography 
+                                    variant="h4"
+                                    sx={{
+                                      justifySelf: "start",
+                                      color: "#42bd3f",
+                                      fontWeight: 700,
+                                      fontSize: { xs: "1.6rem", sm: "1.8rem", md: "2rem" },
+                                      mb:2
+                                    }}
+                                  >
                                     ${formatPrice(packageQuote.total_price)}
                                   </Typography>
 
                                   {/* ✅ Professional Features List */}
-                                  <Box>
+                                  <Box textAlign="left" 
+                                    sx={{ 
+                                      maxHeight: 300, 
+                                      overflowY: "auto", 
+                                      pb:2,
+                                      "&::-webkit-scrollbar": {
+                                        width: 4
+                                      },
+                                      "&::-webkit-scrollbar-track": {
+                                        background: "#f1f1f1",
+                                        borderRadius: 3
+                                      },
+                                      "&::-webkit-scrollbar-thumb": {
+                                        background: "#c1c1c1",
+                                        borderRadius: 3,
+                                        "&:hover": {
+                                          background: "#a8a8a8"
+                                        }
+                                      }
+                                    }}
+                                  >
                                     {[
                                       ...(packageQuote.included_features_details || []).map((f) => ({
                                         ...f,
@@ -493,15 +566,20 @@ export const CheckoutSummary = ({
                                     ].map((feature) => (
                                       <Box key={feature.id} display="flex" alignItems="center" mb={0.8}>
                                         {feature.included ? (
-                                          <Check sx={{ fontSize: 18, color: "#42bd3f", mr: 1 }} />
+                                          <Check sx={{ fontSize: { xs: 16, sm: 18 }, color: "#42bd3f", mr: 1 }} />
                                         ) : (
-                                          <Close sx={{ fontSize: 18, color: "#9e9e9e", mr: 1 }} />
+                                          <Close sx={{ fontSize: { xs: 16, sm: 18 }, color: "#9e9e9e", mr: 1 }} />
                                         )}
                                         <Typography
                                           variant="body2"
                                           sx={{
+                                            fontSize: { xs: "0.75rem", sm: "0.85rem", md: "0.9rem" },
                                             color: feature.included ? "text.primary" : "text.disabled",
-                                            fontWeight: feature.included ? 500 : 400,
+                                            fontWeight:500,
+                                            overflowWrap: "break-word",
+                                            wordWrap: "break-word",
+                                            flexShrink: 1,           // allow shrinking inside flex
+                                            minWidth: 0, 
                                           }}
                                         >
                                           {feature.name}
@@ -509,52 +587,63 @@ export const CheckoutSummary = ({
                                       </Box>
                                     ))}
                                   </Box>
+                                  <Button
+                                    fullWidth
+                                    variant={selectedPackages[selection.id] === packageQuote.id ? "contained" : "outlined"}
+                                    sx={{
+                                      mt: "auto",
+                                      py: 1,
+                                      fontSize: { xs: "0.9rem", sm: "1rem" },
+                                      fontWeight: 600,
+                                      borderRadius: 1.5,
+                                      boxShadow: "0 4px 12px rgba(66, 189, 63, 0.1)",
+                                      bgcolor: selectedPackages[selection.id] === packageQuote.id ? "#369932" : "transparent",
+                                      borderColor: "#42bd3f",
+                                      color: selectedPackages[selection.id] === packageQuote.id ? "white" : "#42bd3f",
+                                      "&:hover": {
+                                        bgcolor: selectedPackages[selection.id] === packageQuote.id ? "none" : "rgba(66, 189, 63, 0.08)",
+                                        borderColor: "#369932",
+                                        color: selectedPackages[selection.id] === packageQuote.id ? "white" : "#369932"
+                                      },
+                                      transition: "all 0.2s ease-in-out",
+                                      textTransform: "none"
+                                    }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handlePackageSelect(selection.id, packageQuote);
+                                    }}
+                                  >
+                                    {selectedPackages[selection.id] === packageQuote.id 
+                                      ? `Selected • ${packageQuote.package_name}`
+                                      : `Choose ${packageQuote.package_name}`
+                                    }
+                                  </Button>
                                 </CardContent>
                               </Card>
-                            </Grid>
+                            </SwiperSlide>
                           ))}
-                        </Grid>
-                      </RadioGroup>
+                        </Swiper>
+                      </Box>
                     </FormControl>
                   </>
                   }
                   {/* Question Responses */}
                   {selection.question_responses?.length > 0 && (
-                    <Box mt={3}>
-                      <Typography
-                        variant="subtitle1"
-                        fontWeight={600}
-                        sx={{ color: "#023c8f", mb: 1 }}
-                      >
+                    <Box mt={2}>
+                      <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#023c8f", fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.3rem"} }}>
                         Your Responses
                       </Typography>
-
-                      <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0 }}>
+                      <Box sx={{ bgcolor: "#f8f9fa", borderRadius: 1, p: 1 }}>
                         {selection.question_responses.map((response, index) => (
-                          <Box
-                            key={response.id}
-                            component="li"
-                            sx={{ mb: 0.1, display: "flex", alignItems: "flex-start" }}
-                          >
-                            <Typography
-                              variant="body1"
-                              fontWeight={600}
-                              sx={{ minWidth: "24px", color: "#023c8f", mr: 1 }}
-                            >
-                              {index + 1}.
-                            </Typography>
-                            <Box sx={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                              <Typography
-                                variant="body2"
-                                fontWeight={600}
-                                sx={{ color: "#023c8f" }}
-                              >
-                                {response.question_text}:
+                          <Box key={response.id} sx={{ display: 'flex', mb: 0.5, alignItems: "flex-start"}}>
+                              <Typography variant="body1" sx={{ color: "#023c8f", fontWeight: 600, mr: 1, minWidth: '25px', fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }}}>
+                                Q{index + 1}:
                               </Typography>
-                              <Typography
-                                variant="body2"
-                                sx={{ color: "#023c8f", textAlign: "right", ml: 2 }}
-                              >
+                            <Box >
+                              <Typography variant="body1" sx={{ color: "#023c8f", flex: 1, mr: 1, fontSize: { xs: "0.9rem", sm: "1rem", md: "1.1rem" }}}>
+                                {response.question_text}
+                              </Typography>
+                              <Typography variant="body2" sx={{color: "#023c8f", fontWeight: 600, minWidth: 'fit-content', pl:1, fontSize: { xs: "0.75rem", sm: "0.85rem", md: "1rem" }}}>
                                 {renderQuestionResponse(response)}
                               </Typography>
                             </Box>
@@ -582,7 +671,7 @@ export const CheckoutSummary = ({
                 {addonsData.map((addon) => {
                   const isSelected = selectedAddons.includes(addon.id)
                   return (
-                    <Grid item xs={12} sm={6} md={4} key={addon.id}>
+                    <Grid item xs={12} sm={6} md={4} key={addon.id} width={"100%"} sx={{flex: "1 1 500px"}}>
                       <Card
                         variant="outlined"
                         sx={{
@@ -748,9 +837,14 @@ export const CheckoutSummary = ({
                 <Typography variant="h6" fontWeight={700}>
                   Total
                 </Typography>
-                <Typography variant="h6" fontWeight={700} color="success.main">
-                  ${finalTotal}
-                </Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <Typography variant="h6" fontWeight={700} color="success.main">
+                    ${finalTotal}
+                  </Typography>
+                  <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1 }}>
+                    Plus Tax
+                  </Typography>
+                </Box>
               </Box>
             {/* } */}
 

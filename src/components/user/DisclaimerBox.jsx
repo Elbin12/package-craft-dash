@@ -18,7 +18,7 @@ export default function DisclaimerBox({ title, content, bgColor, textColor }) {
         borderRadius: "6px",
         mb: 2,
         // border: "1px solid #ddd",
-        maxHeight: isExpanded ? "none" : "350px",
+        // maxHeight: isExpanded ? "none" : "350px",
         overflow: "hidden",
       }}
     >
@@ -33,7 +33,7 @@ export default function DisclaimerBox({ title, content, bgColor, textColor }) {
         variant="body2"
         sx={{
           color: textColor,
-          fontSize: "14px",
+          fontSize: { xs: "0.5rem", sm: "0.75rem", md: "0.9rem" },
           lineHeight: 1.7,
           whiteSpace: "pre-line", // ✅ preserves line breaks
           textAlign: "justify",
@@ -51,7 +51,7 @@ export default function DisclaimerBox({ title, content, bgColor, textColor }) {
             cursor: "pointer",
             textDecoration: "underline",
             mt: 1,
-            fontSize: "13px",
+            fontSize: { xs: "0.5rem", sm: "1rem", md: "1.1rem" },
             textAlign: "right",
             "&:hover": {
               color: "#0056b3",

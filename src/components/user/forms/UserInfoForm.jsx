@@ -286,16 +286,16 @@ useEffect(() => {
           }}
         >
           <TextField
-            label="First Name *"
+            label="First Name"
             value={data.userInfo?.firstName || ""}
             onChange={handleChange("firstName")}
             required
           />
-          <PlacesAutocomplete
-            value={data.userInfo?.address || ""}
-            onSelect={handlePlaceSelect}
-            error={false}
-            helperText="Start typing to search and select your address"
+          <TextField
+            label="Last Name"
+            value={data.userInfo?.lastName || ""}
+            onChange={handleChange("lastName")}
+            required
           />
         </Box>
 
@@ -307,11 +307,11 @@ useEffect(() => {
             gap: 3,
           }}
         >
-          <TextField
-            label="Last Name *"
-            value={data.userInfo?.lastName || ""}
-            onChange={handleChange("lastName")}
-            required
+          <PlacesAutocomplete
+            value={data.userInfo?.address || ""}
+            onSelect={handlePlaceSelect}
+            error={false}
+            helperText="Start typing to search and select your address"
           />
           <TextField
             select
@@ -343,7 +343,7 @@ useEffect(() => {
             onChange={handleChange("companyName")}
           />
           <TextField
-            label="Postal Code *"
+            label="Postal Code"
             value={data.userInfo?.postalCode || ""}
             onChange={handleChange("postalCode")}
             required
@@ -360,7 +360,7 @@ useEffect(() => {
           }}
         >
           <TextField
-            label="Primary Phone *"
+            label="Primary Phone"
             value={data.userInfo?.phone || ""}
             onChange={handleChange("phone")}
             onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
@@ -417,7 +417,7 @@ useEffect(() => {
           }}
         >
           <TextField
-            label="Email Address *"
+            label="Email Address"
             value={data.userInfo?.email || ""}
             onChange={handleChange("email")}
             onBlur={() => setTouched((p) => ({ ...p, email: true }))}

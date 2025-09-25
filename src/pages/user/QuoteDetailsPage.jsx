@@ -206,28 +206,30 @@ const QuoteDetailsPage = () => {
       >
         <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
           <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="center" gap={2}>
-              <Box>
-                <Typography variant="h4" color='#023c8f' fontWeight="600">
-                  Quote Details
+            <Box display="flex" alignItems="start" flexDirection="column" gap={0} flexWrap="wrap">
+              <Typography variant="h4" color='#023c8f' fontWeight="600"
+                sx={{
+                  fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" }, // xs=h6-ish, sm=h5, md=h4
+                }}
+              >
+                Quote Details
+              </Typography>
+              <Box display="flex" alignItems="center" gap={2} mt={0.5}>
+                <Typography variant="body2" color="text.secondary" sx={{fontSize:{ xs: "0.6rem", sm: "0.8rem", md: "0.9rem"}}}>
+                  ID: {quote.id}
                 </Typography>
-                <Box display="flex" alignItems="center" gap={2} mt={0.5}>
-                  <Typography variant="body2" color="text.secondary">
-                    ID: {quote.id}
-                  </Typography>
-                  <Chip
-                    label={status?.charAt(0).toUpperCase() + status?.slice(1)}
-                    size="small"
-                    sx={{
-                      fontWeight: 600,
-                      borderRadius: 1,
-                      ...statusStyles[status?.toLowerCase()] || statusStyles['draft'],
-                    }}
-                  />
-                  <Typography variant="body2" color="text.secondary">
-                    Created: {new Date(created_at).toLocaleDateString()}
-                  </Typography>
-                </Box>
+                {/* <Chip
+                  label={status?.charAt(0).toUpperCase() + status?.slice(1)}
+                  size="small"
+                  sx={{
+                    fontWeight: 600,
+                    borderRadius: 1,
+                    ...statusStyles[status?.toLowerCase()] || statusStyles['draft'],
+                  }}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  Created: {new Date(created_at).toLocaleDateString()}
+                </Typography> */}
               </Box>
             </Box>
             
@@ -241,15 +243,27 @@ const QuoteDetailsPage = () => {
               disabled={isGeneratingPDF}
               startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
               sx={{
+                  minWidth: { xs: 0 },
                   bgcolor: '#023c8f',
                   '&:hover': { bgcolor: '#012a6b' },
                   borderRadius: 2,
                   textTransform: 'none',
                   fontWeight: 600,
+                  '& .pdf-btn-label': {
+                    display: 'none',
+                    '@media (min-width:600px)': {
+                      display: 'inline',
+                    },
+                  },
+                  '& .MuiButton-startIcon': {
+                    margin: { xs: 0, sm: '0 8px 0 0' }, // ✅ remove left gap on mobile
+                  },
                 }}
               fullWidth={{ xs: true, sm: false }}
             >
-              {isGeneratingPDF ? "Generating..." : "Download PDF"}
+              <span className="pdf-btn-label">
+                {isGeneratingPDF ? "Generating..." : "Download PDF"}
+              </span>
             </Button>
             }
           </Box>
@@ -257,7 +271,7 @@ const QuoteDetailsPage = () => {
       </Box>
 
       {/* Body */}
-      <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 2, md: 4 }}>
+      <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 0, sm:2, md: 4 }}>
         <Container maxWidth="lg">
           <Box display="grid"  gridTemplateColumns={
               is_bid_in_person || status === "declined"
@@ -277,69 +291,69 @@ const QuoteDetailsPage = () => {
                       <Typography variant="caption" color="text.secondary">
                         Name
                       </Typography>
-                      <Typography variant="body1">{first_name} {last_name}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{first_name} {last_name}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         Email
                       </Typography>
-                      <Typography variant="body1">{customer_email}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{customer_email}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         Phone
                       </Typography>
-                      <Typography variant="body1">{customer_phone}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{customer_phone}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         House sq ft
                       </Typography>
-                      <Typography variant="body1">{size_range?.min_sqft} {size_range?.max_sqft===null? " sq ft And Up" : `- ${size_range?.max_sqft} sq ft`}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{size_range?.min_sqft} {size_range?.max_sqft===null? " sq ft And Up" : `- ${size_range?.max_sqft} sq ft`}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         Property Type
                       </Typography>
-                      <Typography variant="body1">{property_type?.charAt(0).toUpperCase() + property_type?.slice(1)}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{property_type?.charAt(0).toUpperCase() + property_type?.slice(1)}</Typography>
                     </Grid>
                     {company_name && (
                       <Grid item xs={12} sm={6}>
                         <Typography variant="caption" color="text.secondary">
                           Company
                         </Typography>
-                        <Typography variant="body1">{company_name}</Typography>
+                        <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{company_name}</Typography>
                       </Grid>
                     )}
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         Floors
                       </Typography>
-                      <Typography variant="body1">{num_floors}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{num_floors}</Typography>
                     </Grid>
                     <Grid item xs={12}>
                       <Typography variant="caption" color="text.secondary">
                         Address
                       </Typography>
-                      <Typography variant="body1">{street_address || customer_address}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{street_address || customer_address}</Typography>
                     </Grid>
                     <Grid item xs={12}>
                       <Typography variant="caption" color="text.secondary">
                         Province, City
                       </Typography>
-                      <Typography variant="body1">{location_details?.address}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{location_details?.address}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         Postal Code
                       </Typography>
-                      <Typography variant="body1">{postal_code}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{postal_code}</Typography>
                     </Grid>
                     <Grid item xs={12} sm={6}>
                       <Typography variant="caption" color="text.secondary">
                         How did you hear about us?
                       </Typography>
-                      <Typography variant="body1">{heard_about_us?.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}</Typography>
+                      <Typography variant="body1" sx={{fontSize:{ xs: ".8rem", sm: "1rem"}}}>{heard_about_us?.replace("-", " ").replace(/\b\w/g, l => l.toUpperCase())}</Typography>
                     </Grid>
                   </Grid>
                 </CardContent>
@@ -412,7 +426,10 @@ const QuoteDetailsPage = () => {
                   >
                     <Box display="flex" alignItems="center" justifyContent="space-between">
                       <Box>
-                        <Typography variant="h6" fontWeight={600} sx={{ color: 'white' }}>
+                        <Typography variant="h6" fontWeight={600} sx={{ color: 'white', fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"},flex: 1,
+                          whiteSpace: "normal",
+                          wordBreak: "break-word"
+                        }}>
                           {selection.service_details?.name}
                         </Typography>
                       </Box>
@@ -495,7 +512,27 @@ const QuoteDetailsPage = () => {
                                   </Typography>
 
                                   {/* Features List */}
-                                  <Box>
+                                  <Box
+                                    sx={{ 
+                                      maxHeight: {xs:240,sm:280, md:340}, 
+                                      overflowY: "auto", 
+                                      pb:2,
+                                      "&::-webkit-scrollbar": {
+                                        width: 4
+                                      },
+                                      "&::-webkit-scrollbar-track": {
+                                        background: "#f1f1f1",
+                                        borderRadius: 3
+                                      },
+                                      "&::-webkit-scrollbar-thumb": {
+                                        background: "#c1c1c1",
+                                        borderRadius: 3,
+                                        "&:hover": {
+                                          background: "#a8a8a8"
+                                        }
+                                      }
+                                    }}
+                                  >
                                     {[
                                       ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
                                         ...f,
@@ -532,41 +569,21 @@ const QuoteDetailsPage = () => {
 
                       {/* Question Responses */}
                       {selection.question_responses?.length > 0 && (
-                        <Box mt={3}>
-                          <Typography
-                            variant="subtitle1"
-                            fontWeight={600}
-                            sx={{ color: "#023c8f", mb: 1 }}
-                          >
+                        <Box mt={2}>
+                          <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#023c8f", fontSize:{ xs: "0.9rem", sm: "1.2rem", md: "1.3rem"} }}>
                             Your Responses
                           </Typography>
-
-                          <Box component="ul" sx={{ listStyle: "none", p: 0, m: 0 }}>
+                          <Box sx={{ bgcolor: "#f8f9fa", borderRadius: 1, p: 1 }}>
                             {selection.question_responses.map((response, index) => (
-                              <Box
-                                key={response.id}
-                                component="li"
-                                sx={{ mb: 0.1, display: "flex", alignItems: "flex-start" }}
-                              >
-                                <Typography
-                                  variant="body1"
-                                  fontWeight={600}
-                                  sx={{ minWidth: "24px", color: "#023c8f", mr: 1 }}
-                                >
-                                  {index + 1}.
-                                </Typography>
-                                <Box sx={{ flex: 1, display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                                  <Typography
-                                    variant="body2"
-                                    fontWeight={600}
-                                    sx={{ color: "#023c8f" }}
-                                  >
-                                    {response.question_text}:
+                              <Box key={response.id} sx={{ display: 'flex', mb: 0.5, alignItems: "flex-start"}}>
+                                  <Typography variant="body1" sx={{ color: "#023c8f", fontWeight: 600, mr: 1, minWidth: '25px', fontSize: { xs: "0.8rem", sm: "1rem", md: "1rem" }}}>
+                                    Q{index + 1}:
                                   </Typography>
-                                  <Typography
-                                    variant="body2"
-                                    sx={{ color: "#023c8f", textAlign: "right", ml: 2 }}
-                                  >
+                                <Box >
+                                  <Typography variant="body1" sx={{ color: "#023c8f", flex: 1, mr: 1, fontSize: { xs: "0.8rem", sm: "1rem", md: "1rem" }}}>
+                                    {response.question_text}
+                                  </Typography>
+                                  <Typography variant="body2" sx={{color: "#023c8f", fontWeight: 600, minWidth: 'fit-content', pl:1, fontSize: { xs: "0.7rem", sm: "0.85rem", md: "0.9rem" }}}>
                                     {renderQuestionResponse(response)}
                                   </Typography>
                                 </Box>
@@ -662,7 +679,7 @@ const QuoteDetailsPage = () => {
                       <Avatar sx={{ bgcolor: "#023c8f" }}>
                         <Info />
                       </Avatar>
-                      <Typography variant="h6" sx={{ fontWeight: 600, color:'#023c8f' }}>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color:'#023c8f',fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.5rem"} }}>
                         Additional Information
                       </Typography>
                     </Stack>
@@ -801,25 +818,46 @@ const QuoteDetailsPage = () => {
                           borderRadius: 1,
                         }}
                       >
-                        <Typography variant="subtitle1" fontWeight="600">
+                        <Typography variant="subtitle1" fontWeight={600} noWrap>
                           Final Total
                         </Typography>
-                        <Typography variant="h5" fontWeight="500" color="#42bd3f">
-                          ${formatPrice(final_total || 0)}
-                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                          <Typography variant="h5" fontWeight={500} color="#42bd3f" noWrap>
+                            ${formatPrice(final_total || 0)}
+                          </Typography>
+                          <Typography variant="caption" color="textSecondary" sx={{ lineHeight: 1 }}>
+                            Plus Tax
+                          </Typography>
+                        </Box>
                       </Box>
                       
                       <Divider />
-                      <Typography variant="caption" color="text.secondary" align="center">
-                        Quote created on{' '}
-                        {new Date(created_at).toLocaleString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
-                      </Typography>
+                      <Box display={"flex"} flexDirection={"column"} alignItems={"center"} gap={1}>
+                        <Typography variant="caption" color="text.secondary" align="center">
+                          Quote created on{' '}
+                          {new Date(created_at).toLocaleString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" align="center"
+                          sx={{
+                            fontWeight: 600,
+                            fontSize:{ xs: "0.7rem", sm: "0.8rem", md: "0.8rem"},
+                            borderRadius: 0.3,
+                            bgcolor:"#D9FFD9",
+                            color:"success.dark",
+                            width:"fit-content",
+                            px:3
+                          }}
+                        >
+                          Status:{" "}
+                          {status?.charAt(0).toUpperCase() + status?.slice(1)}
+                        </Typography>
+                      </Box>
                     </Box>
                   </CardContent>
                 </Paper>

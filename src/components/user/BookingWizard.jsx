@@ -65,116 +65,122 @@ export const BookingWizard = () => {
   });
 
   useEffect(() => {
-  if (isSuccess && submissionData) {
-    const transformedData = {
-      submission_id: submissionData.id,
-      userInfo: {
-        firstName: submissionData.first_name || "",
-        lastName: submissionData.last_name || "",
-        phone: submissionData.customer_phone || "",
-        email: submissionData.customer_email || "",
-        address: submissionData.street_address || "",
-        latitude: submissionData.latitude || "",
-        longitude: submissionData.longitude || "",
-        googlePlaceId: submissionData.google_place_id || "",
-        contactId: null,
-        selectedLocation: submissionData.location || null,
-        selectedHouseSize: submissionData.size_range || null,
-        projectType: submissionData?.property_type,
-        propertyName: submissionData?.property_name,
-        postalCode: submissionData?.property_name,
-        floors: submissionData?.num_floors,
-        customerStatus: submissionData?.is_previous_customer,
-        heardAboutUs: submissionData?.heard_about_us,
-        companyName: submissionData?.company_name,
-        smsConsent: submissionData?.allow_sms,
-        emailConsent: submissionData?.allow_email
-      },
-      selectedServices: submissionData.service_selections.map((s) => ({
-        id: s.service_details.id,
-        name: s.service_details.name,
-      })),
-      selectedService: null,
-      selectedPackage: null,
-      selectedPackages: submissionData.service_selections
-        .flatMap((s) =>
-          s.package_quotes.filter((p) => p.is_selected).map((pkg) => ({
-            service_selection_id: pkg.id,
-            package_id: pkg.package,
-            package_name: pkg.package_name,
-            total_price: pkg.total_price,
-          }))
-        ),
-      // FIXED: Proper question answers transformation
-      questionAnswers: submissionData.service_selections.reduce((acc, service) => {
-        service.question_responses.forEach((response) => {
-          const serviceId = service.service_details.id;
-          const questionId = response.question;
-          
-          // Handle different question types
-          switch (response.question_type) {
-            case "yes_no":
-            case "conditional":
-              const key = `${serviceId}_${questionId}`;
-              acc[key] = response.yes_no_answer ? "yes" : "no";
-              break;
-              
-            case "describe":
-            case "options":
-              if (response.option_responses && response.option_responses.length > 0) {
+    if (isSuccess && submissionData) {
+      const transformedData = {
+        submission_id: submissionData.id,
+        userInfo: {
+          firstName: submissionData.first_name || "",
+          lastName: submissionData.last_name || "",
+          phone: submissionData.customer_phone || "",
+          email: submissionData.customer_email || "",
+          address: submissionData.street_address || "",
+          latitude: submissionData.latitude || "",
+          longitude: submissionData.longitude || "",
+          googlePlaceId: submissionData.google_place_id || "",
+          contactId: null,
+          selectedLocation: submissionData.location || null,
+          selectedHouseSize: submissionData.size_range || null,
+          projectType: submissionData?.property_type,
+          propertyName: submissionData?.property_name,
+          postalCode: submissionData?.property_name,
+          floors: submissionData?.num_floors,
+          customerStatus: submissionData?.is_previous_customer,
+          heardAboutUs: submissionData?.heard_about_us,
+          companyName: submissionData?.company_name,
+          smsConsent: submissionData?.allow_sms,
+          emailConsent: submissionData?.allow_email
+        },
+        selectedServices: submissionData.service_selections.map((s) => ({
+          id: s.service_details.id,
+          name: s.service_details.name,
+        })),
+        selectedService: null,
+        selectedPackage: null,
+        selectedPackages: submissionData.service_selections
+          .flatMap((s) =>
+            s.package_quotes.filter((p) => p.is_selected).map((pkg) => ({
+              service_selection_id: pkg.id,
+              package_id: pkg.package,
+              package_name: pkg.package_name,
+              total_price: pkg.total_price,
+            }))
+          ),
+        // FIXED: Proper question answers transformation
+        questionAnswers: submissionData.service_selections.reduce((acc, service) => {
+          service.question_responses.forEach((response) => {
+            const serviceId = service.service_details.id;
+            const questionId = response.question;
+            
+            // Handle different question types
+            switch (response.question_type) {
+              case "yes_no":
+              case "conditional":
                 const key = `${serviceId}_${questionId}`;
-                // For single selection, use the first option
-                acc[key] = response.option_responses[0].option;
-              }
-              break;
-              
-            case "quantity":
-              response.option_responses.forEach((optResponse) => {
-                // Mark the option as selected
-                const selectedKey = `${serviceId}_${questionId}_${optResponse.option}`;
-                acc[selectedKey] = "selected";
+                acc[key] = response.yes_no_answer ? "yes" : "no";
+                break;
                 
-                // Store the quantity
-                const quantityKey = `${serviceId}_${questionId}_${optResponse.option}_quantity`;
-                acc[quantityKey] = optResponse.quantity;
-              });
-              break;
-              
-            case "multiple_yes_no":
-              response.sub_question_responses.forEach((subResponse) => {
-                const subKey = `${serviceId}_${questionId}_${subResponse.sub_question_id || subResponse.sub_question}`;
-                acc[subKey] = subResponse.answer ? "yes" : "no";
-              });
-              break;
-              
-            default:
-              console.warn(`Unknown question type: ${response.question_type}`);
-          }
-        });
-        return acc;
-      }, {}),
-      pricing: {
-        basePrice: submissionData.total_base_price || 0,
-        tripSurcharge: submissionData.total_surcharges || 0,
-        questionAdjustments: submissionData.total_adjustments || 0,
-        totalPrice: submissionData.final_total || 0,
-      },
-      quoteDetails: submissionData,
-    };
-    
-    console.log('Transformed question answers:', transformedData.questionAnswers);
-    setBookingData(transformedData);
-  }
-}, [isSuccess, submissionData]);
+              case "describe":
+              case "options":
+                if (response.option_responses && response.option_responses.length > 0) {
+                  const key = `${serviceId}_${questionId}`;
+                  // For single selection, use the first option
+                  acc[key] = response.option_responses[0].option;
+                }
+                break;
+                
+              case "quantity":
+                response.option_responses.forEach((optResponse) => {
+                  // Mark the option as selected
+                  const selectedKey = `${serviceId}_${questionId}_${optResponse.option}`;
+                  acc[selectedKey] = "selected";
+                  
+                  // Store the quantity
+                  const quantityKey = `${serviceId}_${questionId}_${optResponse.option}_quantity`;
+                  acc[quantityKey] = optResponse.quantity;
+                });
+                break;
+                
+              case "multiple_yes_no":
+                response.sub_question_responses.forEach((subResponse) => {
+                  const subKey = `${serviceId}_${questionId}_${subResponse.sub_question_id || subResponse.sub_question}`;
+                  acc[subKey] = subResponse.answer ? "yes" : "no";
+                });
+                break;
+                
+              default:
+                console.warn(`Unknown question type: ${response.question_type}`);
+            }
+          });
+          return acc;
+        }, {}),
+        pricing: {
+          basePrice: submissionData.total_base_price || 0,
+          tripSurcharge: submissionData.total_surcharges || 0,
+          questionAdjustments: submissionData.total_adjustments || 0,
+          totalPrice: submissionData.final_total || 0,
+        },
+        quoteDetails: submissionData,
+      };
+      
+      console.log('Transformed question answers:', transformedData.questionAnswers);
+      setBookingData(transformedData);
+    }
+  }, [isSuccess, submissionData]);
 
-useLayoutEffect(() => {
-  if(submissionData?.status.includes("submitted", "declined")){
-    navigate(`/quote/details/${submissionData?.id}`)
-  }
+  useLayoutEffect(() => {
+    if(submissionData?.status.includes("submitted", "declined")){
+      navigate(`/quote/details/${submissionData?.id}`)
+    }
     if (isSuccess && submissionData) {
       setActiveStep(3);
     }
   }, [isSuccess, submissionData]);
+
+  useEffect(() => {
+    // Scroll the page to the top when activeStep changes
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }, [activeStep]);
+
 
   // // Save to localStorage whenever bookingData changes
   // useEffect(() => {

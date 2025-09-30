@@ -5,11 +5,22 @@ import axios from "axios";
 import { useGetServicesQuery } from "../../../store/api/user/priceApi";
 
 const MultiServiceSelectionForm = ({ data, onUpdate }) => {
-  const { data: servicesData, error, isLoading } = useGetServicesQuery(
+  const { projectType } = data?.userInfo || {}
+  console.log("Project Type:", projectType);
+  const queryArgs = projectType === "residential"
+    ? { is_residential: true }
+    : projectType === "commercial"
+      ? { is_commercial: true }
+      : {}
+  const { data: servicesData, error, isLoading } = useGetServicesQuery(queryArgs,
     {
       refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
     }
   );
+
+  console.log("queryArgs:", queryArgs);
 
   const services = servicesData || [];
 
@@ -24,6 +35,18 @@ const MultiServiceSelectionForm = ({ data, onUpdate }) => {
 
   if (isLoading) return <p>Loading...</p>;
   if (error) return <p>Error fetching services</p>;
+
+  // Handle no services available for the project type
+  if (!services || services.length === 0) {
+    return (
+      <div>
+        <h2 className="text-xl font-bold mb-4">Select Services</h2>
+        <p className="text-gray-600">
+          No services available for {projectType} projects at the moment.
+        </p>
+      </div>
+    );
+  }
 
   const toggleService = (service) => {
     const existing = data.selectedServices || [];

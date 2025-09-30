@@ -20,7 +20,11 @@ export const ServiceSelectionForm = ({ data, onUpdate }) => {
     isLoading,
     isError,
     error,
-  } = useGetServicesQuery();
+  } = useGetServicesQuery(queryArgs, {
+      refetchOnMountOrArgChange: true,
+      refetchOnFocus: true,
+      refetchOnReconnect: true,
+    });
 
   const handleServiceSelect = (service) => {
     onUpdate({

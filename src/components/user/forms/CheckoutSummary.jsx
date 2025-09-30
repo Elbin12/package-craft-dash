@@ -532,6 +532,18 @@ export const CheckoutSummary = ({
                                     ${formatPrice(packageQuote.total_price)}
                                   </Typography>
 
+                                  <Typography 
+                                    variant="body2"
+                                    sx={{
+                                      justifySelf: "start",
+                                      color: "text.secondary",  // or a specific gray color like "#666"
+                                      fontSize: { xs: "0.875rem", sm: "0.9rem", md: "1rem" },
+                                      mb: 2
+                                    }}
+                                  >
+                                    Plus tax
+                                  </Typography>
+
                                   {/* ✅ Professional Features List */}
                                   <Box textAlign="left" 
                                     sx={{ 

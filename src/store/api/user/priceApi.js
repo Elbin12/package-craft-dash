@@ -13,7 +13,7 @@ export const priceApi = createApi({
       }),
     }),
     getServices: builder.query({
-        query: ()=>({url:`services/`}),
+        query: (params)=>({url:`services/`, method: 'GET', params}),
         providesTags: ['services'],
     }),
   }),

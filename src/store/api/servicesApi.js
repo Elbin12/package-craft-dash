@@ -30,6 +30,14 @@ export const servicesApi = createApi({
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
     }),
+    EditService: builder.mutation({
+      query: ({ id, ...serviceData }) => ({
+        url: `${id}/`,
+        method: 'PATCH',
+        data: serviceData,
+      }),
+      invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
+    }),
     deleteService: builder.mutation({
       query: (id) => ({
         url: `${id}/`,
@@ -76,4 +84,5 @@ export const {
   useUpdateServiceSettingsMutation,
   useAutoMapPackagesMutation,
   useGetBasePricesQuery,
+  useEditServiceMutation,
 } = servicesApi;

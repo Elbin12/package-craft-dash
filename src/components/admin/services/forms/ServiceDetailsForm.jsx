@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import {
   Box,
+  FormControlLabel,
+  Switch,
   TextField,
   Typography,
 } from '@mui/material';
@@ -16,7 +18,9 @@ const ServiceDetailsForm = ({
 
   const handleChange = (field) => (event) => {
     setSavedSteps((prev) => ({ ...prev, 0: false }));
-    const value = event.target.value;
+    const value = event.target.type === "checkbox"
+      ? event.target.checked
+      : event.target.value;
     onUpdate({ [field]: value });
     
     // Clear error when user starts typing
@@ -83,6 +87,29 @@ const ServiceDetailsForm = ({
           error={!!errors.description}
           helperText={errors.description}
         />
+
+        <Box sx={{display: 'flex', flexDirection: 'column', gap: 1}}>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={data?.is_residential || false}
+                onChange={handleChange("is_residential")}
+              />
+            }
+            label="Allow website bids for Residential?"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={data?.is_commercial || false}
+                onChange={handleChange("is_commercial")}
+              />
+            }
+            label="Allow website bids for Commercial?"
+          />
+
+        </Box>
       </Box>
     </Box>
   );

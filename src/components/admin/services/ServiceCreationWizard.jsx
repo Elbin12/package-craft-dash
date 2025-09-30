@@ -92,7 +92,10 @@ export const ServiceCreationWizard = ({
         features: editData.features || [],
         questions: editData.questions || [],
         pricing: editData.pricing || {},
-        settings: editData.settings
+        settings: editData.settings,
+        is_enable_dollar_minimum: editData?.is_enable_dollar_minimum || false,
+        is_residential: editData?.is_residential,
+        is_commercial: editData?.is_commercial,
       });
       setSavedSteps({
         0: true,
@@ -176,7 +179,9 @@ export const ServiceCreationWizard = ({
           if (!savedSteps[0]) {
             const servicePayload = {
               name: serviceData.name,
-              description: serviceData.description
+              description: serviceData.description,
+              is_commercial: serviceData.is_commercial || false,
+              is_residential: serviceData.is_residential || false,
             };
             
             let result;
@@ -291,6 +296,8 @@ export const ServiceCreationWizard = ({
   const updateServiceData = (stepData) => {
     setServiceData((prev) => ({ ...prev, ...stepData }));
   };
+
+  console.log(serviceData, 'serviceData in wizard')
 
   const getStepContent = (step) => {
     switch (step) {

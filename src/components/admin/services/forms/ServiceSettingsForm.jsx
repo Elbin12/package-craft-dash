@@ -23,6 +23,8 @@ import {
   useDeleteQuantityDiscountMutation,
   useLazyGetQuantityDiscountsQuery,
 } from "../../../../store/api/addOnServicesApi"
+import { useUpdatePackageMutation } from "../../../../store/api/packagesApi"
+import { useEditServiceMutation } from "../../../../store/api/servicesApi"
 
 const ServiceSettingsForm = ({ data, onUpdate }) => {
   const [discounts, setDiscounts] = useState({})
@@ -30,10 +32,19 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
   const [existingDiscounts, setExistingDiscounts] = useState([])
   const [editingDiscounts, setEditingDiscounts] = useState({})
 
+  const [enableDollarMinimum, setEnableDollarMinimum] = useState(data?.is_enable_dollar_minimum || false)
+  const [packages, setPackages] = useState(data?.packages || []) // assume data has packages [{id, name, base_price}]
+  const [editing, setEditing] = useState({})
+
+  console.log(data, 'service data in settings form')  
+
   const { data: optionQuestions, isLoading } = useGetOptionQuestionsQuery(data.id)
   const [createQuantityDiscount] = useCreateQuantityDiscountMutation()
   const [updateQuantityDiscount] = useUpdateQuantityDiscountMutation()
   const [deleteQuantityDiscount] = useDeleteQuantityDiscountMutation()
+
+  const [updatePackage] = useUpdatePackageMutation();
+  const [updateService] = useEditServiceMutation()
 
   const [trigger] = useLazyGetQuantityDiscountsQuery()
 
@@ -240,6 +251,64 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
     },
     [existingDiscounts],
   )
+
+  const handleEnableDollarMinimum = async (event) => {
+    const checked = event.target.checked
+    setEnableDollarMinimum(checked)
+
+    try {
+      await updateService({
+        id: data.id,
+        is_enable_dollar_minimum: checked,
+      }).unwrap()
+
+      if (!checked) {
+        // If disabled → reset all package prices to 0
+        const updatedPackages = await Promise.all(
+          packages.map(async (pkg) => {
+            const updated = await updatePackage({
+              id: pkg.id,
+              base_price: 0,
+            }).unwrap()
+            return { ...pkg, base_price: updated.base_price }
+          })
+        )
+
+        setPackages(updatedPackages)
+        onUpdate({ packages: updatedPackages })
+      }
+    } catch (error) {
+      console.error("Error updating service:", error)
+      alert("Failed to update service.")
+    }
+  }
+
+  const handlePriceChange = (pkgId, value) => {
+    setPackages((prev) =>
+      prev.map((p) => (p.id === pkgId ? { ...p, base_price: value } : p))
+    )
+  }
+
+  const handleSavePrice = async (pkgId, price) => {
+    try {
+      const updateData = { base_price: parseFloat(price) }
+      const updatedPackage = await updatePackage({ id: pkgId, ...updateData }).unwrap()
+
+      // Update local state
+      const updatedPackages = packages.map(pkg =>
+        pkg.id === pkgId ? { ...pkg, base_price: updatedPackage.base_price } : pkg
+      )
+
+      setPackages(updatedPackages)
+      onUpdate({ packages: updatedPackages })
+
+      alert("Package updated successfully!")
+    } catch (error) {
+      console.error("Error updating package:", error)
+      alert("Failed to update package.")
+    }
+  }
+
 
   const renderDiscountBox = (discount) => {
     const isEditing = !!editingDiscounts[discount.id]
@@ -479,6 +548,53 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
         }
         label="Apply Trip Charge To Bid"
       />
+
+      <Box mt={3}>
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={enableDollarMinimum}
+              onChange={handleEnableDollarMinimum}
+            />
+          }
+          label="Enable a Dollar Minimum"
+        />
+
+        {enableDollarMinimum && (
+          <Grid container spacing={2} mt={2}>
+            {packages.map((pkg) => (
+              <Grid item xs={12} sm={4} key={pkg.id}>
+                <Card variant="outlined">
+                  <CardContent>
+                    <Typography variant="subtitle1" gutterBottom>
+                      {pkg.name}
+                    </Typography>
+                    <TextField
+                      type="number"
+                      value={pkg.base_price}
+                      onChange={(e) => handlePriceChange(pkg.id, e.target.value)}
+                      InputProps={{
+                        startAdornment: (
+                          <InputAdornment position="start">$</InputAdornment>
+                        ),
+                      }}
+                      fullWidth
+                    />
+                    <Button
+                      variant="contained"
+                      size="small"
+                      onClick={() => handleSavePrice(pkg.id, pkg.base_price)}
+                      sx={{ mt: 1 }}
+                    >
+                      Save
+                    </Button>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Box>
 
       <Box mt={3}>
         <Typography variant="h6" gutterBottom>

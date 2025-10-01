@@ -21,11 +21,9 @@ import {
   Alert,
   CircularProgress,
   Tooltip,
-  Checkbox,
-  FormControlLabel,
   ClickAwayListener,
 } from "@mui/material"
-import { Add, Block, Delete, Edit, Restore, Save } from "@mui/icons-material"
+import { Add, Block, Delete, Edit, Restore, Save, Image as ImageIcon, Close } from "@mui/icons-material"
 import {
   useCreateQuestionMutation,
   useDeleteQuestionMutation,
@@ -42,6 +40,7 @@ import {
   useDeleteQuestionSubQuestionMutation,
   useUpdateQuestionSubQuestionMutation,
 } from "../../../../store/api/questionSubQuestionsApi"
+import { ImageDialog } from "./ImageDialog"
 
 const QUESTION_TYPES = [
   { value: "describe", label: "Multiple Choice (Describe)" },
@@ -60,6 +59,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [newQuestion, setNewQuestion] = useState({
     question_text: "",
     question_type: "describe",
+    image: null,
     order: 1,
     options: [],
     sub_questions: [],
@@ -78,7 +78,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [editingOrderValue, setEditingOrderValue] = useState("")
   const [editingMaxQty, setEditingMaxQty] = useState("")
 
-
   const [editingSubQuestionId, setEditingSubQuestionId] = useState(null)
   const [editingSubQuestionText, setEditingSubQuestionText] = useState("")
 
@@ -87,6 +86,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
   const [openConfirmModal, setOpenConfirmModal] = useState(false)
   const [selectedQuestion, setSelectedQuestion] = useState(null)
+
+  const [imageDialogOpen, setImageDialogOpen] = useState(false)
+  const [currentImageContext, setCurrentImageContext] = useState(null)
+  const [questionImages, setQuestionImages] = useState({})
+  const [optionImages, setOptionImages] = useState({})
 
   const [createQuestion] = useCreateQuestionMutation()
   const [createQuestionOption] = useCreateQuestionOptionMutation()
@@ -99,11 +103,202 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [deleteQuestion] = useDeleteQuestionMutation()
   const [updateQuestionStatus] = useUpdateQuestionStatusMutation()
 
-  console.log(optionInputs, 'optioninputs')
-
   useEffect(() => {
     setQuestions(data.questions || [])
   }, [data.questions])
+
+  const handleOpenQuestionImageDialog = (questionId, currentImage, isChild, parentQuestionId) => {
+    setCurrentImageContext({ type: "question", id: questionId, currentImage, isChild, parentQuestionId })
+    setImageDialogOpen(true)
+  }
+
+  const handleOpenOptionImageDialog = (
+    optionId,
+    currentImage,
+    questionId,
+    isChild = false,
+    parentQuestionId = null,
+    isSubQuestion = false,
+  ) => {
+    setCurrentImageContext({
+      type: "option",
+      id: optionId,
+      currentImage,
+      questionId,
+      isChild,
+      parentQuestionId,
+      isSubQuestion
+    })
+    setImageDialogOpen(true)
+  }
+
+  const handleImageChange = async (file) => {
+    if (!currentImageContext) return
+
+    const formData = new FormData()
+
+    if (currentImageContext.type === "question") {
+      try {
+        if (currentImageContext.isChild) {
+          formData.append("id", currentImageContext.id)
+        }else{
+          const question = questions.find((q) => q.id === currentImageContext.id)
+          formData.append("id", currentImageContext.id)
+          formData.append("question_text", question.question_text)
+          formData.append("question_type", question.question_type)
+          formData.append("order", question.order)
+          formData.append("service", data.id)
+        }
+
+        // If file is null, we're removing the image
+        if (file) {
+          formData.append("image", file)
+        } else {
+          formData.append("image", null)
+        }
+
+        const updated = await updateQuestion({formData}).unwrap()
+
+        if (currentImageContext.isChild) {
+          // If it's a parent question, we might need to update conditional_child reference
+          const updatedQuestions = questions.map((q) => {
+            // If the question is the parent of the updated child
+            if (q.id === updated.parent_question) {
+              // Ensure child_questions exists
+              const childQuestions = q.child_questions || [];
+
+              // Replace the child if it exists, otherwise add it
+              const newChildQuestions = childQuestions.some((c) => c.id === updated.id)
+                ? childQuestions.map((c) => (c.id === updated.id ? updated : c))
+                : [...childQuestions, updated];
+
+              return { ...q, child_questions: newChildQuestions };
+            }
+            return q;
+          });
+          setQuestions(updatedQuestions)
+          onUpdate({ questions: updatedQuestions })
+
+          console.log(updatedQuestions, "updatedQuestions")
+        }else{
+          const updatedQuestions = questions.map((q) => (q.id === currentImageContext.id ? { ...q, ...updated } : q))
+          setQuestions(updatedQuestions)
+          onUpdate({ questions: updatedQuestions })
+  
+          // Update local image state
+          setQuestionImages((prev) => {
+            const newImages = { ...prev }
+            if (file) {
+              newImages[currentImageContext.id] = URL.createObjectURL(file)
+            } else {
+              delete newImages[currentImageContext.id]
+            }
+            return newImages
+          })
+        }
+
+      } catch (err) {
+        console.error("Failed to update question image:", err)
+        setErrors({ general: "Failed to update question image. Please try again." })
+      }
+    } else if (currentImageContext.type === "option") {
+      try {
+        formData.append("id", currentImageContext.id)
+
+        if (file) {
+          formData.append("image", file)
+        } else {
+          formData.append("image", null) // Explicitly send null to remove image
+        }
+        
+        if(currentImageContext.isSubQuestion){
+          formData.append("question", currentImageContext.parentQuestionId)
+
+          const result = await updateQuestionSubQuestion({formData}).unwrap()
+
+          if(currentImageContext.isChild){
+            const updatedQuestions = questions.map((q) => {
+              if (q.id === currentImageContext.parentQuestionId) {
+                return {
+                  ...q,
+                  child_questions: q.child_questions.map((child) =>
+                    child.id === currentImageContext.questionId
+                      ? {
+                          ...child,
+                          sub_questions: child.sub_questions.map((sub) =>
+                            sub.id === currentImageContext.id ? result : sub
+                          ),
+                        }
+                      : child
+                  ),
+                };
+              }
+              return q;
+            });
+            setQuestions(updatedQuestions)
+            onUpdate({ questions: updatedQuestions })
+          }else{
+            const updatedQuestions = questions.map((q) => {
+              if (q.id === currentImageContext.questionId) {
+                return {
+                  ...q,
+                  sub_questions: q.sub_questions.map((sub) => (sub.id === currentImageContext.id ? result : sub)),
+                }
+              }
+              return q
+            })
+            setQuestions(updatedQuestions)
+            onUpdate({ questions: updatedQuestions })
+          }
+        }else{
+          const result = await updateQuestionOption({formData}).unwrap()
+          const { questionId, isChild, parentQuestionId } = currentImageContext
+  
+          const updatedQuestions = questions.map((q) => {
+            if (!isChild && q.id === questionId) {
+              return {
+                ...q,
+                options: q.options.map((opt) => (opt.id === currentImageContext.id ? result : opt)),
+              }
+            }
+            if (isChild && q.id === parentQuestionId) {
+              return {
+                ...q,
+                child_questions: q.child_questions.map((child) =>
+                  child.id === questionId
+                    ? {
+                        ...child,
+                        options: child.options.map((opt) => (opt.id === currentImageContext.id ? result : opt)),
+                      }
+                    : child,
+                ),
+              }
+            }
+            return q
+          })
+          setQuestions(updatedQuestions)
+          onUpdate({ questions: updatedQuestions })
+        }
+        
+
+
+        // Update local image state
+        // setOptionImages((prev) => {
+        //   const newImages = { ...prev }
+        //   if (file) {
+        //     newImages[currentImageContext.id] = URL.createObjectURL(file)
+        //   } else {
+        //     delete newImages[currentImageContext.id]
+        //   }
+        //   return newImages
+        // })
+      } catch (err) {
+        console.error("Failed to update option image:", err)
+        setErrors({ general: "Failed to update option image. Please try again." })
+      }
+    }
+    setCurrentImageContext(null) // Clear context after handling
+  }
 
   const validateQuestion = (q = newQuestion) => {
     const newErrors = {}
@@ -146,6 +341,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
     setIsLoading(true)
     try {
+      const formData = new FormData()
       const questionPayload = {
         service: data.id,
         question_text: newQuestion.question_text.trim(),
@@ -153,10 +349,23 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         order: questions.length + 1,
       }
 
+      formData.append("service", data.id)
+      formData.append("question_text", newQuestion.question_text.trim())
+      formData.append("question_type", newQuestion.question_type)
+      formData.append("order", questions.length + 1)
+
+      if (questionImages["new"]) {
+        questionPayload.image = questionImages["new"]
+        formData.append("image", questionImages["new"])
+      }
+
       // Add conditional fields if it's a conditional question
       if (newQuestion.parent_question) {
         questionPayload.parent_question = newQuestion.parent_question
         questionPayload.condition_answer = newQuestion.condition_answer
+
+        formData.append("parent_question", newQuestion.parent_question)
+        formData.append("condition_answer", newQuestion.condition_answer)
       }
 
       // Add options for describe/quantity types
@@ -168,6 +377,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             allow_quantity: opt.allow_quantity || false,
             max_quantity: opt.max_quantity || 1,
           }),
+          // Add image to option payload if present
+          ...(opt.file && { image: opt.file }),
         }))
       }
 
@@ -196,7 +407,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             condition_answer: "yes", // adapt if your backend uses different
           }
 
-          // Add child options if needed
+          // Add options for describe/quantity types
           if (isOptionType(child.question_type) && child.options && child.options.length > 0) {
             childPayload.options = child.options.map((opt, idx) => ({
               option_text: opt.option_text || opt,
@@ -205,10 +416,12 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 allow_quantity: opt.allow_quantity || false,
                 max_quantity: opt.max_quantity || 1,
               }),
+              // Add image to child option payload if present
+              ...(opt.file && { image: opt.file }),
             }))
           }
 
-          // Add child sub-questions if needed
+          // Add sub-questions for multiple_yes_no type
           if (isSubQuestionType(child.question_type) && child.sub_questions && child.sub_questions.length > 0) {
             childPayload.sub_questions = child.sub_questions.map((subQ, idx) => ({
               sub_question_text: subQ.sub_question_text || subQ,
@@ -243,6 +456,15 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         condition_answer: null,
         conditional_child: null,
       })
+      // Clear image state for new question/options
+      setQuestionImages((prev) => {
+        const { new: _, ...rest } = prev
+        return rest
+      })
+      setOptionImages((prev) => {
+        const { new_option_new: _, ...rest } = prev // Assuming 'new_option_new' is the key for a temporary new option
+        return rest
+      })
       setErrors({})
     } catch (error) {
       console.error("Failed to create question:", error)
@@ -258,18 +480,27 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     const optionText = optionInputs["new"] || ""
     if (!optionText.trim()) return
 
+    const tempId = Date.now()
     const newOption = {
       option_text: optionText.trim(),
       allow_quantity: newQuestion.question_type === "quantity",
       max_quantity: 1,
-      tempId: Date.now(),
+      tempId: tempId,
+      // Add image if present for the new option being added
+      image: optionInputs["image"] || null,
+      file: optionInputs["file"] || null, // Store the actual file for upload
     }
 
     setNewQuestion((prev) => ({
       ...prev,
       options: [...prev.options, newOption],
     }))
-    setOptionInputs((prev) => ({ ...prev, new: "" }))
+    setOptionInputs((prev) => ({ ...prev, new: "", image: null, file: null }))
+    // Clear the image input for this specific new option
+    setOptionImages((prev) => {
+      const { [`new_option_${tempId}`]: _, ...rest } = prev
+      return rest
+    })
   }
 
   const handleAddSubQuestionToNew = () => {
@@ -292,11 +523,14 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     const optionText = optionInputs["conditional_child"] || ""
     if (!optionText.trim()) return
 
+    const tempId = Date.now()
     const newOption = {
       option_text: optionText.trim(),
       allow_quantity: newQuestion.conditional_child?.question_type === "quantity",
       max_quantity: 1,
-      tempId: Date.now(),
+      tempId: tempId,
+      // Add image if present for the new conditional child option
+      image: optionImages[`conditional_child_option_${tempId}`] || null,
     }
 
     setNewQuestion((prev) => ({
@@ -307,6 +541,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       },
     }))
     setOptionInputs((prev) => ({ ...prev, conditional_child: "" }))
+    // Clear the image input for this specific new conditional child option
+    setOptionImages((prev) => {
+      const { [`conditional_child_option_${tempId}`]: _, ...rest } = prev
+      return rest
+    })
   }
 
   const handleAddSubQuestionToConditionalChild = () => {
@@ -362,18 +601,24 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     }))
   }
 
-  const handleAddOptionToQuestion = async (questionId, optionText, maxQty = 1, forChild = false, parentQuestionId = null, customOrder = null) => {
+  const handleAddOptionToQuestion = async (
+    questionId,
+    optionText,
+    maxQty = 1,
+    forChild = false,
+    parentQuestionId = null,
+    customOrder = null,
+  ) => {
     if (!optionText.trim()) return
 
     // Add quantity-specific fields if it's a quantity question
-      const currentQuestion = forChild 
-        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
-        : questions.find(q => q.id === questionId)
+    const currentQuestion = forChild
+      ? questions.find((q) => q.id === parentQuestionId)?.child_questions?.find((child) => child.id === questionId)
+      : questions.find((q) => q.id === questionId)
 
     const existingOptions = currentQuestion?.options || []
-    const nextOrder = customOrder || (existingOptions.length > 0 ? Math.max(...existingOptions.map(opt => opt.order || 0)) + 1 : 1)
-
-    console.log(nextOrder, customOrder, 'orderssssss')
+    const nextOrder =
+      customOrder || (existingOptions.length > 0 ? Math.max(...existingOptions.map((opt) => opt.order || 0)) + 1 : 1)
 
     try {
       const payload = {
@@ -382,12 +627,19 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         option_text: optionText.trim(),
         order: nextOrder,
       }
-      
+
       if (currentQuestion?.question_type === "quantity") {
         payload.allow_quantity = true
-        payload.max_quantity = parseInt(maxQty) || 1
+        payload.max_quantity = Number.parseInt(maxQty) || 1
       }
-      
+
+      const imageKey = forChild
+        ? `child_${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
+        : `${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
+      if (optionImages[imageKey]) {
+        payload.image = optionImages[imageKey]
+      }
+
       const optionResult = await createQuestionOption(payload).unwrap()
 
       const updatedQuestions = questions.map((q) => {
@@ -407,6 +659,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
       setQuestions(updatedQuestions)
       onUpdate({ questions: updatedQuestions })
+      // Clear image state for the added option
+      setOptionImages((prev) => {
+        const { [imageKey]: _, ...rest } = prev
+        return rest
+      })
     } catch (err) {
       console.error("Failed to add option", err)
     }
@@ -448,18 +705,20 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     subQuestionText,
     forChild = false,
     parentQuestionId = null,
-    customOrder = null
+    customOrder = null,
   ) => {
     if (!subQuestionText.trim()) return
 
     try {
       // Calculate the order based on existing sub-questions or use custom order
-      const currentQuestion = forChild 
-        ? questions.find(q => q.id === parentQuestionId)?.child_questions?.find(child => child.id === questionId)
-        : questions.find(q => q.id === questionId)
-        
+      const currentQuestion = forChild
+        ? questions.find((q) => q.id === parentQuestionId)?.child_questions?.find((child) => child.id === questionId)
+        : questions.find((q) => q.id === questionId)
+
       const existingSubQuestions = currentQuestion?.sub_questions || []
-      const nextOrder = customOrder || (existingSubQuestions.length > 0 ? Math.max(...existingSubQuestions.map(subQ => subQ.order || 0)) + 1 : 1)
+      const nextOrder =
+        customOrder ||
+        (existingSubQuestions.length > 0 ? Math.max(...existingSubQuestions.map((subQ) => subQ.order || 0)) + 1 : 1)
 
       const payload = {
         question: questionId,
@@ -570,14 +829,13 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
   const updateExistingQuestion = async (question) => {
     try {
-      const payload = {
-        id: question.id,
-        question_text: question.question_text,
-        question_type: question.question_type,
-        order: question.order,
-        service: data.id,
-      }
-      const updated = await updateQuestion(payload).unwrap()
+      const formData = new FormData()
+      formData.append("id", question.id)
+      formData.append("question_text", question.question_text)
+      formData.append("question_type", question.question_type)
+      formData.append("order", question.order)
+      formData.append("service", data.id) 
+      const updated = await updateQuestion({formData}).unwrap()
 
       const updatedQuestions = questions.map((q) => (q.id === question.id ? { ...q, ...updated } : q))
       setQuestions(updatedQuestions)
@@ -626,7 +884,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       label="Order"
                       value={editingOrderValue}
                       onChange={(e) => setEditingOrderValue(e.target.value)}
-                      inputProps={{ min: 1, style: { width: '60px' } }}
+                      inputProps={{ min: 1, style: { width: "60px" } }}
                       variant="standard"
                     />
                     {question.question_type === "quantity" && (
@@ -652,11 +910,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                               const result = await updateQuestionOption({
                                 id: option.id,
                                 option_text: editingOptionText.trim(),
-                                order: parseInt(editingOrderValue) || option.order || 1,
+                                order: Number.parseInt(editingOrderValue) || option.order || 1,
                                 question: question.id,
                                 ...(question.question_type === "quantity" && {
                                   allow_quantity: true,
-                                  max_quantity: parseInt(editingMaxQty) || option.max_quantity || 1,
+                                  max_quantity: Number.parseInt(editingMaxQty) || option.max_quantity || 1,
                                 }),
                               }).unwrap()
 
@@ -664,7 +922,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                                 if (!isChild && q.id === question.id) {
                                   return {
                                     ...q,
-                                    options: q.options.map((opt) => (opt.id === option.id ? result : opt))
+                                    options: q.options
+                                      .map((opt) => (opt.id === option.id ? result : opt))
                                       .sort((a, b) => (a.order || 0) - (b.order || 0)),
                                   }
                                 }
@@ -675,7 +934,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                                       child.id === question.id
                                         ? {
                                             ...child,
-                                            options: child.options.map((opt) => (opt.id === option.id ? result : opt))
+                                            options: child.options
+                                              .map((opt) => (opt.id === option.id ? result : opt))
                                               .sort((a, b) => (a.order || 0) - (b.order || 0)),
                                           }
                                         : child,
@@ -690,7 +950,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                               setEditingOptionId(null)
                               setEditingOrderValue("")
                               setEditingMaxQty("")
-
                             } catch (err) {
                               console.error("Failed to update option:", err)
                             }
@@ -700,32 +959,34 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       >
                         <Save sx={{ fontSize: "19px" }} />
                       </IconButton>
-                      {/* <IconButton
-                        size="small"
-                        onClick={() => {
-                          setEditingOptionId(null)
-                          setEditingOrderValue("")
-                        }}
-                        sx={{ p: 0, color: "#f44336" }}
-                      >
-                        <Delete sx={{ fontSize: "14px" }} />
-                      </IconButton> */}
                     </Box>
                   </Box>
                 </ClickAwayListener>
               ) : (
                 <>
+                  <Tooltip title={option.image ? "View/Edit Image" : "Add Image"}>
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        handleOpenOptionImageDialog(option.id, option.image, question.id, isChild, parentQuestionId)
+                      }
+                      sx={{ p: 0 }}
+                    >
+                      <ImageIcon
+                        sx={{
+                          fontSize: "16px",
+                          color: option.image ? "#14a55c" : "#ccc",
+                        }}
+                      />
+                    </IconButton>
+                  </Tooltip>
                   <Typography variant="body2">{option.option_text || option}</Typography>
                   {question.question_type === "quantity" && (
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: "12px" }}>
                       (Max: {option.max_quantity || 1})
                     </Typography>
                   )}
-                  <Typography 
-                    variant="body2" 
-                    color="text.secondary" 
-                    sx={{ fontSize: "10px", minWidth: "20px" }}
-                  >
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: "10px", minWidth: "20px" }}>
                     #{option.order || 1}
                   </Typography>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -735,7 +996,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                         setEditingOptionId(option.id)
                         setEditingOptionText(option.option_text || "")
                         setEditingOrderValue((option.order || 1).toString())
-                        setEditingMaxQty(question?.question_type === "quantity"? option?.max_quantity:null)
+                        setEditingMaxQty(question?.question_type === "quantity" ? option?.max_quantity : null)
                       }}
                       sx={{ p: 0 }}
                     >
@@ -767,36 +1028,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 [isChild ? `child_${question.id}` : question.id]: e.target.value,
               }))
             }
-            // onKeyDown={(e) => {
-            //   if (e.key === "Enter") {
-            //     e.preventDefault()
-            //     if (isChild) {
-            //       handleAddOptionToQuestion(
-            //         question.id,
-            //         optionInputs[`child_${question.id}`] || "",
-            //         optionInputs[`child_${question.id}_maxQty`] || 1,
-            //         true,
-            //         parentQuestionId,
-            //       )
-            //       setOptionInputs((prev) => ({ 
-            //         ...prev, 
-            //         [`child_${question.id}`]: "",
-            //         [`child_${question.id}_maxQty`]: ""
-            //       }))
-            //     } else {
-            //       handleAddOptionToQuestion(
-            //         question.id, 
-            //         optionInputs[question.id] || "",
-            //         optionInputs[`${question.id}_maxQty`] || 1
-            //       )
-            //       setOptionInputs((prev) => ({ 
-            //         ...prev, 
-            //         [question.id]: "",
-            //         [`${question.id}_maxQty`]: ""
-            //       }))
-            //     }
-            //   }
-            // }}
             sx={{ minWidth: "150px" }}
           />
 
@@ -804,7 +1035,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             type="number"
             size="small"
             label="Order"
-            value={isChild ? optionInputs[`child_${question.id}_order`] || "" : optionInputs[`${question.id}_order`] || ""}
+            value={
+              isChild ? optionInputs[`child_${question.id}_order`] || "" : optionInputs[`${question.id}_order`] || ""
+            }
             onChange={(e) =>
               setOptionInputs((prev) => ({
                 ...prev,
@@ -821,28 +1054,28 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     optionInputs[`child_${question.id}_maxQty`] || 1,
                     true,
                     parentQuestionId,
-                    optionInputs[`child_${question.id}_order`] || 1 // pass order
+                    optionInputs[`child_${question.id}_order`] || 1, // pass order
                   )
-                  setOptionInputs((prev) => ({ 
-                    ...prev, 
+                  setOptionInputs((prev) => ({
+                    ...prev,
                     [`child_${question.id}`]: "",
                     [`child_${question.id}_maxQty`]: "",
-                    [`child_${question.id}_order`]: ""
+                    [`child_${question.id}_order`]: "",
                   }))
                 } else {
                   handleAddOptionToQuestion(
-                    question.id, 
+                    question.id,
                     optionInputs[question.id] || "",
                     optionInputs[`${question.id}_maxQty`] || 1,
                     false,
                     null,
-                    optionInputs[`${question.id}_order`] || 1 // pass order
+                    optionInputs[`${question.id}_order`] || 1, // pass order
                   )
-                  setOptionInputs((prev) => ({ 
-                    ...prev, 
+                  setOptionInputs((prev) => ({
+                    ...prev,
                     [question.id]: "",
                     [`${question.id}_maxQty`]: "",
-                    [`${question.id}_order`]: ""
+                    [`${question.id}_order`]: "",
                   }))
                 }
               }
@@ -851,94 +1084,111 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             inputProps={{ min: 1 }}
           />
 
-          
           {/* Max Quantity Input for quantity type questions */}
           {question.question_type === "quantity" && (
             <TextField
               size="small"
               type="number"
               label="Max Qty"
-              value={isChild ? optionInputs[`child_${question.id}_maxQty`] || "" : optionInputs[`${question.id}_maxQty`] || ""}
+              value={
+                isChild
+                  ? optionInputs[`child_${question.id}_maxQty`] || ""
+                  : optionInputs[`${question.id}_maxQty`] || ""
+              }
               onChange={(e) =>
                 setOptionInputs((prev) => ({
                   ...prev,
                   [isChild ? `child_${question.id}_maxQty` : `${question.id}_maxQty`]: e.target.value,
                 }))
               }
-              // onKeyDown={(e) => {
-              //   if (e.key === "Enter") {
-              //     e.preventDefault()
-              //     if (isChild) {
-              //       handleAddOptionToQuestion(
-              //         question.id,
-              //         optionInputs[`child_${question.id}`] || "",
-              //         optionInputs[`child_${question.id}_maxQty`] || 1,
-              //         true,
-              //         parentQuestionId,
-              //       )
-              //       setOptionInputs((prev) => ({ 
-              //         ...prev, 
-              //         [`child_${question.id}`]: "",
-              //         [`child_${question.id}_maxQty`]: ""
-              //       }))
-              //     } else {
-              //       handleAddOptionToQuestion(
-              //         question.id, 
-              //         optionInputs[question.id] || "",
-              //         optionInputs[`${question.id}_maxQty`] || 1
-              //       )
-              //       setOptionInputs((prev) => ({ 
-              //         ...prev, 
-              //         [question.id]: "",
-              //         [`${question.id}_maxQty`]: ""
-              //       }))
-              //     }
-              //   }
-              // }}
               sx={{ width: "100px" }}
               inputProps={{ min: 1 }}
             />
           )}
-          
+
           <Button
             onClick={() => {
               if (isChild) {
+                const existingOptions = question?.options || []
+                const imageKey = `child_${question.id}_${optionInputs[`child_${question.id}_order`] || existingOptions.length + 1}`
                 handleAddOptionToQuestion(
                   question.id,
                   optionInputs[`child_${question.id}`] || "",
                   optionInputs[`child_${question.id}_maxQty`] || 1,
                   true,
                   parentQuestionId,
-                  optionInputs[`child_${question.id}_order`] || 1
+                  optionInputs[`child_${question.id}_order`] || 1,
                 )
-                setOptionInputs((prev) => ({ 
-                  ...prev, 
+                // Pre-set the image for the new option if it exists in optionImages
+                if (optionImages[imageKey]) {
+                  setNewQuestion((prev) => ({
+                    ...prev,
+                    conditional_child: {
+                      ...prev.conditional_child,
+                      options: prev.conditional_child.options.map((opt) =>
+                        opt.tempId ===
+                        /* find the tempId of the option being added */ (prev.conditional_child.options.length > 0
+                          ? prev.conditional_child.options[prev.conditional_child.options.length - 1].tempId
+                          : 0)
+                          ? { ...opt, image: optionImages[imageKey] }
+                          : opt,
+                      ),
+                    },
+                  }))
+                }
+
+                setOptionImages((prev) => {
+                  const { [imageKey]: _, ...rest } = prev
+                  return rest
+                })
+
+                setOptionInputs((prev) => ({
+                  ...prev,
                   [`child_${question.id}`]: "",
                   [`child_${question.id}_maxQty`]: "",
-                  [`child_${question.id}_order`]: ""
+                  [`child_${question.id}_order`]: "",
                 }))
               } else {
+                const existingOptions = question?.options || []
+                const imageKey = `${question.id}_${optionInputs[`${question.id}_order`] || existingOptions.length + 1}`
                 handleAddOptionToQuestion(
-                  question.id, 
+                  question.id,
                   optionInputs[question.id] || "",
                   optionInputs[`${question.id}_maxQty`] || 1,
                   false,
                   null,
-                  optionInputs[`${question.id}_order`] || 1
+                  optionInputs[`${question.id}_order`] || 1,
                 )
-                setOptionInputs((prev) => ({ 
-                  ...prev, 
+                // Pre-set the image for the new option if it exists in optionImages
+                if (optionImages[imageKey]) {
+                  setNewQuestion((prev) => ({
+                    ...prev,
+                    options: prev.options.map((opt) =>
+                      opt.tempId ===
+                      /* find the tempId of the option being added */ (prev.options.length > 0
+                        ? prev.options[prev.options.length - 1].tempId
+                        : 0)
+                        ? { ...opt, image: optionImages[imageKey] }
+                        : opt,
+                    ),
+                  }))
+                }
+                setOptionImages((prev) => {
+                  const { [imageKey]: _, ...rest } = prev
+                  return rest
+                })
+                setOptionInputs((prev) => ({
+                  ...prev,
                   [question.id]: "",
                   [`${question.id}_maxQty`]: "",
-                  [`${question.id}_order`]: ""
+                  [`${question.id}_order`]: "",
                 }))
               }
             }}
             disabled={
-              !(isChild 
+              !(isChild
                 ? optionInputs[`child_${question.id}`]?.trim() && optionInputs[`child_${question.id}_order`]
-                : optionInputs[question.id]?.trim() && optionInputs[`${question.id}_order`]
-              )
+                : optionInputs[question.id]?.trim() && optionInputs[`${question.id}_order`])
             }
             variant="outlined"
             size="small"
@@ -988,7 +1238,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       label="Order"
                       value={editingOrderValue}
                       onChange={(e) => setEditingOrderValue(e.target.value)}
-                      inputProps={{ min: 1, style: { width: '60px' } }}
+                      inputProps={{ min: 1, style: { width: "60px" } }}
                       variant="standard"
                     />
                     <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -997,12 +1247,12 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                         onClick={async () => {
                           if (editingSubQuestionText.trim()) {
                             try {
-                              const result = await updateQuestionSubQuestion({
-                                id: subQuestion.id,
-                                sub_question_text: editingSubQuestionText.trim(),
-                                order: parseInt(editingOrderValue) || subQuestion.order || 1,
-                                question: question.id,
-                              }).unwrap()
+                              const formData = new FormData()
+                              formData.append("id", subQuestion.id)
+                              formData.append("sub_question_text", editingSubQuestionText.trim())
+                              formData.append("order", Number.parseInt(editingOrderValue) || subQuestion.order || 1)
+                              formData.append("question", question.id)  
+                              const result = await updateQuestionSubQuestion({formData}).unwrap()
 
                               const updatedQuestions = questions.map((q) => {
                                 if (!isChild && q.id === question.id) {
@@ -1050,12 +1300,24 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 </ClickAwayListener>
               ) : (
                 <>
+                  <Tooltip title={subQuestion.image ? "View/Edit Image" : "Add Image"}>
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        handleOpenOptionImageDialog(subQuestion.id, subQuestion.image, question.id, isChild, parentQuestionId, true)
+                      }
+                      sx={{ p: 0 }}
+                    >
+                      <ImageIcon
+                        sx={{
+                          fontSize: "16px",
+                          color: subQuestion.image ? "#14a55c" : "#ccc",
+                        }}
+                      />
+                    </IconButton>
+                  </Tooltip>
                   <Typography variant="body2">{subQuestion.sub_question_text || subQuestion}</Typography>
-                  <Typography
-                    variant="body2"
-                    color="text.secondary"
-                    sx={{ fontSize: "10px", minWidth: "20px" }}
-                  >
+                  <Typography variant="body2" color="text.secondary" sx={{ fontSize: "10px", minWidth: "20px" }}>
                     #{subQuestion.order || 1}
                   </Typography>
                   <Box sx={{ display: "flex", gap: 0.5 }}>
@@ -1103,7 +1365,11 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
             size="small"
             type="number"
             label="Order"
-            value={isChild ? subQuestionInputs[`child_${question.id}_order`] || "" : subQuestionInputs[`${question.id}_order`] || ""}
+            value={
+              isChild
+                ? subQuestionInputs[`child_${question.id}_order`] || ""
+                : subQuestionInputs[`${question.id}_order`] || ""
+            }
             onChange={(e) =>
               setSubQuestionInputs((prev) => ({
                 ...prev,
@@ -1121,12 +1387,12 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   subQuestionInputs[`child_${question.id}`] || "",
                   true,
                   parentQuestionId,
-                  subQuestionInputs[`child_${question.id}_order`] || 1
+                  subQuestionInputs[`child_${question.id}_order`] || 1,
                 )
                 setSubQuestionInputs((prev) => ({
                   ...prev,
                   [`child_${question.id}`]: "",
-                  [`child_${question.id}_order`]: ""
+                  [`child_${question.id}_order`]: "",
                 }))
               } else {
                 handleAddSubQuestionToQuestion(
@@ -1134,20 +1400,19 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   subQuestionInputs[question.id] || "",
                   false,
                   null,
-                  subQuestionInputs[`${question.id}_order`] || 1
+                  subQuestionInputs[`${question.id}_order`] || 1,
                 )
                 setSubQuestionInputs((prev) => ({
                   ...prev,
                   [question.id]: "",
-                  [`${question.id}_order`]: ""
+                  [`${question.id}_order`]: "",
                 }))
               }
             }}
             disabled={
-              !(isChild 
+              !(isChild
                 ? subQuestionInputs[`child_${question.id}`]?.trim() && subQuestionInputs[`child_${question.id}_order`]
-                : subQuestionInputs[question.id]?.trim() && subQuestionInputs[`${question.id}_order`]
-              )
+                : subQuestionInputs[question.id]?.trim() && subQuestionInputs[`${question.id}_order`])
             }
             variant="outlined"
             size="small"
@@ -1182,6 +1447,29 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 borderRadius: 1,
               }}
             >
+              {/* <Tooltip title={option.image ? "View/Edit Image" : "Add Image"}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setCurrentImageContext({
+                      type: "option",
+                      id: option.tempId, // Use tempId for new options
+                      currentImage: option.image || null,
+                      isNewOption: true,
+                      imageKey: `new_option_${option.tempId}`,
+                    })
+                    setImageDialogOpen(true)
+                  }}
+                  sx={{ p: 0 }}
+                >
+                  <ImageIcon
+                    sx={{
+                      fontSize: "16px",
+                      color: option.image ? "#1976d2" : "#ccc",
+                    }}
+                  />
+                </IconButton>
+              </Tooltip> */}
               <TextField
                 size="small"
                 value={option.option_text}
@@ -1198,22 +1486,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
               {newQuestion.question_type === "quantity" && (
                 <>
-                  {/* <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={option.allow_quantity || false}
-                        onChange={(e) => {
-                          setNewQuestion((prev) => ({
-                            ...prev,
-                            options: prev.options.map((opt) =>
-                              opt.tempId === option.tempId ? { ...opt, allow_quantity: e.target.checked } : opt,
-                            ),
-                          }))
-                        }}
-                      />
-                    }
-                    label="Allow Quantity"
-                  /> */}
                   <TextField
                     size="small"
                     type="number"
@@ -1255,6 +1527,27 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
               }
             }}
           />
+          {/* Add image upload button for new options */}
+          {/* <Tooltip title="Add Image">
+            <IconButton
+              size="small"
+              onClick={() => {
+                const tempId = Date.now()
+                setCurrentImageContext({
+                  type: "option",
+                  id: tempId,
+                  currentImage: optionInputs["image"]||null,
+                  isNewOption: true,
+                  imageKey: `new_option_${tempId}`,
+                  isNewOptionForNewQuestion: true, // Special flag for new question's new option
+                })
+                setImageDialogOpen(true)
+              }}
+              sx={{ p: 0 }}
+            >
+              <ImageIcon sx={{ fontSize: "16px", color: optionInputs["image"] ? "#1976d2" : "#ccc", }} />
+            </IconButton>
+          </Tooltip> */}
           <Button
             onClick={handleAddOptionToNewQuestion}
             disabled={!optionInputs["new"]?.trim()}
@@ -1376,6 +1669,30 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 borderRadius: 1,
               }}
             >
+              {/* Added image icon for conditional child options */}
+              <Tooltip title={option.image ? "View/Edit Image" : "Add Image"}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    setCurrentImageContext({
+                      type: "option",
+                      id: option.tempId,
+                      currentImage: option.image || null,
+                      isNewOption: false, // This is an existing option
+                      imageKey: `conditional_child_option_${option.tempId}`,
+                    })
+                    setImageDialogOpen(true)
+                  }}
+                  sx={{ p: 0 }}
+                >
+                  <ImageIcon
+                    sx={{
+                      fontSize: "16px",
+                      color: option.image ? "#14a55c" : "#ccc",
+                    }}
+                  />
+                </IconButton>
+              </Tooltip>
               <TextField
                 size="small"
                 value={option.option_text}
@@ -1395,25 +1712,6 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
               {newQuestion.conditional_child.question_type === "quantity" && (
                 <>
-                  {/* <FormControlLabel
-                    control={
-                      <Checkbox
-                        checked={option.allow_quantity || false}
-                        onChange={(e) => {
-                          setNewQuestion((prev) => ({
-                            ...prev,
-                            conditional_child: {
-                              ...prev.conditional_child,
-                              options: prev.conditional_child.options.map((opt) =>
-                                opt.tempId === option.tempId ? { ...opt, allow_quantity: e.target.checked } : opt,
-                              ),
-                            },
-                          }))
-                        }}
-                      />
-                    }
-                    label="Allow Quantity"
-                  /> */}
                   <TextField
                     size="small"
                     type="number"
@@ -1458,6 +1756,26 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
               }
             }}
           />
+          {/* Add image upload button for new conditional child options */}
+          <Tooltip title="Add Image">
+            <IconButton
+              size="small"
+              onClick={() => {
+                const tempId = Date.now()
+                setCurrentImageContext({
+                  type: "option",
+                  id: tempId,
+                  currentImage: null,
+                  isNewOption: true,
+                  imageKey: `conditional_child_option_${tempId}`,
+                })
+                setImageDialogOpen(true)
+              }}
+              sx={{ p: 0 }}
+            >
+              <ImageIcon sx={{ fontSize: "16px", color: "#ccc" }} />
+            </IconButton>
+          </Tooltip>
           <Button
             onClick={handleAddOptionToConditionalChild}
             disabled={!optionInputs["conditional_child"]?.trim()}
@@ -1622,6 +1940,19 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       />
                     ) : (
                       <Box display="flex" alignItems="center" gap={1}>
+                        <Tooltip title={question.image ? "View/Edit Image" : "Add Image"}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenQuestionImageDialog(question.id, question.image)}
+                          >
+                            <ImageIcon
+                              sx={{
+                                fontSize: "20px",
+                                color: question.image ? "#14a55c" : "#ccc",
+                              }}
+                            />
+                          </IconButton>
+                        </Tooltip>
                         <Typography variant="h6" fontSize={18} gutterBottom>
                           {question.question_text}
                         </Typography>
@@ -1680,9 +2011,25 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                           </Typography>
                           {question.child_questions.map((child, index) => (
                             <Card key={index} variant="outlined" sx={{ p: 2, mb: 2 }}>
-                              <Typography variant="body1" gutterBottom>
-                                {child.question_text}
-                              </Typography>
+                              <Box display="flex" alignItems="center" gap={0.5}>
+                                <Tooltip title={child.image ? "View/Edit Image" : "Add Image"}>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleOpenQuestionImageDialog(child.id, child.image, true, question.id)}
+                                    sx={{ p: 0 }}
+                                  >
+                                    <ImageIcon
+                                      sx={{
+                                        fontSize: "16px",
+                                        color: child.image ? "#14a55c" : "#ccc",
+                                      }}
+                                    />
+                                  </IconButton>
+                                </Tooltip>
+                                <Typography variant="body1" gutterBottom>
+                                  {child.question_text}
+                                </Typography>
+                              </Box>
                               <Chip
                                 label={
                                   QUESTION_TYPES.find((t) => t.value === child.question_type)?.label ||
@@ -1932,6 +2279,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 condition_answer: null,
                 conditional_child: null,
               })
+              // Clear temporary image states
+              setQuestionImages({})
+              setOptionImages({})
             }}
           >
             Cancel
@@ -1946,6 +2296,48 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      <ImageDialog
+        open={imageDialogOpen}
+        onClose={() => {
+          setImageDialogOpen(false)
+          // When closing the dialog, clear the temporary image if it's a new option being added and no save occurred
+          if (currentImageContext?.isNewOption) {
+            setOptionImages((prev) => {
+              const { [currentImageContext.imageKey]: _, ...rest } = prev
+              return rest
+            })
+          }
+          setCurrentImageContext(null)
+        }}
+        imageUrl={currentImageContext?.currentImage}
+        onImageChange={(file) => {
+          if(currentImageContext?.isNewOptionForNewQuestion){
+            optionInputs["image"] = file ? URL.createObjectURL(file) : null
+            optionInputs["file"] = file
+          }
+          else if (currentImageContext.isNewOption) {
+            if (file) {
+              setNewQuestion((prev) => ({
+                ...prev,
+                options: prev.options.map((opt) =>
+                  opt.tempId === currentImageContext.id
+                    ? { ...opt, image: file ? URL.createObjectURL(file) : null, file:file }
+                    : opt
+                ),
+              }));
+            } else {
+              setOptionImages((prev) => {
+                const { [currentImageContext.imageKey]: _, ...rest } = prev
+                return rest
+              })
+            }
+          } else {
+            handleImageChange(file) // For existing questions/options, call the main handler
+          }
+        }}
+        title={currentImageContext?.type === "question" ? "Question Image" : "Option Image"}
+      />
     </Box>
   )
 }

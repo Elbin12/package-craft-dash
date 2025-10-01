@@ -23,10 +23,10 @@ export const questionOptionsApi = createApi({
       invalidatesTags: ['QuestionOption'],
     }),
     updateQuestionOption: builder.mutation({
-      query: ({ id, ...questionOptionData }) => ({
-        url: `${id}/`,
-        method: 'PUT',
-        data: questionOptionData,
+      query: ({ formData }) => ({
+        url: `${formData.get("id")}/`,
+        method: 'PATCH',
+        data: formData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'QuestionOption', id }],
     }),

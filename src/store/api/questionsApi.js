@@ -15,18 +15,18 @@ export const questionsApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Question', id }],
     }),
     createQuestion: builder.mutation({
-      query: (questionData) => ({
+      query: (formData) => ({
         url: '',
         method: 'POST',
-        data: questionData,
+        data: formData,
       }),
       invalidatesTags: ['Question'],
     }),
     updateQuestion: builder.mutation({
-      query: ({ id, ...questionData }) => ({
-        url: `${id}/`,
-        method: 'PUT',
-        data: questionData,
+      query: ({ formData }) => ({
+        url: `${formData.get("id")}/`,
+        method: 'PATCH',
+        data: formData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Question', id }],
     }),

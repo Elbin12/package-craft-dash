@@ -15,10 +15,10 @@ export const questionSubQuestionsApi = createApi({
       invalidatesTags: ['Sub-Question'],
     }),
     updateQuestionSubQuestion: builder.mutation({
-      query: ({ id, ...data }) => ({
-        url: `sub-questions/${id}/`,
-        method: 'PUT',
-        data: data,
+      query: ({ formData }) => ({
+        url: `sub-questions/${formData.get("id")}/`,
+        method: 'PATCH',
+        data: formData,
       }),
       invalidatesTags: (result, error, { id }) => [{ type: 'Sub-Question', id }],
     }),

@@ -26,7 +26,7 @@ import {
   DialogContent,
 } from "@mui/material"
 import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
-import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation } from "../../../store/api/user/quoteApi"
+import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation } from "../../../store/api/user/quoteApi"
 import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { useNavigate } from "react-router-dom"
@@ -57,7 +57,14 @@ export const CheckoutSummary = ({
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
   const [isDeclineLoading, setIsDeclineLoading] = useState(false)
 
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [couponError, setCouponError] = useState('')
+  const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+
   const navigate = useNavigate();
+
+  const [applyCoupon] = useApplyCouponMutation()
 
   const {
     data: response,
@@ -106,6 +113,7 @@ export const CheckoutSummary = ({
 
   useEffect(() => {
       setIsBidInPerson(quoteData?.is_bid_in_person)
+      setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.applied_coupon?.discount_value} || null)
   }, [quoteData])
 
   useEffect(() => {
@@ -202,6 +210,41 @@ export const CheckoutSummary = ({
 
   const handleDeclineCancel = () => {
     setDeclineDialogOpen(false)
+  }
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return
+    
+    setCouponError('')
+    setIsApplyingCoupon(true)
+    
+    try {
+      const result = await applyCoupon({ submission_id: data.submission_id, code: couponCode.trim(), amount: finalTotal }).unwrap()
+
+      console.log(result, 'coupon result')
+      
+      if (result) {
+        setAppliedCoupon({
+          code: couponCode,
+          discount: result?.coupon?.discount_value || 0
+        })
+        setCouponCode('')
+        // You may want to update the final total here based on the discount
+      } else {
+        setCouponError(result.message || 'Invalid coupon code')
+      }
+    } catch (error) {
+      setCouponError('Failed to apply coupon. Please try again.')
+      console.error('Error applying coupon:', error)
+    } finally {
+      setIsApplyingCoupon(false)
+    }
+  }
+
+  const handleRemoveCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode('')
+    setCouponError('')
   }
 
   if (isLoading) {
@@ -758,6 +801,96 @@ export const CheckoutSummary = ({
                 },
               }}
             />
+          </CardContent>
+        </Card>
+
+        {/* Coupon Section */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent sx={{ p: 3 }}>
+            {!appliedCoupon &&
+              <>
+                <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                  Apply Coupon
+                </Typography>
+                <Box display="flex" gap={2} alignItems="flex-start" flexDirection={{ xs: 'column', sm: 'row' }}>
+                  <TextField
+                    placeholder="Enter coupon code"
+                    fullWidth
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    disabled={Object.keys(selectedPackages).length === 0 && !isBidInPerson}
+                    sx={{
+                      '& .MuiOutlinedInput-root': {
+                        '&:hover fieldset': {
+                          borderColor: '#023c8f',
+                        },
+                        '&.Mui-focused fieldset': {
+                          borderColor: '#023c8f',
+                        },
+                      },
+                    }}
+                  />
+                  <Button
+                    variant="contained"
+                    onClick={handleApplyCoupon}
+                    disabled={!couponCode.trim() || isApplyingCoupon || (Object.keys(selectedPackages).length === 0 && !isBidInPerson)}
+                    sx={{
+                      bgcolor: '#023c8f',
+                      '&:hover': { bgcolor: '#012a6b' },
+                      '&:disabled': { bgcolor: '#e0e0e0' },
+                      fontWeight: 600,
+                      minWidth: { xs: '100%', sm: '120px' },
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {isApplyingCoupon ? (
+                      <>
+                        <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                        Applying...
+                      </>
+                    ) : (
+                      'Apply'
+                    )}
+                  </Button>
+                </Box>
+              </>
+            }
+            
+            {couponError && (
+              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                {couponError}
+              </Typography>
+            )}
+            
+            {appliedCoupon && (
+              <Box 
+                sx={{ 
+              
+                  p: 2, 
+                  bgcolor: '#f0f7ff', 
+                  borderRadius: 1,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center'
+                }}
+              >
+                <Box>
+                  <Typography variant="body2" fontWeight={600} sx={{ color: '#023c8f' }}>
+                    Coupon Applied: {appliedCoupon.code}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Discount: ${formatPrice(appliedCoupon.discount)}
+                  </Typography>
+                </Box>
+                <IconButton 
+                  size="small" 
+                  onClick={handleRemoveCoupon}
+                  sx={{ color: '#d32f2f' }}
+                >
+                  <Close fontSize="small" />
+                </IconButton>
+              </Box>
+            )}
           </CardContent>
         </Card>
 

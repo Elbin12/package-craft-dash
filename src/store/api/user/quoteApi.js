@@ -87,10 +87,22 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote'], // Adjust tags as needed
     }),
+    applyCoupon: builder.mutation({
+      query: ({ submission_id, code, amount }) => ({
+        url: 'coupons-apply/',
+        method: 'POST',
+        data: {
+          submission_id,
+          code,
+          amount,
+        },
+      }),
+      invalidatesTags: ['Quote'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
-  useDeclineQuoteMutation
+  useDeclineQuoteMutation, useApplyCouponMutation
  } = quoteApi;

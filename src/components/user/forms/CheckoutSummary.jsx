@@ -59,12 +59,15 @@ export const CheckoutSummary = ({
 
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
+  const [appliedCouponId, setAppliedCouponId] = useState(null)
   const [couponError, setCouponError] = useState('')
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
 
   const navigate = useNavigate();
 
   const [applyCoupon] = useApplyCouponMutation()
+
+  console.log(appliedCoupon, 'appliedCoupon')
 
   const {
     data: response,
@@ -113,8 +116,14 @@ export const CheckoutSummary = ({
 
   useEffect(() => {
       setIsBidInPerson(quoteData?.is_bid_in_person)
-      setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.applied_coupon?.discount_value} || null)
+      // if(quoteData?.applied_coupon){
+      //   setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.applied_coupon?.discount_value} || null)
+      // }
   }, [quoteData])
+
+  useEffect(()=>{
+    onUpdate({coupon_id: appliedCouponId})
+  },[appliedCouponId])
 
   useEffect(() => {
     if (quoteData && !isLoading && !data.quoteDetails) {
@@ -228,6 +237,8 @@ export const CheckoutSummary = ({
           code: couponCode,
           discount: result?.coupon?.discount_value || 0
         })
+        console.log(result?.coupon?.id, 'iddd')
+        setAppliedCouponId(result?.coupon?.id)
         setCouponCode('')
         // You may want to update the final total here based on the discount
       } else {
@@ -245,6 +256,7 @@ export const CheckoutSummary = ({
     setAppliedCoupon(null)
     setCouponCode('')
     setCouponError('')
+    setAppliedCouponId(null)
   }
 
   if (isLoading) {
@@ -319,7 +331,8 @@ export const CheckoutSummary = ({
   const surchargeAmount = quoteData.quote_surcharge_applicable
     ? Number.parseFloat(quoteData.location_details?.trip_surcharge || 0)
     : 0
-  const finalTotal = formatPrice(totalSelectedPrice + addonsTotal)
+  // const finalTotal = formatPrice(totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0))
+  const finalTotal = formatPrice(Math.max(0, totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0)))
 
   return (
     <Box>
@@ -974,6 +987,26 @@ export const CheckoutSummary = ({
                 <Typography variant="body2">${formatPrice(surchargeAmount)}</Typography>
               </Box>
             )} */}
+            
+            {appliedCoupon &&
+              <Box mb={2}>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
+                  Coupon
+                </Typography>
+                  <Box>
+                    <Box display="flex" justifyContent="space-between">
+                      <Box>
+                        <Typography variant="body1" fontWeight={500}>
+                          {appliedCoupon?.code}
+                        </Typography>
+                      </Box>
+                      <Typography variant="body1" fontWeight={600}>
+                        - ${appliedCoupon?.discount}
+                      </Typography>
+                    </Box>
+                  </Box>
+              </Box>
+            }
 
             <Divider sx={{ my: 2 }} />
 

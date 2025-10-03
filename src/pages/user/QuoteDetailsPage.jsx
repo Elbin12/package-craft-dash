@@ -807,6 +807,26 @@ const QuoteDetailsPage = () => {
                           ${formatPrice(total_adjustments || 0)}
                         </Typography>
                       </Box> */}
+
+                      {quote?.applied_coupon &&
+                        <Box display="flex" flexDirection="column" gap={2}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Typography variant="body2">
+                              {quote?.applied_coupon?.code}
+                            </Typography>
+                            <Typography variant="subtitle2">
+                              - ${quote?.applied_coupon?.discount_value}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      }
+
                       <Divider />
                       <Box
                         sx={{

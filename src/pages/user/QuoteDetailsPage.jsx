@@ -821,7 +821,7 @@ const QuoteDetailsPage = () => {
                               {quote?.applied_coupon?.code}
                             </Typography>
                             <Typography variant="subtitle2">
-                              - ${quote?.applied_coupon?.discount_value}
+                              - ${quote?.discounted_amount}
                             </Typography>
                           </Box>
                         </Box>

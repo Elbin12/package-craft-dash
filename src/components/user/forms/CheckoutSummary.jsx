@@ -233,9 +233,10 @@ export const CheckoutSummary = ({
       console.log(result, 'coupon result')
       
       if (result) {
+        const discount = parseFloat((result?.original_amount - result?.discounted_amount).toFixed(2));
         setAppliedCoupon({
           code: couponCode,
-          discount: result?.coupon?.discount_value || 0
+          discount: discount || 0
         })
         console.log(result?.coupon?.id, 'iddd')
         setAppliedCouponId(result?.coupon?.id)

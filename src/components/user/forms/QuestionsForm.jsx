@@ -33,6 +33,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
       refetchOnMountOrArgChange: true,
     }),
   )
+  console.log(serviceQueries, 'allServiceQuestions')
 
   useEffect(() => {
     setForceRefresh((prev) => prev + 1)
@@ -104,6 +105,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   const normalizeQuestion = (question) => {
     const normalized = {
       id: question.id,
+      image: question.image || null,
       text: question.question_text,
       type: question.question_type,
       order: question.order,
@@ -123,6 +125,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           text: opt.option_text,
           allow_quantity: opt.allow_quantity || false,
           max_quantity: opt.max_quantity || 1,
+          image: opt.image || null,
         }))
     }
 
@@ -133,6 +136,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           id: subQ.id,
           text: subQ.sub_question_text,
           order: subQ.order,
+          image: subQ.image || null,
         }))
     }
 
@@ -206,12 +210,38 @@ export const QuestionsForm = ({ data, onUpdate }) => {
       <Box key={question.id} sx={{ mb: 3 }}>
         <Box
           sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
             backgroundColor: '#d9edf7',
             padding: '12px 20px',
             borderRadius: '8px',
             mb: 2
           }}
         >
+          {question.image && (
+            <Box 
+              sx={{ 
+                width: 120, 
+                height: 120, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                borderRadius: '6px',
+              }}
+            >
+              <img 
+                src={question.image} 
+                alt="question image" 
+                style={{ 
+                  maxWidth: '100%',
+                  maxHeight: '100%',
+                  display: 'inline-block',
+                  objectFit: 'contain',
+                }} 
+              />
+            </Box>
+          )}
           <Typography 
             sx={{ 
               color: '#2c2c6c',
@@ -272,7 +302,34 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                   key={option.id}
                   value={option.id}
                   control={<Radio sx={{ color: '#e1e1e1 ', '&.Mui-checked': { color: '#023c8f' } }} />}
-                  label={option.text}
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      {option.image && (
+                        <Box 
+                          sx={{ 
+                            width: 90, 
+                            height: 90, 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center',
+                            backgroundColor: '#f9f9f9', // optional
+                            borderRadius: '6px',
+                          }}
+                        >
+                          <img 
+                            src={option.image} 
+                            alt="option image" 
+                            style={{
+                              maxWidth: '100%',
+                              maxHeight: '100%',
+                              objectFit: 'contain',
+                            }}
+                          />
+                        </Box>
+                      )}
+                      <Typography>{option.text}</Typography>
+                    </Box>
+                  }
                 />
               ))}
             </RadioGroup>
@@ -321,7 +378,34 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                         sx={{ color: '#e1e1e1', '&.Mui-checked': { color: '#023c8f' } }}
                       />
                     }
-                    label={option.text}
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        {option.image && (
+                          <Box 
+                            sx={{ 
+                              width: 90, 
+                              height: 90, 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'center',
+                              backgroundColor: '#f9f9f9', // optional
+                              borderRadius: '6px',
+                            }}
+                          >
+                              <img 
+                                src={option.image} 
+                                alt="option image" 
+                                style={{
+                                  maxWidth: '100%',
+                                  maxHeight: '100%',
+                                  objectFit: 'contain',
+                                }}
+                              />
+                          </Box>
+                        )}
+                        <Typography>{option.text}</Typography>
+                      </Box>
+                    }
                   />
                   
                   {isSelected && option.allow_quantity && (
@@ -382,9 +466,34 @@ export const QuestionsForm = ({ data, onUpdate }) => {
               
               return (
                 <Box key={subQuestion.id}>
-                  <Typography sx={{ fontSize: '15px', mb: 1, color: '#555', fontWeight: 500 }}>
-                    {subQuestion.text}
-                  </Typography>
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
+                    {subQuestion.image && (
+                      <Box 
+                        sx={{ 
+                          width: 90, 
+                          height: 90, 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          backgroundColor: '#f9f9f9', // optional
+                          borderRadius: '6px',
+                        }}
+                      >
+                        <img 
+                          src={subQuestion.image} 
+                          alt="sub-question image"
+                          style={{
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                          }}
+                        />
+                      </Box>
+                    )}
+                    <Typography sx={{ fontSize: '15px', color: '#555', fontWeight: 500 }}>
+                      {subQuestion.text}
+                    </Typography>
+                  </Box>
                   <FormControl component="fieldset" sx={{ ml: 2 }}>
                     <RadioGroup
                       value={data.questionAnswers?.[subQuestionKey] || ""}

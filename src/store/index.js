@@ -9,6 +9,7 @@ import { packageFeaturesApi } from './api/packageFeaturesApi';
 import { questionOptionsApi } from './api/questionOptionsApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
+import couponsSlice from './slices/couponsSlice';
 import authSlice from './slices/authSlice';
 import { createOptionPricingApi } from './api/optionPricing';
 import { contactsApi } from './api/user/contactsApi';
@@ -24,6 +25,7 @@ import persistStore from 'redux-persist/lib/persistStore';
 
 import bookingReducer from './slices/bookingSlice';
 import { addOnServicesApi } from './api/addOnServicesApi';
+import { couponsApi } from './api/couponsApi';
 
 const persistConfig = {
   key: 'booking',
@@ -38,6 +40,7 @@ export const store = configureStore({
     booking: persistedBookingReducer,
     services: servicesSlice,
     locations: locationsSlice,
+    coupons: couponsSlice,
 
     auth: authSlice,
     [servicesApi.reducerPath]: servicesApi.reducer,
@@ -57,6 +60,7 @@ export const store = configureStore({
     [questionSubQuestionsApi.reducerPath]: questionOptionsApi.reducer,
     [quoteApi.reducerPath]: quoteApi.reducer,
     [addOnServicesApi.reducerPath]: addOnServicesApi.reducer,
+    [couponsApi.reducerPath]: couponsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -84,6 +88,7 @@ export const store = configureStore({
       .concat(questionSubQuestionsApi.middleware)
       .concat(quoteApi.middleware)
       .concat(addOnServicesApi.middleware)
+      .concat(couponsApi.middleware)
 });
 
 export const persistor = persistStore(store);

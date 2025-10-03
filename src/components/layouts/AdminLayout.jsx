@@ -22,6 +22,10 @@ import {
   LocationOn,
   QuestionAnswer,
   Settings,
+  DiscountOutlined,
+  LocationOnRounded,
+  LocationOnOutlined,
+  BusinessCenterOutlined,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -33,10 +37,11 @@ const drawerWidth = 280;
 
 const menuItems = [
   // { text: 'Dashboard', icon: Dashboard, path: '/admin' },
-  { text: 'Service Management', icon: BusinessCenter, path: '/admin/services' },
-  { text: 'Location Management', icon: LocationOn, path: '/admin/locations' },
+  { text: 'Service Management', icon: BusinessCenterOutlined, path: '/admin/services' },
+  { text: 'Location Management', icon: LocationOnOutlined, path: '/admin/locations' },
   { text: 'House Size Info', icon: House, path: '/admin/house-size-info' },
   { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services' },
+  { text: 'Coupons', icon: DiscountOutlined , path: '/admin/coupons' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 

@@ -57,6 +57,8 @@ export const CheckoutSummary = ({
   const [declineDialogOpen, setDeclineDialogOpen] = useState(false)
   const [isDeclineLoading, setIsDeclineLoading] = useState(false)
 
+  const [addonQuantities, setAddonQuantities] = useState({})
+
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
   const [appliedCouponId, setAppliedCouponId] = useState(null)
@@ -81,9 +83,15 @@ export const CheckoutSummary = ({
 
   useEffect(() => {
     if (response?.addons) {
-      const addonIds = response.addons.map((addon) => addon.id);
+      const addonIds = response.addons.map((addon) => addon.addon);
       setSelectedAddons(addonIds);
+      const quantities = {};
+      response.addons.forEach((addon) => {
+        quantities[addon.addon] = addon.quantity || 1;
+      });
+      setAddonQuantities(quantities);
     }
+
   }, [response]);
   
   const {
@@ -175,6 +183,30 @@ export const CheckoutSummary = ({
     })
   }
 
+  const handleAddonQuantityChange = async (addonId, newQuantity) => {
+    try {
+      setAddonQuantities(prev => ({
+        ...prev,
+        [addonId]: newQuantity
+      }));
+      await addAddonsToSubmission({
+        submissionId: data.submission_id,
+        addons: [
+          {
+            addon_id: addonId,
+            quantity: newQuantity
+          }
+        ]
+      }).unwrap()
+    } catch (error) {
+      console.error('Error updating addon quantity:', error)
+      setAddonQuantities(prev => ({
+      ...prev,
+      [addonId]: addonQuantities[addonId] || 1
+    }));
+    }
+  }
+
   const handleAddonToggle = async (addonId, isSelected) => {
     try {
       if (isSelected) {
@@ -184,13 +216,27 @@ export const CheckoutSummary = ({
           addon_ids: [addonId]
         }).unwrap()
         setSelectedAddons(prev => prev.filter(id => id !== addonId))
+        setAddonQuantities(prev => {
+          const newQuantities = { ...prev };
+          delete newQuantities[addonId];
+          return newQuantities;
+        });
       } else {
         // Add addon
         await addAddonsToSubmission({
           submissionId: data.submission_id,
-          addon_ids: {addon_ids:[addonId]}
+          addons: [
+            {
+              addon_id: addonId,
+              quantity: 1
+            }
+          ]
         }).unwrap()
         setSelectedAddons(prev => [...prev, addonId])
+        setAddonQuantities(prev => ({
+          ...prev,
+          [addonId]: 1
+        }));
       }
     } catch (error) {
       console.error('Error toggling addon:', error)
@@ -739,6 +785,8 @@ export const CheckoutSummary = ({
               <Grid container spacing={2}>
                 {addonsData.map((addon) => {
                   const isSelected = selectedAddons.includes(addon.id)
+                  const selectedAddon = response?.addons?.find(a => a.id === addon.id)
+                  const currentQuantity = addonQuantities[addon.id] || 1
                   return (
                     <Grid item xs={12} sm={6} md={4} key={addon.id} width={"100%"} sx={{flex: "1 1 500px"}}>
                       <Card
@@ -751,7 +799,6 @@ export const CheckoutSummary = ({
                           borderRadius: 2,
                           height: "100%",
                         }}
-                        onClick={() => handleAddonToggle(addon.id, isSelected)}
                       >
                         <CardContent sx={{ p: 2 }}>
                           <Box display="flex" alignItems="center" justifyContent="space-between" gap={2} mb={2}>
@@ -768,6 +815,7 @@ export const CheckoutSummary = ({
                                   bgcolor: isSelected ? "#f0fff0" : "#f5f5f5",
                                 },
                               }}
+                              onClick={() => handleAddonToggle(addon.id, isSelected)}
                             >
                               {isSelected ? <Remove /> : <Add />}
                             </IconButton>
@@ -775,6 +823,60 @@ export const CheckoutSummary = ({
                           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                             {addon.description}
                           </Typography>
+                          {isSelected && (
+                            <Box display="flex" alignItems="center" gap={1} mb={2}>
+                              <Typography variant="body2" fontWeight={600}>
+                                Quantity:
+                              </Typography>
+                              <TextField
+                                type="number"
+                                size="small"
+                                value={addonQuantities[addon.id] ?? ""}
+                                onChange={(e) => {
+                                  const value = e.target.value
+                                  // Allow empty input temporarily
+                                  if (value === "") {
+                                    setAddonQuantities(prev => ({
+                                      ...prev,
+                                      [addon.id]: ""
+                                    }))
+                                    return
+                                  }
+
+                                  const numericValue = parseInt(value, 10)
+                                  if (!isNaN(numericValue) && numericValue >= 1) {
+                                    setAddonQuantities(prev => ({
+                                      ...prev,
+                                      [addon.id]: numericValue
+                                    }))
+                                  }
+                                }}
+                                onBlur={(e) => {
+                                  // On blur, ensure it’s at least 1 and trigger the API update
+                                  let value = parseInt(e.target.value, 10)
+                                  if (isNaN(value) || value < 1) value = 1
+
+                                  setAddonQuantities(prev => ({
+                                    ...prev,
+                                    [addon.id]: value
+                                  }))
+
+                                  handleAddonQuantityChange(addon.id, value)
+                                }}
+                                inputProps={{
+                                  min: 1,
+                                  style: { textAlign: 'center' }
+                                }}
+                                sx={{
+                                  width: '80px',
+                                  '& .MuiOutlinedInput-root': {
+                                    '&:hover fieldset': { borderColor: '#42bd3f' },
+                                    '&.Mui-focused fieldset': { borderColor: '#42bd3f' },
+                                  },
+                                }}
+                              />
+                            </Box>
+                          )}
                           <Typography variant="h6" sx={{ color: "#42bd3f", fontWeight: 700 }}>
                             ${formatPrice(addon.base_price)}
                           </Typography>

@@ -64,10 +64,10 @@ export const quoteApi = createApi({
         providesTags: ['addons'],
     }),
     addAddons: builder.mutation({
-      query: ({ submissionId, addon_ids }) => ({
+      query: ({ submissionId, addons }) => ({
         url: `submissions/${submissionId}/addons/`,
         method: 'POST',
-        data: addon_ids,
+        data: {"addons":addons},
       }),
       invalidatesTags: ['Add addons'],
     }),

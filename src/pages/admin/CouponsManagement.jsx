@@ -63,14 +63,16 @@ const CouponsManagement = () => {
   const [couponToDelete, setCouponToDelete] = useState(null)
   const [formErrors, setFormErrors] = useState({})
 
+  console.log(formData, 'formdata')
+
   const handleOpenDialog = (coupon = null) => {
     if (coupon) {
       dispatch(setEditingCoupon(coupon))
       dispatch(
         setFormData({
           code: coupon.code,
-          discount_type: coupon.discount_type,
-          discount_value: coupon.discount_value.toString(),
+          percentage_discount: coupon.percentage_discount?.toString() || "",
+          fixed_discount: coupon.fixed_discount?.toString() || "",
           expiration_date: coupon.expiration_date ? coupon.expiration_date.substring(0, 16) : '',
           is_active: coupon.is_active,
         }),
@@ -90,14 +92,18 @@ const CouponsManagement = () => {
   }
 
   const handleSaveCoupon = async () => {
+    console.log(formData, 'formdata')
     try {
       setFormErrors({})
 
       // Validate required fields
-      if (!formData.code || !formData.discount_value || !formData.expiration_date) {
+      if (!formData.code || !formData.expiration_date || (!formData.percentage_discount && !formData.fixed_discount)) {
         setFormErrors({
           code: !formData.code ? ["Coupon code is required"] : undefined,
-          discount_value: !formData.discount_value ? ["Discount value is required"] : undefined,
+          percentage_discount: !formData.percentage_discount && !formData.fixed_discount
+            ? ["Enter at least one discount type"] : undefined,
+          fixed_discount: !formData.percentage_discount && !formData.fixed_discount
+            ? ["Enter at least one discount type"] : undefined,
           expiration_date: !formData.expiration_date ? ["Expiration date is required"] : undefined,
         })
         return
@@ -105,11 +111,17 @@ const CouponsManagement = () => {
 
       const couponData = {
         code: formData.code.toUpperCase(),
-        discount_type: formData.discount_type,
-        discount_value: Number.parseFloat(formData.discount_value),
+        percentage_discount: formData.percentage_discount
+          ? Number.parseFloat(formData.percentage_discount)
+          : null,
+        fixed_discount: formData.fixed_discount
+          ? Number.parseFloat(formData.fixed_discount)
+          : null,
         expiration_date: new Date(formData.expiration_date).toISOString(),
         is_active: formData.is_active,
       }
+
+      console.log(couponData,'coupon data')
 
       if (editingCoupon) {
         await updateCoupon({
@@ -143,6 +155,7 @@ const CouponsManagement = () => {
   }
 
   const handleFormChange = (field, value) => {
+    console.log(field, value)
     dispatch(setFormData({ [field]: value }))
   }
 
@@ -195,7 +208,7 @@ const CouponsManagement = () => {
         <Divider sx={{ mb: 2 }} />
 
         <Grid container spacing={2}>
-          <Grid item xs={6}>
+          {/* <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary" display="block">
               Discount Type
             </Typography>
@@ -205,15 +218,18 @@ const CouponsManagement = () => {
               color={coupon.discount_type === "percentage" ? "primary" : "secondary"}
               sx={{ mt: 0.5 }}
             />
-          </Grid>
+          </Grid> */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary" display="block">
-              Discount Value
+              Discount
             </Typography>
             <Typography variant="body1" fontWeight="medium" sx={{ mt: 0.5 }}>
-              {coupon.discount_type === "percentage"
-                ? `${Number(coupon.discount_value).toFixed(0)}%`
-                : `$${Number(coupon.discount_value).toFixed(2)}`}
+              {[
+                coupon.percentage_discount ? `${Number(coupon.percentage_discount).toFixed(0)}%` : null,
+                coupon.fixed_discount ? `$${Number(coupon.fixed_discount).toFixed(2)}` : null,
+              ]
+                .filter(Boolean)
+                .join(" + ")}
             </Typography>
           </Grid>
           <Grid item xs={6}>
@@ -232,12 +248,12 @@ const CouponsManagement = () => {
               )}
             </Box>
           </Grid>
-          <Grid item xs={6}>
+          {/* <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary" display="block">
               Times Used
             </Typography>
             <Chip label={coupon.used_count || 0} size="small" variant="outlined" sx={{ mt: 0.5 }} />
-          </Grid>
+          </Grid> */}
           <Grid item xs={6}>
             <Typography variant="caption" color="text.secondary" display="block">
               Status
@@ -316,10 +332,9 @@ const CouponsManagement = () => {
                 <TableHead>
                   <TableRow>
                     <TableCell>Coupon Code</TableCell>
-                    {!isTablet && <TableCell>Discount Type</TableCell>}
-                    <TableCell>Discount Value</TableCell>
+                    <TableCell>Discount</TableCell>
                     <TableCell>Expiration Date</TableCell>
-                    {!isTablet && <TableCell>Times Used</TableCell>}
+                    {/* {!isTablet && <TableCell>Times Used</TableCell>} */}
                     <TableCell>Status</TableCell>
                     {!isTablet && <TableCell>Created</TableCell>}
                     <TableCell align="right">Actions</TableCell>
@@ -348,21 +363,15 @@ const CouponsManagement = () => {
                             </IconButton>
                           </Box>
                         </TableCell>
-                        {!isTablet && (
-                          <TableCell>
-                            <Chip
-                              label={coupon.discount_type === "percentage" ? "Percentage" : "Fixed Amount"}
-                              size="small"
-                              color={coupon.discount_type === "percentage" ? "primary" : "secondary"}
-                              variant="outlined"
-                            />
-                          </TableCell>
-                        )}
                         <TableCell>
                           <Typography variant="body2" fontWeight="medium">
-                            {coupon.discount_type === "percentage"
-                              ? `${Number(coupon.discount_value).toFixed(0)}%`
-                              : `$${Number(coupon.discount_value).toFixed(2)}`}
+                            {[
+                              coupon.percentage_discount ? `${Number(coupon.percentage_discount).toFixed(0)}%` : null,
+                              coupon.fixed_discount ? `$${Number(coupon.fixed_discount).toFixed(2)}` : null,
+                            ]
+                              .filter(Boolean)
+                              .join(" + ")
+                            }
                           </Typography>
                         </TableCell>
                         <TableCell>
@@ -373,11 +382,11 @@ const CouponsManagement = () => {
                             <Chip label="Expired" size="small" color="error" sx={{ mt: 0.5 }} />
                           )}
                         </TableCell>
-                        {!isTablet && (
+                        {/* {!isTablet && (
                           <TableCell>
                             <Chip label={coupon.used_count || 0} size="small" variant="outlined" />
                           </TableCell>
-                        )}
+                        )} */}
                         <TableCell>
                           <Chip
                             label={coupon.is_active ? "Active" : "Inactive"}
@@ -482,7 +491,7 @@ const CouponsManagement = () => {
               inputProps={{ style: { textTransform: 'uppercase' } }}
             />
 
-            <FormControl fullWidth>
+            {/* <FormControl fullWidth>
               <InputLabel>Discount Type</InputLabel>
               <Select
                 value={formData.discount_type}
@@ -492,25 +501,39 @@ const CouponsManagement = () => {
                 <MenuItem value="percentage">Percentage</MenuItem>
                 <MenuItem value="fixed">Fixed Amount</MenuItem>
               </Select>
-            </FormControl>
+            </FormControl> */}
 
             <TextField
               fullWidth
-              label={formData.discount_type === "percentage" ? "Discount Percentage" : "Discount Amount"}
+              label="Percentage Discount"
               type="number"
-              value={formData.discount_value}
-              onChange={(e) => handleFormChange("discount_value", e.target.value)}
+              value={formData.percentage_discount}
+              onChange={(e) => handleFormChange("percentage_discount", e.target.value)}
+              inputProps={{ step: "0.01", min: 0, max: 100 }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">%</InputAdornment>,
+                endAdornment: <InputAdornment position="end">%</InputAdornment>,
+              }}
+              error={Boolean(formErrors.percentage_discount)}
+              helperText={formErrors.percentage_discount?.[0] || "Optional. Leave blank if not using percentage discount."}
+            />
+
+            <TextField
+              fullWidth
+              label="Fixed Discount"
+              type="number"
+              value={formData.fixed_discount}
+              onChange={(e) => handleFormChange("fixed_discount", e.target.value)}
               inputProps={{
-                step: formData.discount_type === "percentage" ? "1" : "0.01",
+                step:"0.01",
                 min: 0,
-                max: formData.discount_type === "percentage" ? 100 : undefined,
+                // max: formData.discount_type === "percentage" ? 100 : undefined,
               }}
               InputProps={{
-                startAdornment: formData.discount_type === "fixed" && <InputAdornment position="start">$</InputAdornment>,
-                endAdornment: formData.discount_type === "percentage" && <InputAdornment position="end">%</InputAdornment>,
+                startAdornment:<InputAdornment position="start">$</InputAdornment>,
               }}
-              error={Boolean(formErrors.discount_value)}
-              helperText={formErrors.discount_value?.[0]}
+              error={Boolean(formErrors.fixed_discount)}
+              helperText={formErrors.fixed_discount?.[0] || "Optional. Leave blank if not using fixed discount."}
             />
 
             <TextField
@@ -538,7 +561,7 @@ const CouponsManagement = () => {
             />
 
             {/* Preview Section */}
-            {formData.code && formData.discount_value && (
+            {formData.code && (formData.percentage_discount || formData.fixed_discount) && (
               <Box sx={{ p: 2, bgcolor: "grey.50", borderRadius: 1 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
                   Coupon Preview:
@@ -547,9 +570,12 @@ const CouponsManagement = () => {
                   {formData.code}
                 </Typography>
                 <Typography variant="body2">
-                  {formData.discount_type === "percentage"
-                    ? `${formData.discount_value}% OFF`
-                    : `$${formData.discount_value} OFF`}
+                  {[
+                    formData.percentage_discount ? `${formData.percentage_discount}% OFF` : null,
+                    formData.fixed_discount ? `$${formData.fixed_discount} OFF` : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" + ")}
                 </Typography>
               </Box>
             )}

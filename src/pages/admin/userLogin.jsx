@@ -24,7 +24,7 @@ const UserLogin = () => {
 
   useEffect(()=>{
     if (success) {
-      navigate('/admin/services');
+      navigate('/admin');
     }
   },[success, navigate]);
 

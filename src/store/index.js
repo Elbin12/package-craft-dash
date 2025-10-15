@@ -26,6 +26,7 @@ import persistStore from 'redux-persist/lib/persistStore';
 import bookingReducer from './slices/bookingSlice';
 import { addOnServicesApi } from './api/addOnServicesApi';
 import { couponsApi } from './api/couponsApi';
+import { dashboardApi } from './api/dashboardApi';
 
 const persistConfig = {
   key: 'booking',
@@ -61,6 +62,7 @@ export const store = configureStore({
     [quoteApi.reducerPath]: quoteApi.reducer,
     [addOnServicesApi.reducerPath]: addOnServicesApi.reducer,
     [couponsApi.reducerPath]: couponsApi.reducer,
+    [dashboardApi.reducerPath]: dashboardApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
@@ -89,6 +91,7 @@ export const store = configureStore({
       .concat(quoteApi.middleware)
       .concat(addOnServicesApi.middleware)
       .concat(couponsApi.middleware)
+      .concat(dashboardApi.middleware)
 });
 
 export const persistor = persistStore(store);

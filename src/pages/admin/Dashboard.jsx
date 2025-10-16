@@ -1,36 +1,4 @@
-// pages/Dashboard.jsx
 import React, { useState } from 'react';
-import {
-  Box,
-  Grid,
-  Card,
-  CardContent,
-  Typography,
-  CircularProgress,
-  Chip,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TextField,
-  Button,
-  Stack,
-  Pagination,
-  Divider,
-  Avatar,
-  LinearProgress,
-} from '@mui/material';
-import {
-  TrendingUp,
-  Receipt,
-  AttachMoney,
-  People,
-  DateRange,
-  BarChart as BarChartIcon,
-} from '@mui/icons-material';
 import {
   LineChart,
   Line,
@@ -46,7 +14,9 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
-import { useGetDashboardDataQuery } from '../../store/api/dashboardApi';
+import { useGetDashboardDataQuery, useGetSubmissionsQuery } from '../../store/api/dashboardApi';
+import DashboardSkeleton from '../../components/skeletons/DashboardSkeleton';
+import SubmissionsSkeleton from '../../components/skeletons/SubmissionsSkeleton';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -63,22 +33,34 @@ const Dashboard = () => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [page, setPage] = useState(1);
 
-  const { data, isLoading, error, refetch } = useGetDashboardDataQuery({
+  const {
+    data: dashboardData,
+    isLoading: dashboardLoading,
+    error: dashboardError,
+    refetch: refetchDashboard,
+  } = useGetDashboardDataQuery({
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate,
+  });
+
+  const {
+    data: submissionData,
+    isLoading: submissionsLoading,
+    isFetching: submissionsFetching,
+    error: submissionsError,
+    refetch: refetchSubmissions,
+  } = useGetSubmissionsQuery({
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
     page,
     pageSize: 10,
   });
 
-  if (isLoading || !data) {
-    return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-        <div style={{ fontSize: '14px', color: '#6b7280' }}>Loading...</div>
-      </div>
-    );
+  if (dashboardLoading || !dashboardData) {
+    return <DashboardSkeleton />;
   }
 
-  if (error) {
+  if (dashboardError) {
     return (
       <div style={{ padding: '32px', backgroundColor: '#f9fafb', minHeight: '100vh' }}>
         <div style={{ border: '1px solid #fecaca', borderLeft: '4px solid #ef4444', borderRadius: '8px', padding: '16px', backgroundColor: '#fef2f2' }}>
@@ -88,7 +70,8 @@ const Dashboard = () => {
     );
   }
 
-  const { statistics = {}, charts = {}, submissions = {} } = data;
+  const { statistics = {}, charts = {} } = dashboardData;
+  const submissions = submissionData || {};
 
   // Enhanced metrics with all data
   const metrics = [
@@ -119,7 +102,8 @@ const Dashboard = () => {
   ];
 
   // Calculate pagination range
-  const totalPages = submissions.total_pages || 1;
+  const pageSize = 10;
+  const totalPages = Math.ceil((submissions.count || 0) / pageSize);
   const maxPagesToShow = 7;
   let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
   let endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
@@ -364,166 +348,170 @@ const Dashboard = () => {
       </div>
 
       {/* All Submissions Table */}
-      <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>
-        <div style={{ marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px 0', color: '#111827' }}>All Submissions</h3>
-          <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Total {submissions.count || 0} submissions</p>
-        </div>
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer</th>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact</th>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Property</th>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
-                <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {submissions.results?.map((sub) => (
-                <tr
-                  key={sub.id}
-                  style={{ borderBottom: '1px solid #f3f4f6', transition: 'background-color 0.2s' }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                >
-                  <td style={{ padding: '12px 0', color: '#111827', fontWeight: 500 }}>
-                    <div>{sub.customer_name}</div>
-                    {sub.company_name && <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.company_name}</div>}
-                  </td>
-                  <td style={{ padding: '12px 0', color: '#374151' }}>
-                    <div style={{ fontSize: '13px' }}>{sub.customer_email}</div>
-                    <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.customer_phone}</div>
-                  </td>
-                  <td style={{ padding: '12px 0', color: '#374151' }}>{sub.property_type_display}</td>
-                  <td style={{ padding: '12px 0' }}>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '4px 8px',
-                      borderRadius: '4px',
-                      backgroundColor: STATUS_COLORS[sub.status],
-                    //   color: '#fff',
-                      fontSize: '11px',
-                      fontWeight: 600,
-                    }}>
-                      {sub.status_display}
-                    </span>
-                  </td>
-                  <td style={{ padding: '12px 0', color: '#111827', fontWeight: 600 }}>
-                    ${parseFloat(sub.final_total).toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                  </td>
-                  <td style={{ padding: '12px 0', color: '#6b7280', fontSize: '12px' }}>
-                    {new Date(sub.created_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page === 1}
-              style={{
-                padding: '6px 10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                color: '#374151',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: page === 1 ? 'default' : 'pointer',
-                opacity: page === 1 ? 0.5 : 1,
-              }}
-            >
-              ← Prev
-            </button>
-            {startPage > 1 && (
-              <>
-                <button
-                  onClick={() => setPage(1)}
-                  style={{
-                    padding: '6px 10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: '#fff',
-                    color: '#374151',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  1
-                </button>
-                {startPage > 2 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
-              </>
-            )}
-            {Array.from({ length: endPage - startPage + 1 }).map((_, idx) => {
-              const pageNum = startPage + idx;
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => setPage(pageNum)}
-                  style={{
-                    padding: '6px 10px',
-                    border: pageNum === page ? 'none' : '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: pageNum === page ? '#3b82f6' : '#fff',
-                    color: pageNum === page ? '#fff' : '#374151',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-            {endPage < totalPages && (
-              <>
-                {endPage < totalPages - 1 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
-                <button
-                  onClick={() => setPage(totalPages)}
-                  style={{
-                    padding: '6px 10px',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    backgroundColor: '#fff',
-                    color: '#374151',
-                    fontSize: '12px',
-                    fontWeight: 500,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {totalPages}
-                </button>
-              </>
-            )}
-            <button
-              onClick={() => setPage(Math.min(totalPages, page + 1))}
-              disabled={page === totalPages}
-              style={{
-                padding: '6px 10px',
-                border: '1px solid #d1d5db',
-                borderRadius: '4px',
-                backgroundColor: '#fff',
-                color: '#374151',
-                fontSize: '12px',
-                fontWeight: 500,
-                cursor: page === totalPages ? 'default' : 'pointer',
-                opacity: page === totalPages ? 0.5 : 1,
-              }}
-            >
-              Next →
-            </button>
+      {submissionsFetching? (
+        <SubmissionsSkeleton />
+      ) : (
+        <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px 0', color: '#111827' }}>All Submissions</h3>
+            <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Total {submissions.count || 0} submissions</p>
           </div>
-        )}
-      </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Property</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {submissions.results?.map((sub) => (
+                  <tr
+                    key={sub.id}
+                    style={{ borderBottom: '1px solid #f3f4f6', transition: 'background-color 0.2s' }}
+                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
+                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  >
+                    <td style={{ padding: '12px 0', color: '#111827', fontWeight: 500 }}>
+                      <div>{sub.customer_name}</div>
+                      {sub.company_name && <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.company_name}</div>}
+                    </td>
+                    <td style={{ padding: '12px 0', color: '#374151' }}>
+                      <div style={{ fontSize: '13px' }}>{sub.customer_email}</div>
+                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.customer_phone}</div>
+                    </td>
+                    <td style={{ padding: '12px 0', color: '#374151' }}>{sub.property_type_display}</td>
+                    <td style={{ padding: '12px 0' }}>
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '4px 8px',
+                        borderRadius: '4px',
+                        backgroundColor: STATUS_COLORS[sub.status],
+                      //   color: '#fff',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                      }}>
+                        {sub.status_display}
+                      </span>
+                    </td>
+                    <td style={{ padding: '12px 0', color: '#111827', fontWeight: 600 }}>
+                      ${parseFloat(sub.final_total).toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                    </td>
+                    <td style={{ padding: '12px 0', color: '#6b7280', fontSize: '12px' }}>
+                      {new Date(sub.created_at).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page === 1}
+                style={{
+                  padding: '6px 10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  color: '#374151',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: page === 1 ? 'default' : 'pointer',
+                  opacity: page === 1 ? 0.5 : 1,
+                }}
+              >
+                ← Prev
+              </button>
+              {startPage > 1 && (
+                <>
+                  <button
+                    onClick={() => setPage(1)}
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      backgroundColor: '#fff',
+                      color: '#374151',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    1
+                  </button>
+                  {startPage > 2 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
+                </>
+              )}
+              {Array.from({ length: endPage - startPage + 1 }).map((_, idx) => {
+                const pageNum = startPage + idx;
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setPage(pageNum)}
+                    style={{
+                      padding: '6px 10px',
+                      border: pageNum === page ? 'none' : '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      backgroundColor: pageNum === page ? '#3b82f6' : '#fff',
+                      color: pageNum === page ? '#fff' : '#374151',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              })}
+              {endPage < totalPages && (
+                <>
+                  {endPage < totalPages - 1 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
+                  <button
+                    onClick={() => setPage(totalPages)}
+                    style={{
+                      padding: '6px 10px',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      backgroundColor: '#fff',
+                      color: '#374151',
+                      fontSize: '12px',
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                    }}
+                  >
+                    {totalPages}
+                  </button>
+                </>
+              )}
+              <button
+                onClick={() => setPage(Math.min(totalPages, page + 1))}
+                disabled={page === totalPages}
+                style={{
+                  padding: '6px 10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '4px',
+                  backgroundColor: '#fff',
+                  color: '#374151',
+                  fontSize: '12px',
+                  fontWeight: 500,
+                  cursor: page === totalPages ? 'default' : 'pointer',
+                  opacity: page === totalPages ? 0.5 : 1,
+                }}
+              >
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

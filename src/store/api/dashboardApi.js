@@ -40,10 +40,61 @@ export const dashboardApi = createApi({
       },
       providesTags: ['Dashboard'],
     }),
+    getLeadSourceAnalytics: builder.query({
+      query: ({ startDate, endDate } = {}) => {
+        const params = new URLSearchParams()
+        if (startDate) params.append('start_date', startDate)
+        if (endDate) params.append('end_date', endDate)
+
+        const queryString = params.toString()
+        return {
+          url: `lead-source-analytics/${queryString ? `?${queryString}` : ''}`,
+          method: 'GET',
+        }
+      },
+      providesTags: ['LeadSourceAnalytics'],
+      transformResponse: (response) => {
+        // Transform response if needed
+        return response
+      },
+    }),
+    getLeadSourceTrends: builder.query({
+      query: ({ startDate, endDate } = {}) => {
+        const params = new URLSearchParams()
+        if (startDate) params.append('start_date', startDate)
+        if (endDate) params.append('end_date', endDate)
+
+        const queryString = params.toString()
+        return {
+          url: `lead-source-trends/${queryString ? `?${queryString}` : ''}`,
+          method: 'GET',
+        }
+      },
+      providesTags: ['LeadSourceAnalytics'],
+    }),
+
+    exportLeadSourceReport: builder.query({
+      query: ({ startDate, endDate, format = 'csv' } = {}) => {
+        const params = new URLSearchParams()
+        if (startDate) params.append('start_date', startDate)
+        if (endDate) params.append('end_date', endDate)
+        params.append('format', format)
+
+        const queryString = params.toString()
+        return {
+          url: `lead-source-analytics/export/${queryString ? `?${queryString}` : ''}`,
+          method: 'GET',
+          responseType: format === 'csv' ? 'blob' : 'json',
+        }
+      },
+    }),
   }),
 });
 
 export const {
   useGetDashboardDataQuery,
-  useGetSubmissionsQuery
+  useGetSubmissionsQuery,
+  useGetLeadSourceTrendsQuery,
+  useExportLeadSourceReportQuery,
+  useGetLeadSourceAnalyticsQuery
 } = dashboardApi;

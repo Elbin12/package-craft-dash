@@ -26,6 +26,7 @@ import {
   LocationOnRounded,
   LocationOnOutlined,
   BusinessCenterOutlined,
+  AnalyticsOutlined,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -37,6 +38,7 @@ const drawerWidth = 280;
 
 const menuItems = [
   { text: 'Dashboard', icon: Dashboard, path: '/admin' },
+  { text: 'Reports', icon: AnalyticsOutlined, path: '/reports' },
   { text: 'Service Management', icon: BusinessCenterOutlined, path: '/admin/services' },
   { text: 'Location Management', icon: LocationOnOutlined, path: '/admin/locations' },
   { text: 'House Size Info', icon: House, path: '/admin/house-size-info' },

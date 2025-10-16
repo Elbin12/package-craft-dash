@@ -17,6 +17,7 @@ import {
 import { useGetDashboardDataQuery, useGetSubmissionsQuery } from '../../store/api/dashboardApi';
 import DashboardSkeleton from '../../components/skeletons/DashboardSkeleton';
 import SubmissionsSkeleton from '../../components/skeletons/SubmissionsSkeleton';
+import {useDebounce} from '../../hooks/useDebounce';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -32,6 +33,13 @@ const STATUS_COLORS = {
 const Dashboard = () => {
   const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [page, setPage] = useState(1);
+
+  const [status, setStatus] = useState('');
+  const [search, setSearch] = useState('');
+  const [pageSize, setPageSize] = useState(10);
+
+  const debouncedSearchTerm = useDebounce(search, 500)
+
 
   const {
     data: dashboardData,
@@ -53,7 +61,9 @@ const Dashboard = () => {
     startDate: dateRange.startDate,
     endDate: dateRange.endDate,
     page,
-    pageSize: 10,
+    pageSize,
+    status,
+    search:debouncedSearchTerm,
   });
 
   if (dashboardLoading || !dashboardData) {
@@ -102,7 +112,6 @@ const Dashboard = () => {
   ];
 
   // Calculate pagination range
-  const pageSize = 10;
   const totalPages = Math.ceil((submissions.count || 0) / pageSize);
   const maxPagesToShow = 7;
   let startPage = Math.max(1, page - Math.floor(maxPagesToShow / 2));
@@ -112,7 +121,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ padding: '32px', backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ padding: '10px', backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>
@@ -348,14 +357,72 @@ const Dashboard = () => {
       </div>
 
       {/* All Submissions Table */}
-      {submissionsFetching? (
-        <SubmissionsSkeleton />
-      ) : (
-        <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>
+      <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>
+        <div className='flex justify-between'>
           <div style={{ marginBottom: '16px' }}>
             <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 4px 0', color: '#111827' }}>All Submissions</h3>
             <p style={{ fontSize: '12px', color: '#6b7280', margin: 0 }}>Total {submissions.count || 0} submissions</p>
           </div>
+          <div className='space-x-3'>
+            <select
+              value={status}
+              onChange={(e) => {
+                setStatus(e.target.value);
+                setPage(1); // Reset to first page
+              }}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+              }}
+            >
+              <option value="">All Statuses</option>
+              <option value="draft">Draft</option>
+              <option value="responses_completed">Responses Completed</option>
+              <option value="submitted">Submitted</option>
+            </select>
+
+            <input
+              type="text"
+              placeholder="Search by name"
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+              }}
+            />
+            <select
+              value={pageSize}
+              onChange={(e) => {
+                setPageSize(Number(e.target.value));
+                setPage(1);
+              }}
+              style={{
+                padding: '8px 12px',
+                border: '1px solid #d1d5db',
+                borderRadius: '6px',
+                fontSize: '13px',
+                fontFamily: 'inherit',
+              }}
+            >
+              <option value={10}>10 / page</option>
+              <option value={20}>20 / page</option>
+              <option value={50}>50 / page</option>
+            </select>
+          </div>
+        </div>
+        {submissionsFetching? (
+          <SubmissionsSkeleton />
+        ) : (
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
               <thead>
@@ -369,7 +436,14 @@ const Dashboard = () => {
                 </tr>
               </thead>
               <tbody>
-                {submissions.results?.map((sub) => (
+                {submissions.results?.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280', fontSize: '14px' }}>
+                      No submissions found.
+                    </td>
+                  </tr>
+                ) : (
+                submissions.results?.map((sub) => (
                   <tr
                     key={sub.id}
                     style={{ borderBottom: '1px solid #f3f4f6', transition: 'background-color 0.2s' }}
@@ -405,113 +479,114 @@ const Dashboard = () => {
                       {new Date(sub.created_at).toLocaleDateString()}
                     </td>
                   </tr>
-                ))}
+                ))
+              )}
               </tbody>
             </table>
           </div>
+        )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
-              <button
-                onClick={() => setPage(Math.max(1, page - 1))}
-                disabled={page === 1}
-                style={{
-                  padding: '6px 10px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  color: '#374151',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: page === 1 ? 'default' : 'pointer',
-                  opacity: page === 1 ? 0.5 : 1,
-                }}
-              >
-                ← Prev
-              </button>
-              {startPage > 1 && (
-                <>
-                  <button
-                    onClick={() => setPage(1)}
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '4px',
-                      backgroundColor: '#fff',
-                      color: '#374151',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    1
-                  </button>
-                  {startPage > 2 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
-                </>
-              )}
-              {Array.from({ length: endPage - startPage + 1 }).map((_, idx) => {
-                const pageNum = startPage + idx;
-                return (
-                  <button
-                    key={pageNum}
-                    onClick={() => setPage(pageNum)}
-                    style={{
-                      padding: '6px 10px',
-                      border: pageNum === page ? 'none' : '1px solid #d1d5db',
-                      borderRadius: '4px',
-                      backgroundColor: pageNum === page ? '#3b82f6' : '#fff',
-                      color: pageNum === page ? '#fff' : '#374151',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {pageNum}
-                  </button>
-                );
-              })}
-              {endPage < totalPages && (
-                <>
-                  {endPage < totalPages - 1 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
-                  <button
-                    onClick={() => setPage(totalPages)}
-                    style={{
-                      padding: '6px 10px',
-                      border: '1px solid #d1d5db',
-                      borderRadius: '4px',
-                      backgroundColor: '#fff',
-                      color: '#374151',
-                      fontSize: '12px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {totalPages}
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => setPage(Math.min(totalPages, page + 1))}
-                disabled={page === totalPages}
-                style={{
-                  padding: '6px 10px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '4px',
-                  backgroundColor: '#fff',
-                  color: '#374151',
-                  fontSize: '12px',
-                  fontWeight: 500,
-                  cursor: page === totalPages ? 'default' : 'pointer',
-                  opacity: page === totalPages ? 0.5 : 1,
-                }}
-              >
-                Next →
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '20px', paddingTop: '20px', borderTop: '1px solid #e5e7eb', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setPage(Math.max(1, page - 1))}
+              disabled={page === 1}
+              style={{
+                padding: '6px 10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: '#374151',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: page === 1 ? 'default' : 'pointer',
+                opacity: page === 1 ? 0.5 : 1,
+              }}
+            >
+              ← Prev
+            </button>
+            {startPage > 1 && (
+              <>
+                <button
+                  onClick={() => setPage(1)}
+                  style={{
+                    padding: '6px 10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    color: '#374151',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  1
+                </button>
+                {startPage > 2 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
+              </>
+            )}
+            {Array.from({ length: endPage - startPage + 1 }).map((_, idx) => {
+              const pageNum = startPage + idx;
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => setPage(pageNum)}
+                  style={{
+                    padding: '6px 10px',
+                    border: pageNum === page ? 'none' : '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    backgroundColor: pageNum === page ? '#3b82f6' : '#fff',
+                    color: pageNum === page ? '#fff' : '#374151',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+            {endPage < totalPages && (
+              <>
+                {endPage < totalPages - 1 && <span style={{ padding: '6px 4px', color: '#9ca3af' }}>...</span>}
+                <button
+                  onClick={() => setPage(totalPages)}
+                  style={{
+                    padding: '6px 10px',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    backgroundColor: '#fff',
+                    color: '#374151',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {totalPages}
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setPage(Math.min(totalPages, page + 1))}
+              disabled={page === totalPages}
+              style={{
+                padding: '6px 10px',
+                border: '1px solid #d1d5db',
+                borderRadius: '4px',
+                backgroundColor: '#fff',
+                color: '#374151',
+                fontSize: '12px',
+                fontWeight: 500,
+                cursor: page === totalPages ? 'default' : 'pointer',
+                opacity: page === totalPages ? 0.5 : 1,
+              }}
+            >
+              Next →
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

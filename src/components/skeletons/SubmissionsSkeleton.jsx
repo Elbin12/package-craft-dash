@@ -7,10 +7,6 @@ const SubmissionsSkeleton = () => {
 
   return (
     <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>
-      <div style={{ marginBottom: '16px' }}>
-        <Skeleton height="20px" width="180px" style={{ marginBottom: '4px' }} />
-        <Skeleton height="14px" width="120px" />
-      </div>
       <div style={{ overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
           <thead>

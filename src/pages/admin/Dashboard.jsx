@@ -121,10 +121,10 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ padding: '10px', backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
-        <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#111827', margin: '0 0 8px 0' }}>
+        <h1 style={{color: '#111827', margin: '0 0 8px 0' }} className='font-normal text-4xl'>
           Dashboard
         </h1>
         <p style={{ fontSize: '14px', color: '#6b7280', margin: 0 }}>

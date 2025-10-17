@@ -58,6 +58,12 @@ export const dashboardApi = createApi({
         return response
       },
     }),
+    getMonthlyAnalytics: builder.query({
+      query: (year) => ({
+        url: `monthly-analytics/?year=${year}`,
+        method: 'GET',
+      }),
+    }),
     getLeadSourceTrends: builder.query({
       query: ({ startDate, endDate } = {}) => {
         const params = new URLSearchParams()
@@ -96,5 +102,6 @@ export const {
   useGetSubmissionsQuery,
   useGetLeadSourceTrendsQuery,
   useExportLeadSourceReportQuery,
-  useGetLeadSourceAnalyticsQuery
+  useGetLeadSourceAnalyticsQuery,
+  useGetMonthlyAnalyticsQuery
 } = dashboardApi;

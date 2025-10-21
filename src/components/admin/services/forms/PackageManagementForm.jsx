@@ -4,12 +4,14 @@ import { Button } from "../../../ui/button";
 import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
-import { Check, X, Plus, Trash2, Edit3, Save, EyeOff, Eye, MoreVertical } from 'lucide-react';
+import { Check, X, Plus, Trash2, Edit3, Save, EyeOff, Eye, MoreVertical, GripHorizontal } from 'lucide-react';
 import { useCreatePackageMutation, useDeletePackageMutation, useUpdatePackageMutation } from '../../../../store/api/packagesApi';
 import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation, useUpdatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
 import { servicesApi, useGetServiceByIdQuery } from '../../../../store/api/servicesApi';
 import { useDispatch } from 'react-redux';
+
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 
 // Custom Modal Component
 const CustomModal = ({ isOpen, onClose, title, children }) => {
@@ -97,6 +99,58 @@ const PackageManagementForm = ({
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return;
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) return;
+
+    // Reorder packages array
+    const reorderedPackages = Array.from(packages);
+    const [movedPackage] = reorderedPackages.splice(sourceIndex, 1);
+    reorderedPackages.splice(destinationIndex, 0, movedPackage);
+
+    // Update local state immediately for better UX
+    setPackages(reorderedPackages);
+
+    // Determine which packages need order updates
+    const startIndex = Math.min(sourceIndex, destinationIndex);
+    const endIndex = Math.max(sourceIndex, destinationIndex);
+
+    try {
+      // Update order for affected packages
+      const updatePromises = reorderedPackages
+        .slice(startIndex, endIndex + 1)
+        .map((pkg, idx) => {
+          const newOrder = startIndex + idx;
+          return updatePackage({
+            id: pkg.id,
+            order: newOrder
+          }).unwrap();
+        });
+
+      await Promise.all(updatePromises);
+
+      // Update with new order values
+      const updatedPackages = reorderedPackages.map((pkg, idx) => ({
+        ...pkg,
+        order: idx
+      }));
+      
+      setPackages(updatedPackages);
+      onUpdate({ packages: updatedPackages });
+    } catch (error) {
+      console.error('Failed to update package order:', error);
+      // Revert on error
+      setPackages(packages);
+      setErrors({ 
+        general: error?.data?.message || error?.data?.detail || 'Failed to update package order. Please try again.' 
+      });
+    }
   };
 
   // New function to handle package visibility toggle
@@ -379,129 +433,117 @@ const PackageManagementForm = ({
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead>
-                  <tr className="border-b bg-muted/50">
-                    <th className="text-left p-4 font-medium">
-                      {/* Empty header for features column */}
-                    </th>
-                    {packages.filter((f)=>f.is_active===true).map((pkg, index) => (
-                      <th key={pkg.id} className="text-center p-4 min-w-[120px]">
-                        <div className="space-y-1">
-                          <div className="text-xs text-muted-foreground">Package {index + 1}</div>
-                          {/* Package Name with Edit */}
-                          <div className="flex items-center justify-center gap-1">
-                            {editingPackage === pkg.id && editingField === 'name' ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                                  className="text-sm font-semibold bg-transparent border-0 border-b border-gray-300 focus:border-blue-500 focus:outline-none text-center min-w-0 w-20"
-                                  autoFocus
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleSaveEdit}
-                                  disabled={isLoading}
-                                  className="h-5 w-5 p-0 text-green-600 hover:text-green-800"
+                  <DragDropContext onDragEnd={handleDragEnd}>
+                    <Droppable droppableId="packages" direction="horizontal">
+                      {(provided) => (
+                        <tr 
+                          className="border-b bg-muted/50"
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                        >
+                          <th className="text-left p-4 font-medium">
+                            {/* Empty header for features column */}
+                          </th>
+                          {packages.filter((f)=>f.is_active===true).map((pkg, index) => (
+                            <Draggable key={pkg.id} draggableId={pkg.id.toString()} index={index}>
+                              {(provided, snapshot) => (
+                                <th 
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  className={`text-center p-4 min-w-[120px] ${
+                                    snapshot.isDragging ? 'bg-blue-50 shadow-lg' : ''
+                                  }`}
+                                  style={{
+                                    ...provided.draggableProps.style,
+                                    cursor: snapshot.isDragging ? 'grabbing' : 'grab'
+                                  }}
                                 >
-                                  <Save className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleCancelEdit}
-                                  className="h-5 w-5 p-0 text-gray-400 hover:text-gray-600"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <span className="font-semibold">{pkg.name}</span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleStartEdit(pkg.id, 'name', pkg.name)}
-                                  className="h-4 w-4 p-0 text-gray-400 hover:text-gray-600"
-                                >
-                                  <Edit3 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                          
-                          {/* Base Price with Edit */}
-                          {/* <div className="flex items-center justify-center gap-1">
-                            {editingPackage === pkg.id && editingField === 'base_price' ? (
-                              <div className="flex items-center gap-1">
-                                <span className="text-sm">$</span>
-                                <input
-                                  type="number"
-                                  value={editValue}
-                                  onChange={(e) => setEditValue(e.target.value)}
-                                  onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
-                                  className="text-sm text-muted-foreground bg-transparent border-0 border-b border-gray-300 focus:border-blue-500 focus:outline-none text-center min-w-0 w-16"
-                                  autoFocus
-                                />
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleSaveEdit}
-                                  disabled={isLoading}
-                                  className="h-5 w-5 p-0 text-green-600 hover:text-green-800"
-                                >
-                                  <Save className="h-3 w-3" />
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={handleCancelEdit}
-                                  className="h-5 w-5 p-0 text-gray-400 hover:text-gray-600"
-                                >
-                                  <X className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            ) : (
-                              <div className="flex items-center gap-1">
-                                <span className="text-sm text-muted-foreground">
-                                  ${pkg.base_price}
-                                </span>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleStartEdit(pkg.id, 'base_price', pkg.base_price)}
-                                  className="h-4 w-4 p-0 text-gray-400 hover:text-gray-600"
-                                >
-                                  <Edit3 className="h-3 w-3" />
-                                </Button>
-                              </div>
-                            )}
-                          </div> */}
+                                  <div className="space-y-1">
+                                    <div 
+                                      {...provided.dragHandleProps}
+                                      className={`flex items-center justify-center cursor-grab active:cursor-grabbing ${
+                                        snapshot.isDragging ? 'cursor-grabbing' : ''
+                                      }`}
+                                      title="Drag to reorder packages"
+                                    >
+                                      <GripHorizontal className={`h-4 w-4 transition-colors ${
+                                        snapshot.isDragging ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                                      }`} />
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">Package {index + 1}</div>
+                                    {/* Package Name with Edit */}
+                                    <div className="flex items-center justify-center gap-1">
+                                      {editingPackage === pkg.id && editingField === 'name' ? (
+                                        <div className="flex items-center gap-1">
+                                          <input
+                                            type="text"
+                                            value={editValue}
+                                            onChange={(e) => setEditValue(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && handleSaveEdit()}
+                                            className="text-sm font-semibold bg-transparent border-0 border-b border-gray-300 focus:border-blue-500 focus:outline-none text-center min-w-0 w-20"
+                                            autoFocus
+                                          />
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleSaveEdit}
+                                            disabled={isLoading}
+                                            className="h-5 w-5 p-0 text-green-600 hover:text-green-800"
+                                          >
+                                            <Save className="h-3 w-3" />
+                                          </Button>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={handleCancelEdit}
+                                            className="h-5 w-5 p-0 text-gray-400 hover:text-gray-600"
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      ) : (
+                                        <div className="flex items-center gap-1">
+                                          <span className="font-semibold">{pkg.name}</span>
+                                          <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => handleStartEdit(pkg.id, 'name', pkg.name)}
+                                            className="h-4 w-4 p-0 text-gray-400 hover:text-gray-600"
+                                          >
+                                            <Edit3 className="h-3 w-3" />
+                                          </Button>
+                                        </div>
+                                      )}
+                                    </div>
 
-                          {/* Action Buttons */}
-                          <div className="flex justify-center gap-1">
-                            {/* Delete Button */}
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => {
-                                setSelectedPackage(pkg);
-                                setDeleteConfirmOpen(true);
-                              }}
-                              className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                            >
-                              <Trash2 className="h-3 w-3" />
-                            </Button>
-                          </div>
-                        </div>
-                      </th>
-                    ))}
-                    <th className="p-4 w-8">
-                      {/* Empty header for actions */}
-                    </th>
-                  </tr>
+                                    {/* Action Buttons */}
+                                    <div className="flex justify-center gap-1">
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => {
+                                          setSelectedPackage(pkg);
+                                          setDeleteConfirmOpen(true);
+                                        }}
+                                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                                      >
+                                        <Trash2 className="h-3 w-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                </th>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          <th className="p-4 w-8">
+                            {/* Empty header for actions */}
+                          </th>
+                        </tr>
+                      )}
+                    </Droppable>
+                  </DragDropContext>
                 </thead>
                 <tbody>
                   {features.map((feature) => (

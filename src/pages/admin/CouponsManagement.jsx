@@ -295,7 +295,7 @@ const CouponsManagement = () => {
   }
 
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box>
       <Box 
         display="flex" 
         flexDirection={{ xs: 'column', sm: 'row' }}

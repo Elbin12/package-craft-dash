@@ -197,7 +197,7 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
   );
 };
 
-export const UserInfoForm = ({ data, onUpdate }) => {
+export const UserInfoForm = ({ data, onUpdate, admin }) => {
   const [locations, setLocations] = useState([]);
   const [sizeRanges, setSizeRanges] = useState([]);
 
@@ -278,215 +278,226 @@ useEffect(() => {
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* First row: First Name, Street Address */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 3,
-          }}
-        >
-          <TextField
-            label="First Name"
-            value={data.userInfo?.firstName || ""}
-            onChange={handleChange("firstName")}
-            required
-          />
-          <TextField
-            label="Last Name"
-            value={data.userInfo?.lastName || ""}
-            onChange={handleChange("lastName")}
-            required
-          />
-        </Box>
-
-        {/* Second row: Last Name, Province City */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 3,
-          }}
-        >
-          <PlacesAutocomplete
-            value={data.userInfo?.address || ""}
-            onSelect={handlePlaceSelect}
-            error={false}
-            helperText="Start typing to search and select your address"
-          />
-          <TextField
-            select
-            fullWidth
-            label="Province, City"
-            value={data.userInfo?.selectedLocation || ''}
-            onChange={handleChange('selectedLocation')}
-          >
-            <MenuItem value="">Select Location</MenuItem>
-            {locations.map(loc => (
-              <MenuItem key={loc.id} value={loc.id}>
-                {loc.name}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
-
-        {/* Third row: Company Name, Postal Code */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 3,
-          }}
-        >
-          <TextField
-            label="Company Name"
-            value={data.userInfo?.companyName || ""}
-            onChange={handleChange("companyName")}
-          />
-          <TextField
-            label="Postal Code"
-            value={data.userInfo?.postalCode || ""}
-            onChange={handleChange("postalCode")}
-            required
-          />
-        </Box>
-
-        {/* Fourth row: Primary Phone, SMS Consent */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 3,
-            alignItems: "start",
-          }}
-        >
-          <TextField
-            label="Primary Phone"
-            value={data.userInfo?.phone || ""}
-            onChange={handleChange("phone")}
-            onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
-            required
-            error={
-              touched.phone &&
-              (!data.userInfo?.phone || !/^\d{10}$/.test(data.userInfo?.phone))
-            }
-            helperText={
-              touched.phone
-                ? !data.userInfo?.phone
-                  ? "Phone number is required"
-                  : !/^\d{10}$/.test(data.userInfo?.phone)
-                  ? "Enter a valid 10-digit phone number"
-                  : ""
-                : ""
-            }
-          />
-          <Box>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Would it be okay for us to correspond with you via Text/SMS? (You must select one.)
-            </Typography>
-            <Button
-              variant={
-                data.userInfo?.smsConsent === true ? "contained" : "outlined"
-              }
-              onClick={() =>
-                handleChange("smsConsent")({ target: { value: true } })
-              }
-              sx={{ mr: 1 }}
+        {admin && (
+          <Typography variant="body2" color="textSecondary">
+            Note: Certain fields are hidden for admins because they are not required.
+          </Typography>
+        )}
+        {!admin && 
+        (
+          <>
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+              }}
             >
-              YES
-            </Button>
-            <Button
-              variant={
-                data.userInfo?.smsConsent === false ? "contained" : "outlined"
-              }
-              onClick={() =>
-                handleChange("smsConsent")({ target: { value: false } })
-              }
-            >
-              NO
-            </Button>
-          </Box>
-        </Box>
+              <TextField
+                label="First Name"
+                value={data.userInfo?.firstName || ""}
+                onChange={handleChange("firstName")}
+                required={!admin}
+              />
+              <TextField
+                label="Last Name"
+                value={data.userInfo?.lastName || ""}
+                onChange={handleChange("lastName")}
+                required={!admin}
+              />
+            </Box>
 
-        {/* Fifth row: Email Address, Email Consent */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
-            gap: 3,
-            alignItems: "start",
-          }}
-        >
-          <TextField
-            label="Email Address"
-            value={data.userInfo?.email || ""}
-            onChange={handleChange("email")}
-            onBlur={() => setTouched((p) => ({ ...p, email: true }))}
-            required
-            error={
-              touched.email &&
-              (!data.userInfo?.email ||
-                !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email))
-            }
-            helperText={
-              touched.email
-                ? !data.userInfo?.email
-                  ? "Email is required"
-                  : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email)
-                  ? "Enter a valid email"
-                  : ""
-                : ""
-            }
-          />
-          <Box>
-            <Typography variant="body2" sx={{ mb: 1 }}>
-              Would it be okay for us to correspond with you via email? (You must select one.)
-            </Typography>
-            <Button
-              variant={
-                data.userInfo?.emailConsent === true ? "contained" : "outlined"
-              }
-              onClick={() =>
-                handleChange("emailConsent")({ target: { value: true } })
-              }
-              sx={{ mr: 1 }}
+            {/* Second row: Address, Province/City */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+              }}
             >
-              YES
-            </Button>
-            <Button
-              variant={
-                data.userInfo?.emailConsent === false ? "contained" : "outlined"
-              }
-              onClick={() =>
-                handleChange("emailConsent")({ target: { value: false } })
-              }
-            >
-              NO
-            </Button>
-          </Box>
-        </Box>
+              <PlacesAutocomplete
+                value={data.userInfo?.address || ""}
+                onSelect={handlePlaceSelect}
+                error={false}
+                helperText="Start typing to search and select your address"
+              />
+              <TextField
+                select
+                fullWidth
+                label="Province, City"
+                value={data.userInfo?.selectedLocation || ''}
+                onChange={handleChange('selectedLocation')}
+              >
+                <MenuItem value="">Select Location</MenuItem>
+                {locations.map(loc => (
+                  <MenuItem key={loc.id} value={loc.id}>
+                    {loc.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
 
-        {/* Sixth row: Where did you hear about us (full width) */}
-        <TextField
-          select
-          fullWidth
-          label="Where did you hear about us?"
-          value={data.userInfo?.heardAboutUs || ""}
-          onChange={handleChange("heardAboutUs")}
-        >
-          <MenuItem value="">Please Select</MenuItem>
-          <MenuItem value="business-card">Business Card</MenuItem>
-          <MenuItem value="company-car">Company Car</MenuItem>
-          <MenuItem value="door-hanger">Door Hanger</MenuItem>
-          <MenuItem value="facebook">Facebook</MenuItem>
-          <MenuItem value="friend-family">Friend/Family</MenuItem>
-          <MenuItem value="google">Google</MenuItem>
-          <MenuItem value="mail">La Source/Reno Decor (Mail)</MenuItem>
-          <MenuItem value="other">Other</MenuItem>
-          <MenuItem value="radio">Radio</MenuItem>
-          <MenuItem value="referral">Referral</MenuItem>
-          <MenuItem value="returning">Returning Customer</MenuItem>
-          <MenuItem value="yellow-pages">Yellow Pages</MenuItem>
-        </TextField>
+            {/* Third row: Company Name, Postal Code */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+              }}
+            >
+              <TextField
+                label="Company Name"
+                value={data.userInfo?.companyName || ""}
+                onChange={handleChange("companyName")}
+              />
+              <TextField
+                label="Postal Code"
+                value={data.userInfo?.postalCode || ""}
+                onChange={handleChange("postalCode")}
+                required={!admin}
+              />
+            </Box>
+
+            {/* Fourth row: Primary Phone, SMS Consent */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+                alignItems: "start",
+              }}
+            >
+              <TextField
+                label="Primary Phone"
+                value={data.userInfo?.phone || ""}
+                onChange={handleChange("phone")}
+                onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
+                required={!admin}
+                error={
+                  !admin && touched.phone &&
+                  (!data.userInfo?.phone || !/^\d{10}$/.test(data.userInfo?.phone))
+                }
+                helperText={
+                  !admin &&
+                  touched.phone
+                    ? !data.userInfo?.phone
+                      ? "Phone number is required"
+                      : !/^\d{10}$/.test(data.userInfo?.phone)
+                      ? "Enter a valid 10-digit phone number"
+                      : ""
+                    : ""
+                }
+              />
+              <Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Would it be okay for us to correspond with you via Text/SMS? (You must select one.)
+                </Typography>
+                <Button
+                  variant={
+                    data.userInfo?.smsConsent === true ? "contained" : "outlined"
+                  }
+                  onClick={() =>
+                    handleChange("smsConsent")({ target: { value: true } })
+                  }
+                  sx={{ mr: 1 }}
+                >
+                  YES
+                </Button>
+                <Button
+                  variant={
+                    data.userInfo?.smsConsent === false ? "contained" : "outlined"
+                  }
+                  onClick={() =>
+                    handleChange("smsConsent")({ target: { value: false } })
+                  }
+                >
+                  NO
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Fifth row: Email Address, Email Consent */}
+            <Box
+              sx={{
+                display: "grid",
+                gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
+                gap: 3,
+                alignItems: "start",
+              }}
+            >
+              <TextField
+                label="Email Address"
+                value={data.userInfo?.email || ""}
+                onChange={handleChange("email")}
+                onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                required={!admin}
+                error={
+                  !admin && touched.email &&
+                  (!data.userInfo?.email ||
+                    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email))
+                }
+                helperText={
+                  !admin && touched.email
+                    ? !data.userInfo?.email
+                      ? "Email is required"
+                      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.userInfo?.email)
+                      ? "Enter a valid email"
+                      : ""
+                    : ""
+                }
+              />
+              <Box>
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  Would it be okay for us to correspond with you via email? (You must select one.)
+                </Typography>
+                <Button
+                  variant={
+                    data.userInfo?.emailConsent === true ? "contained" : "outlined"
+                  }
+                  onClick={() =>
+                    handleChange("emailConsent")({ target: { value: true } })
+                  }
+                  sx={{ mr: 1 }}
+                >
+                  YES
+                </Button>
+                <Button
+                  variant={
+                    data.userInfo?.emailConsent === false ? "contained" : "outlined"
+                  }
+                  onClick={() =>
+                    handleChange("emailConsent")({ target: { value: false } })
+                  }
+                >
+                  NO
+                </Button>
+              </Box>
+            </Box>
+
+            {/* Sixth row: Where did you hear about us (full width) */}
+            <TextField
+              select
+              fullWidth
+              label="Where did you hear about us?"
+              value={data.userInfo?.heardAboutUs || ""}
+              onChange={handleChange("heardAboutUs")}
+            >
+              <MenuItem value="">Please Select</MenuItem>
+              <MenuItem value="business-card">Business Card</MenuItem>
+              <MenuItem value="company-car">Company Car</MenuItem>
+              <MenuItem value="door-hanger">Door Hanger</MenuItem>
+              <MenuItem value="facebook">Facebook</MenuItem>
+              <MenuItem value="friend-family">Friend/Family</MenuItem>
+              <MenuItem value="google">Google</MenuItem>
+              <MenuItem value="mail">La Source/Reno Decor (Mail)</MenuItem>
+              <MenuItem value="other">Other</MenuItem>
+              <MenuItem value="radio">Radio</MenuItem>
+              <MenuItem value="referral">Referral</MenuItem>
+              <MenuItem value="returning">Returning Customer</MenuItem>
+              <MenuItem value="yellow-pages">Yellow Pages</MenuItem>
+            </TextField>
+          </>
+      )}
 
         {/* Seventh row: Project Type (full width) */}
         <Box>

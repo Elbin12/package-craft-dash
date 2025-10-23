@@ -63,18 +63,23 @@ const formatYesNo = (val) => {
   return 'N/A';
 };
 
-const QuoteDetailsPage = () => {
+const QuoteDetailsPage = ({submissionId, setIsSubmitted, handleReset}) => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [expandedServices, setExpandedServices] = useState({});
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  
+  // Use id from URL if available; otherwise, use prop
+  const effectiveId = id || submissionId;
+
+  console.log("Effective Quote ID:", effectiveId, submissionId);
   
   const {
     data: quote,
     isLoading,
     isError,
     error,
-  } = useGetQuoteDetailsQuery(id, {
+  } = useGetQuoteDetailsQuery(effectiveId, {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
@@ -191,87 +196,107 @@ const QuoteDetailsPage = () => {
   };
 
   return (
-    <Box className="min-h-screen" sx={{ background: 'linear-gradient(135deg,#f0f4f9 0%,#e2e8f0 70%)', pb: 6 }}>
+    <Box className="min-h-screen" sx={{
+    ...( !submissionId && {
+      background: 'linear-gradient(135deg,#f0f4f9 0%,#e2e8f0 70%)',
+    }),
+    pb: 6,
+  }}>
       {/* Header - Keep existing navbar */}
-      <Box
-        sx={{
-          bgcolor:'white',
-          bg: 'white',
-          borderBottom: 1,
-          borderColor: 'divider',
-          mb: 4,
-          py: 2,
-        }}
-        className='fixed w-full z-20'
-      >
-        <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
-          <Box display="flex" alignItems="center" justifyContent="space-between">
-            <Box display="flex" alignItems="start" flexDirection="column" gap={0} flexWrap="wrap">
-              <Typography variant="h4" color='#023c8f' fontWeight="600"
-                sx={{
-                  fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" }, // xs=h6-ish, sm=h5, md=h4
-                }}
-              >
-                Quote Details
-              </Typography>
-              <Box display="flex" alignItems="center" gap={2} mt={0.5}>
-                <Typography variant="body2" color="text.secondary" sx={{fontSize:{ xs: "0.6rem", sm: "0.8rem", md: "0.9rem"}}}>
-                  ID: {quote.id}
-                </Typography>
-                {/* <Chip
-                  label={status?.charAt(0).toUpperCase() + status?.slice(1)}
-                  size="small"
-                  sx={{
-                    fontWeight: 600,
-                    borderRadius: 1,
-                    ...statusStyles[status?.toLowerCase()] || statusStyles['draft'],
-                  }}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  Created: {new Date(created_at).toLocaleDateString()}
-                </Typography> */}
-              </Box>
-            </Box>
-            
-            {/* PDF Download Button */}
-            {status!=="declined"&&
+        {submissionId && 
+          <Box >
             <Button
-              variant="contained"
-              onClick={() =>
-                handleDownloadPDF(setIsGeneratingPDF, quote)
-              }
-              disabled={isGeneratingPDF}
-              startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
-              sx={{
-                  minWidth: { xs: 0 },
-                  bgcolor: '#023c8f',
-                  '&:hover': { bgcolor: '#012a6b' },
-                  borderRadius: 2,
-                  textTransform: 'none',
-                  fontWeight: 600,
-                  '& .pdf-btn-label': {
-                    display: 'none',
-                    '@media (min-width:600px)': {
-                      display: 'inline',
-                    },
-                  },
-                  '& .MuiButton-startIcon': {
-                    margin: { xs: 0, sm: '0 8px 0 0' }, // ✅ remove left gap on mobile
-                  },
-                }}
-              fullWidth={{ xs: true, sm: false }}
+              startIcon={<ArrowBack />}
+              variant="text"
+              onClick={() => {setIsSubmitted(false); handleReset();}}
+              sx={{ mb: 1 }}
             >
-              <span className="pdf-btn-label">
-                {isGeneratingPDF ? "Generating..." : "Download PDF"}
-              </span>
+              Back
             </Button>
-            }
+          </Box>
+        }
+        <Box
+          sx={{
+            bgcolor:'white',
+            bg: 'white',
+            borderBottom: 1,
+            borderColor: 'divider',
+            mb: 4,
+          }}
+          className={`w-full z-20 ${!submissionId && 'py-2 fixed'}`}
+        >
+          <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
+            <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box display="flex" alignItems="start" flexDirection="column" gap={0} flexWrap="wrap">
+                <Typography variant="h4" color='#023c8f' fontWeight="600"
+                  sx={{
+                    fontSize: { xs: "1.25rem", sm: "1.5rem", md: "2rem" }, // xs=h6-ish, sm=h5, md=h4
+                  }}
+                >
+                  Quote Details
+                </Typography>
+                <Box display="flex" alignItems="center" gap={2} mt={0.5}>
+                  <Typography variant="body2" color="text.secondary" sx={{fontSize:{ xs: "0.6rem", sm: "0.8rem", md: "0.9rem"}}}>
+                    ID: {quote.id}
+                  </Typography>
+                  {/* <Chip
+                    label={status?.charAt(0).toUpperCase() + status?.slice(1)}
+                    size="small"
+                    sx={{
+                      fontWeight: 600,
+                      borderRadius: 1,
+                      ...statusStyles[status?.toLowerCase()] || statusStyles['draft'],
+                    }}
+                  />
+                  <Typography variant="body2" color="text.secondary">
+                    Created: {new Date(created_at).toLocaleDateString()}
+                  </Typography> */}
+                </Box>
+              </Box>
+              
+              {/* PDF Download Button */}
+              {status!=="declined"&&
+              <Button
+                variant="contained"
+                onClick={() =>
+                  handleDownloadPDF(setIsGeneratingPDF, quote)
+                }
+                disabled={isGeneratingPDF}
+                startIcon={isGeneratingPDF ? <CircularProgress size={20} color="inherit" /> : <Download />}
+                sx={{
+                    minWidth: { xs: 0 },
+                    bgcolor: '#023c8f',
+                    '&:hover': { bgcolor: '#012a6b' },
+                    borderRadius: 2,
+                    textTransform: 'none',
+                    fontWeight: 600,
+                    '& .pdf-btn-label': {
+                      display: 'none',
+                      '@media (min-width:600px)': {
+                        display: 'inline',
+                      },
+                    },
+                    '& .MuiButton-startIcon': {
+                      margin: { xs: 0, sm: '0 8px 0 0' }, // ✅ remove left gap on mobile
+                    },
+                  }}
+                fullWidth={{ xs: true, sm: false }}
+              >
+                <span className="pdf-btn-label">
+                  {isGeneratingPDF ? "Generating..." : "Download PDF"}
+                </span>
+              </Button>
+              }
+            </Box>
           </Box>
         </Box>
-      </Box>
 
       {/* Body */}
-      <Box maxWidth="1400px" className='py-36' mx="auto" px={{ xs: 0, sm:2, md: 4 }}>
+      <Box maxWidth="1400px" className={!submissionId &&`py-36`} mx="auto" sx={{
+        ...( !submissionId && {
+          px: { xs: 0, sm: 2, md: 4 },
+        }),
+      }}>
         <Container maxWidth="lg">
           <Box display="grid"  gridTemplateColumns={
               is_bid_in_person || status === "declined"

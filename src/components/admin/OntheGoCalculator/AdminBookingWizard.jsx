@@ -3,19 +3,17 @@ import { useState, useCallback, useEffect, useRef, useLayoutEffect } from "react
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import { CheckCircle, Circle, Loader2 } from "lucide-react"
-import { useCreateQuoteMutation } from "../../store/api/user/quotesApi"
 import { useNavigate, useSearchParams } from "react-router-dom"
-import UserInfoForm from "./forms/UserInfoForm"
-import ServiceSelectionForm from "./forms/ServiceSelectionForm"
-import PackageSelectionForm from "./forms/PackageSelectionForm"
-import QuestionsForm from "./forms/QuestionsForm"
-import CheckoutSummary from "./forms/CheckoutSummary"
-import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
-import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
-import { useDispatch } from "react-redux"
-import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography,Card, CardContent } from "@mui/material"
 import SignatureCanvas from "react-signature-canvas";
+import { useCreateQuoteMutation } from "../../../store/api/user/quotesApi"
+import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../../store/api/user/quoteApi"
+import UserInfoForm from "../../user/forms/UserInfoForm"
+import MultiServiceSelectionForm from "../../user/forms/MultiServiceSelectionForm"
+import QuestionsForm from "../../user/forms/QuestionsForm"
+import CheckoutSummary from "../../user/forms/CheckoutSummary"
+import { set } from "date-fns"
+import QuoteDetailsPage from "../../../pages/user/QuoteDetailsPage"
 
 
 const steps = [
@@ -25,26 +23,15 @@ const steps = [
   "Review & Submit"
 ];
 
-export const BookingWizard = () => {
-  const [searchParams] = useSearchParams();
-  const submissionIdFromUrl = searchParams.get("submission_id");
+export const AdminBookingWizard = () => {
 
   const [signature, setSignature] = useState('');
   const [addiditional_notes, setAdditionalNotes] = useState();
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [isBidInPerson, setIsBidInPerson] = useState(false)
 
-  // const sigCanvasRef = useRef(null);
-
-  // Fetch if submission_id present
-  const {
-    data: submissionData,
-    isSuccess,
-    isFetching,
-  } = useGetQuoteDetailsQuery(submissionIdFromUrl, {
-    skip: !submissionIdFromUrl,
-    refetchOnMountOrArgChange: true,
-  });
+  const [isSubmitted, setIsSubmitted] = useState(false);
+  const [submissionId, setSubmissionId] = useState("a5d798d9-0162-449f-87f0-655591adc4a6");
 
   const [activeStep, setActiveStep] = useState(0)
   const [bookingData, setBookingData] = useState(() => {
@@ -65,127 +52,9 @@ export const BookingWizard = () => {
   });
 
   useEffect(() => {
-    if (isSuccess && submissionData) {
-      const transformedData = {
-        submission_id: submissionData.id,
-        userInfo: {
-          firstName: submissionData.first_name || "",
-          lastName: submissionData.last_name || "",
-          phone: submissionData.customer_phone || "",
-          email: submissionData.customer_email || "",
-          address: submissionData.street_address || "",
-          latitude: submissionData.latitude || "",
-          longitude: submissionData.longitude || "",
-          googlePlaceId: submissionData.google_place_id || "",
-          contactId: null,
-          selectedLocation: submissionData.location || null,
-          selectedHouseSize: submissionData.size_range || null,
-          projectType: submissionData?.property_type,
-          propertyName: submissionData?.property_name,
-          postalCode: submissionData?.property_name,
-          floors: submissionData?.num_floors,
-          customerStatus: submissionData?.is_previous_customer,
-          heardAboutUs: submissionData?.heard_about_us,
-          companyName: submissionData?.company_name,
-          smsConsent: submissionData?.allow_sms,
-          emailConsent: submissionData?.allow_email
-        },
-        selectedServices: submissionData.service_selections.map((s) => ({
-          id: s.service_details.id,
-          name: s.service_details.name,
-        })),
-        selectedService: null,
-        selectedPackage: null,
-        selectedPackages: submissionData.service_selections
-          .flatMap((s) =>
-            s.package_quotes.filter((p) => p.is_selected).map((pkg) => ({
-              service_selection_id: pkg.id,
-              package_id: pkg.package,
-              package_name: pkg.package_name,
-              total_price: pkg.total_price,
-            }))
-          ),
-        // FIXED: Proper question answers transformation
-        questionAnswers: submissionData.service_selections.reduce((acc, service) => {
-          service.question_responses.forEach((response) => {
-            const serviceId = service.service_details.id;
-            const questionId = response.question;
-            
-            // Handle different question types
-            switch (response.question_type) {
-              case "yes_no":
-              case "conditional":
-                const key = `${serviceId}_${questionId}`;
-                acc[key] = response.yes_no_answer ? "yes" : "no";
-                break;
-                
-              case "describe":
-              case "options":
-                if (response.option_responses && response.option_responses.length > 0) {
-                  const key = `${serviceId}_${questionId}`;
-                  // For single selection, use the first option
-                  acc[key] = response.option_responses[0].option;
-                }
-                break;
-                
-              case "quantity":
-                response.option_responses.forEach((optResponse) => {
-                  // Mark the option as selected
-                  const selectedKey = `${serviceId}_${questionId}_${optResponse.option}`;
-                  acc[selectedKey] = "selected";
-                  
-                  // Store the quantity
-                  const quantityKey = `${serviceId}_${questionId}_${optResponse.option}_quantity`;
-                  acc[quantityKey] = optResponse.quantity;
-                });
-                break;
-                
-              case "multiple_yes_no":
-                response.sub_question_responses.forEach((subResponse) => {
-                  const subKey = `${serviceId}_${questionId}_${subResponse.sub_question_id || subResponse.sub_question}`;
-                  acc[subKey] = subResponse.answer ? "yes" : "no";
-                });
-                break;
-                
-              default:
-                console.warn(`Unknown question type: ${response.question_type}`);
-            }
-          });
-          return acc;
-        }, {}),
-        pricing: {
-          basePrice: submissionData.total_base_price || 0,
-          tripSurcharge: submissionData.total_surcharges || 0,
-          questionAdjustments: submissionData.total_adjustments || 0,
-          totalPrice: submissionData.final_total || 0,
-        },
-        quoteDetails: submissionData,
-      };
-      
-      console.log('Transformed question answers:', transformedData.questionAnswers);
-      setBookingData(transformedData);
-    }
-  }, [isSuccess, submissionData]);
-
-  useLayoutEffect(() => {
-    if(submissionData?.status.includes("submitted", "declined")){
-      navigate(`/quote/details/${submissionData?.id}`)
-    }
-    if (isSuccess && submissionData) {
-      setActiveStep(3);
-    }
-  }, [isSuccess, submissionData]);
-
-  useEffect(() => {
     // Scroll the page to the top when activeStep changes
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeStep]);
-
-
-  // // Save to localStorage whenever bookingData changes
-  // useEffect(() => {
-  //   localStorage.setItem("bookingData", JSON.stringify(bookingData));
-  // }, [bookingData]);
 
   const [createSubmission, { isLoading: creating }] = useCreateSubmissionMutation()
   const [updateSubmission, { isLoading: updating }] = useUpdateSubmissionMutation()
@@ -331,14 +200,6 @@ export const BookingWizard = () => {
       const { firstName, lastName, phone, email, address, smsConsent, emailConsent, floors, selectedLocation, selectedHouseSize,
         propertyName, projectType, postalCode, heardAboutUs, companyName, customerStatus
        } = bookingData.userInfo
-      if ([firstName, lastName, address, phone, heardAboutUs, email].some(
-          (v) => typeof v !== "string" || v.trim() === ""
-        ) ||
-        smsConsent === undefined ||
-        emailConsent === undefined ||
-        customerStatus === undefined) {
-        return
-      }
 
       const payload = {
         first_name: firstName,
@@ -473,6 +334,7 @@ export const BookingWizard = () => {
 
       // Prepare the payload for quote submission
       const payload = {
+        is_on_the_go:true,
         coupon_id: bookingData?.coupon_id || null,
         customer_confirmation: true,
         selected_packages: selectedPackages.map(pkg => ({
@@ -494,7 +356,9 @@ export const BookingWizard = () => {
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
       
       localStorage.removeItem("bookingData");      // Navigate to success page or quote details
-      navigate(`/quote/details/${submission_id}`);
+      // navigate(`/quote/details/${submission_id}`);
+      setIsSubmitted(true);
+      console.log('Quote submitted successfully', bookingData, bookingData?.submission_id);
       
     } catch (err) {
       console.error("Failed to submit quote", err);
@@ -537,43 +401,15 @@ export const BookingWizard = () => {
     switch (step) {
       case 0: {
       const {
-        firstName = "",
-        lastName="",
-        phone = "",
-        email = "",
-        address = "",
         selectedHouseSize = "",
-        smsConsent,
-        emailConsent,
-        customerStatus,
-        heardAboutUs = "",
-        floors= "",
-        selectedLocation
       } = bookingData.userInfo || {};
 
       const isNonEmpty = (v) =>
         typeof v === "string" && v.trim() !== "";
 
-      const isValidEmail = (email) =>
-        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-      const isValidPhone = (phone) =>
-        /^\d{10}$/.test(phone); // only 10 digits
-
       return (
-        isNonEmpty(firstName) &&
-        isNonEmpty(lastName) &&
-        isNonEmpty(address) &&
-        isNonEmpty(floors) &&
-        isNonEmpty(heardAboutUs) &&
         isNonEmpty(String(selectedHouseSize)) &&
-        isValidPhone(phone) &&
-        isValidEmail(email) &&
-        smsConsent !== undefined &&
-        emailConsent !== undefined &&
-        customerStatus !== undefined &&
-        selectedHouseSize !== null &&
-        selectedLocation !== null
+        selectedHouseSize !== null
       );
     }
       case 1:
@@ -593,7 +429,7 @@ export const BookingWizard = () => {
   const getStepContent = (step) => {
     switch (step) {
       case 0:
-        return <UserInfoForm data={bookingData} onUpdate={updateBookingData} />;
+        return <UserInfoForm data={bookingData} onUpdate={updateBookingData} admin={true}/>;
       case 1:
         return <MultiServiceSelectionForm data={bookingData} onUpdate={updateBookingData} />;
       case 2:
@@ -636,146 +472,109 @@ export const BookingWizard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative">
+    <div className="min-h-screen relative">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
-          <div className="text-center sm:text-left flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Quote</h1>
-            <p className="text-gray-600">Complete the steps below to create your quote</p>
+      {isSubmitted ? (
+        <QuoteDetailsPage submissionId={bookingData?.submission_id} setIsSubmitted={setIsSubmitted} handleReset={handleReset}/>
+      ) : (
+        <>
+          <div className="">
+            <div className="max-w-7xl mx-auto flex items-center justify-between">
+              <div className="text-center sm:text-left flex-1">
+                <h1 className="text-3xl md:text-4xl text-gray-900 mb-2">On the Go Calculator</h1>
+                <p className="text-gray-600 text-sm md:text-base">Complete the steps below to create your quote</p>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
 
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
-        {/* Progress Section */}
-        <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-          <CardContent className="p-6">
-            <div className="mb-6">
-              <div className="flex justify-between items-center mb-2">
-                <span className="text-sm font-medium text-gray-700">
-                  Step {activeStep + 1} of {steps.length}
-                </span>
-                <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-            </div>
-
-            {/* Step Indicators */}
-            <div className="flex justify-between items-center">
-              {steps.map((label, index) => (
-                <div key={label} className="flex flex-col items-center space-y-2">
-                  <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
-                      index < activeStep
-                        ? "bg-green-500 border-green-500 text-white"
-                        : index === activeStep
-                          ? "bg-blue-500 border-blue-500 text-white"
-                          : "bg-gray-100 border-gray-300 text-gray-400"
-                    }`}
-                  >
-                    {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+          <div className="max-w-7xl mx-auto py-8">
+            {/* Progress Section */}
+            <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+              <CardContent className="p-6">
+                <div className="mb-6">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-sm font-medium text-gray-700">
+                      Step {activeStep + 1} of {steps.length}
+                    </span>
+                    <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
                   </div>
-                  <span
-                    className={`text-xs font-medium text-center max-w-20 ${
-                      index <= activeStep ? "text-gray-900" : "text-gray-500"
-                    }`}
-                  >
-                    {label}
-                  </span>
+                  <Progress value={progressPercentage} className="h-2" />
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
 
-        {/* Main Content */}
-        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-          <CardContent sx={{ p: { xs: '0.4rem', sm: '1.5rem', md: '2rem' } }}>
-            <div className="min-h-[500px]">{getStepContent(activeStep)}</div>
+                {/* Step Indicators */}
+                <div className="flex justify-between items-center">
+                  {steps.map((label, index) => (
+                    <div key={label} className="flex flex-col items-center space-y-2">
+                      <div
+                        className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                          index < activeStep
+                            ? "bg-green-500 border-green-500 text-white"
+                            : index === activeStep
+                              ? "bg-blue-500 border-blue-500 text-white"
+                              : "bg-gray-100 border-gray-300 text-gray-400"
+                        }`}
+                      >
+                        {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                      </div>
+                      <span
+                        className={`text-xs font-medium text-center max-w-20 ${
+                          index <= activeStep ? "text-gray-900" : "text-gray-500"
+                        }`}
+                      >
+                        {label}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
 
-            {/* Navigation Buttons */}
-            <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
-              {/* Back button (left) */}
-              <Button
-                variant="outline"
-                onClick={handleBack}
-                disabled={activeStep === 0}
-                className="px-6 bg-transparent"
-              >
-                Back
-              </Button>
+            {/* Main Content */}
+            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+              <CardContent sx={{ p: { xs: '0.4rem', sm: '1.5rem', md: '2rem' } }}>
+                <div className="min-h-[500px]">{getStepContent(activeStep)}</div>
 
-              {/* Center content */}
-              <div className="flex justify-center items-center flex-1">
-                <Typography
-                  variant="caption"
-                  display="flex"
-                  sx={{
-                    alignItems: "center",
-                    fontSize: { xs: "0.5rem", sm: "0.7rem", md: "1rem" },
-                    color: "text.secondary",
-                  }}
-                >
-                  Powered by{" "}
-                  <a
-                    href="https://upgrademybiz.io/"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      color: "#023c8f",
-                      textDecoration: "none",
-                      fontWeight: 500,
-                      display: "flex",
-                      alignItems: "center",
-                    }}
-                  >
-                    <img
-                      src="/image.png"
-                      alt="Company Logo"
-                      className="object-contain max-h-[23px] sm:max-h-[40px] md:max-h-[55px] ml-1"
-                    />
-                  </a>
-                </Typography>
-              </div>
-
-              {/* Next button (right) */}
-              <div className="flex items-center gap-3">
-                {activeStep !== steps.length - 1 && (
+                {/* Navigation Buttons */}
+                <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
                   <Button
-                    onClick={handleNext}
-                    disabled={
-                      !isStepComplete(activeStep) ||
-                      isSavingContact ||
-                      submittingResponses ||
-                      creatingQuote ||
-                      submittingQuote
-                    }
-                    className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                    variant="outline"
+                    onClick={handleBack}
+                    disabled={activeStep === 0}
+                    className="px-6 bg-transparent"
                   >
-                    {(isSavingContact || submittingResponses || creatingQuote) ? (
-                      <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                        {activeStep === 0
-                          ? "Saving..."
-                          : activeStep === 1
-                          ? "Adding Services..."
-                          : activeStep === 2
-                          ? "Submitting..."
-                          : "Submitting Quote..."}
-                      </>
-                    ) : (
-                      "Next"
-                    )}
+                    Back
                   </Button>
-                )}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+
+                  <div className="flex items-center justify-end w-full gap-3">
+                    {activeStep !== steps.length - 1 &&
+                      <Button
+                        onClick={handleNext}
+                        disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
+                        className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                      >
+                        {(isSavingContact || submittingResponses || creatingQuote) ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            {activeStep === 0 ? "Saving..." : 
+                            activeStep === 1 ? "Adding Services..." :
+                            activeStep === 2 ? "Submitting Responses..." :
+                            "Submitting Quote..."}
+                          </>
+                        ): (
+                          "Next"
+                        )}
+                      </Button>
+                    }
+
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </>
+      )}
     </div>
   )
 }
 
-export default BookingWizard
+export default AdminBookingWizard

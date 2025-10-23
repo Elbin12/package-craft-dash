@@ -30,7 +30,7 @@ import {
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { House, ListPlus } from 'lucide-react';
+import { Calculator, House, ListPlus } from 'lucide-react';
 
 const drawerWidth = 280;
 
@@ -38,12 +38,13 @@ const drawerWidth = 280;
 
 const menuItems = [
   { text: 'Dashboard', icon: Dashboard, path: '/admin' },
-  { text: 'Reports', icon: AnalyticsOutlined, path: '/reports' },
+  { text: 'Reports', icon: AnalyticsOutlined, path: '/admin/reports' },
   { text: 'Service Management', icon: BusinessCenterOutlined, path: '/admin/services' },
   { text: 'Location Management', icon: LocationOnOutlined, path: '/admin/locations' },
   { text: 'House Size Info', icon: House, path: '/admin/house-size-info' },
   { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services' },
   { text: 'Coupons', icon: DiscountOutlined , path: '/admin/coupons' },
+  { text: 'On the Go Calculator', icon: Calculator , path: '/admin/on-the-go-calculator' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
@@ -82,7 +83,7 @@ export const AdminLayout = ({ children }) => {
                 },
               }}
             >
-              <ListItemIcon sx={{ color: location.pathname === item.path ? 'hsl(var(--primary))' : 'inherit' }}>
+              <ListItemIcon sx={{minWidth: 40, color: location.pathname === item.path ? 'hsl(var(--primary))' : 'inherit' }}>
                 <item.icon />
               </ListItemIcon>
               <ListItemText primary={item.text} />

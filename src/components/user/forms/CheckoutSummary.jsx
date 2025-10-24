@@ -49,7 +49,8 @@ export const CheckoutSummary = ({
   isStepComplete,
   handleNext,
   isBidInPerson,
-  setIsBidInPerson
+  setIsBidInPerson,
+  admin
 }) => {
   const [selectedPackages, setSelectedPackages] = useState({})
   const [expandedServices, setExpandedServices] = useState({})
@@ -389,19 +390,21 @@ export const CheckoutSummary = ({
           <Typography variant="h4" gutterBottom fontWeight={300} sx={{ color: '#023c8f', textAlign: 'center', fontSize:{ xs: "1.8rem", sm: "1.9rem", md: "2.2rem"} }}>
             Quote Summary
           </Typography>
-          <Box display="flex" gap={2} flexWrap="wrap" alignItems="center" justifyContent="center">
-            <Typography variant="body1" color="text.secondary" sx={{fontSize:{ xs: "0.8rem", sm: "0.9rem", md: "1rem"}}}>
-              Quote #{quoteData.id}
-            </Typography>
-            <Chip
-              label={quoteData.status.replace("_", " ").toUpperCase()}
-              size="small"
-              sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600, fontSize:{ xs: "0.7rem", sm: "0.8rem", md: "0.8rem"} }}
-            />
-            <Typography variant="body2" color="text.secondary">
-              {new Date(quoteData.created_at).toLocaleDateString()}
-            </Typography>
-          </Box>
+          {!admin&&
+            <Box display="flex" gap={2} flexWrap="wrap" alignItems="center" justifyContent="center">
+              <Typography variant="body1" color="text.secondary" sx={{fontSize:{ xs: "0.8rem", sm: "0.9rem", md: "1rem"}}}>
+                Quote #{quoteData.id}
+              </Typography>
+              <Chip
+                label={quoteData.status.replace("_", " ").toUpperCase()}
+                size="small"
+                sx={{ bgcolor: "#d9edf7", color: "#023c8f", fontWeight: 600, fontSize:{ xs: "0.7rem", sm: "0.8rem", md: "0.8rem"} }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                {new Date(quoteData.created_at).toLocaleDateString()}
+              </Typography>
+            </Box>
+          }
         </Box>
 
         {/* Customer Info */}
@@ -1130,7 +1133,7 @@ export const CheckoutSummary = ({
             {/* } */}
 
             {/* Signature Section */}
-            {!isBidInPerson&&
+            {!admin && !isBidInPerson&&
               <Box sx={{ mb: 3, maxWidth: { xs: '100%', sm: '400px' } }}>
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
                   Signature
@@ -1186,61 +1189,63 @@ export const CheckoutSummary = ({
               </Box>
             }
 
-            <Box display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} alignItems={{ sm: "center" }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={termsAccepted}
-                    onChange={(e) => {
-                      setTermsAccepted(e.target.checked)
-                      onUpdate({ additionalNotes, termsAccepted: e.target.checked })
-                    }}
-                    sx={{ 
-                      color: '#e1e1e1', 
-                      '&.Mui-checked': { color: '#023c8f' } 
-                    }}
+            {!admin &&
+              <Box display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} alignItems={{ sm: "center" }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={termsAccepted}
+                      onChange={(e) => {
+                        setTermsAccepted(e.target.checked)
+                        onUpdate({ additionalNotes, termsAccepted: e.target.checked })
+                      }}
+                      sx={{ 
+                        color: '#e1e1e1', 
+                        '&.Mui-checked': { color: '#023c8f' } 
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2">I agree to the Terms & Conditions</Typography>}
+                  sx={{ flex: 1 }}
                   />
-                }
-                label={<Typography variant="body2">I agree to the Terms & Conditions</Typography>}
-                sx={{ flex: 1 }}
-              />
 
-              <Box display="flex" gap={2} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
-                <Button
-                  variant="outlined"
-                  size="large"
-                  onClick={handleDeclineClick}
-                  sx={{
-                    color: "#d32f2f",
-                    borderColor: "#d32f2f",
-                    "&:hover": {
-                      bgcolor: "#ffeaea",
+                <Box display="flex" gap={2} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
+                  <Button
+                    variant="outlined"
+                    size="large"
+                    onClick={handleDeclineClick}
+                    sx={{
+                      color: "#d32f2f",
                       borderColor: "#d32f2f",
-                    },
-                    fontWeight: 600,
-                    minWidth: { xs: "48%", sm: "120px" },
-                  }}
-                >
-                  Decline
-                </Button>
+                      "&:hover": {
+                        bgcolor: "#ffeaea",
+                        borderColor: "#d32f2f",
+                      },
+                      fontWeight: 600,
+                      minWidth: { xs: "48%", sm: "120px" },
+                    }}
+                  >
+                    Decline
+                  </Button>
 
-                <Button
-                  variant="contained"
-                  size="large"
-                  disabled={!isStepComplete(3)}
-                  sx={{
-                    bgcolor: "#42bd3f",
-                    "&:hover": { bgcolor: "#369932" },
-                    "&:disabled": { bgcolor: "#e0e0e0" },
-                    fontWeight: 600,
-                    minWidth: { xs: "48%", sm: "120px" },
-                  }}
-                  onClick={handleNext}
-                >
-                  Accept Quote
-                </Button>
+                  <Button
+                    variant="contained"
+                    size="large"
+                    disabled={!isStepComplete(3)}
+                    sx={{
+                      bgcolor: "#42bd3f",
+                      "&:hover": { bgcolor: "#369932" },
+                      "&:disabled": { bgcolor: "#e0e0e0" },
+                      fontWeight: 600,
+                      minWidth: { xs: "48%", sm: "120px" },
+                    }}
+                    onClick={handleNext}
+                  >
+                    Accept Quote
+                  </Button>
+                </Box>
               </Box>
-            </Box>
+            }
 
             {isBidInPerson &&
               <Typography variant="caption" color="text.secondary" display="block" textAlign="center" mt={2}>

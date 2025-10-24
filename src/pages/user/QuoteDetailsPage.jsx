@@ -63,23 +63,18 @@ const formatYesNo = (val) => {
   return 'N/A';
 };
 
-const QuoteDetailsPage = ({submissionId, setIsSubmitted, handleReset}) => {
+const QuoteDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [expandedServices, setExpandedServices] = useState({});
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
-  
-  // Use id from URL if available; otherwise, use prop
-  const effectiveId = id || submissionId;
-
-  console.log("Effective Quote ID:", effectiveId, submissionId);
   
   const {
     data: quote,
     isLoading,
     isError,
     error,
-  } = useGetQuoteDetailsQuery(effectiveId, {
+  } = useGetQuoteDetailsQuery(id, {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
     refetchOnReconnect: true,
@@ -196,25 +191,7 @@ const QuoteDetailsPage = ({submissionId, setIsSubmitted, handleReset}) => {
   };
 
   return (
-    <Box className="min-h-screen" sx={{
-    ...( !submissionId && {
-      background: 'linear-gradient(135deg,#f0f4f9 0%,#e2e8f0 70%)',
-    }),
-    pb: 6,
-  }}>
-      {/* Header - Keep existing navbar */}
-        {submissionId && 
-          <Box >
-            <Button
-              startIcon={<ArrowBack />}
-              variant="text"
-              onClick={() => {setIsSubmitted(false); handleReset();}}
-              sx={{ mb: 1 }}
-            >
-              Back
-            </Button>
-          </Box>
-        }
+    <Box className="min-h-screen" sx={{ background: 'linear-gradient(135deg,#f0f4f9 0%,#e2e8f0 70%)', pb: 6 }}>
         <Box
           sx={{
             bgcolor:'white',
@@ -223,7 +200,7 @@ const QuoteDetailsPage = ({submissionId, setIsSubmitted, handleReset}) => {
             borderColor: 'divider',
             mb: 4,
           }}
-          className={`w-full z-20 ${!submissionId && 'py-2 fixed'}`}
+          className='w-full z-20 py-2 fixed'
         >
           <Box maxWidth="1200px" mx="auto" px={{ xs: 2, md: 4 }} display="flex" flexDirection="column" gap={1} >
             <Box display="flex" alignItems="center" justifyContent="space-between">
@@ -292,11 +269,7 @@ const QuoteDetailsPage = ({submissionId, setIsSubmitted, handleReset}) => {
         </Box>
 
       {/* Body */}
-      <Box maxWidth="1400px" className={!submissionId &&`py-36`} mx="auto" sx={{
-        ...( !submissionId && {
-          px: { xs: 0, sm: 2, md: 4 },
-        }),
-      }}>
+      <Box maxWidth="1400px" className='py-36' mx="auto" sx={{px: { xs: 0, sm: 2, md: 4 }}}>
         <Container maxWidth="lg">
           <Box display="grid"  gridTemplateColumns={
               is_bid_in_person || status === "declined"

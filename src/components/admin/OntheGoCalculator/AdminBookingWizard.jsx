@@ -31,7 +31,6 @@ export const AdminBookingWizard = () => {
   const [isBidInPerson, setIsBidInPerson] = useState(false)
 
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [submissionId, setSubmissionId] = useState("a5d798d9-0162-449f-87f0-655591adc4a6");
 
   const [activeStep, setActiveStep] = useState(0)
   const [bookingData, setBookingData] = useState(() => {
@@ -437,7 +436,7 @@ export const AdminBookingWizard = () => {
       case 3:
         return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
         additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature}
-        isStepComplete={isStepComplete} handleNext={handleNext} isBidInPerson={isBidInPerson} setIsBidInPerson={setIsBidInPerson}
+        isStepComplete={isStepComplete} handleNext={handleNext} isBidInPerson={isBidInPerson} setIsBidInPerson={setIsBidInPerson} admin={true}
         />;
       default:
         return "Unknown step";
@@ -474,105 +473,96 @@ export const AdminBookingWizard = () => {
   return (
     <div className="min-h-screen relative">
       {/* Header */}
-      {isSubmitted ? (
-        <QuoteDetailsPage submissionId={bookingData?.submission_id} setIsSubmitted={setIsSubmitted} handleReset={handleReset}/>
-      ) : (
-        <>
-          <div className="">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-              <div className="text-center sm:text-left flex-1">
-                <h1 className="text-3xl md:text-4xl text-gray-900 mb-2">On the Go Calculator</h1>
-                <p className="text-gray-600 text-sm md:text-base">Complete the steps below to create your quote</p>
+      <div className="">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          <div className="text-center sm:text-left flex-1">
+            <h1 className="text-3xl md:text-4xl text-gray-900 mb-2">On the Go Calculator</h1>
+            <p className="text-gray-600 text-sm md:text-base">Complete the steps below to create your quote</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto py-8">
+        {/* Progress Section */}
+        <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-6">
+            <div className="mb-6">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium text-gray-700">
+                  Step {activeStep + 1} of {steps.length}
+                </span>
+                <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+            </div>
+            {/* Step Indicators */}
+            <div className="flex justify-between items-center">
+              {steps.map((label, index) => (
+                <div key={label} className="flex flex-col items-center space-y-2">
+                  <div
+                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                      index < activeStep
+                        ? "bg-green-500 border-green-500 text-white"
+                        : index === activeStep
+                          ? "bg-blue-500 border-blue-500 text-white"
+                          : "bg-gray-100 border-gray-300 text-gray-400"
+                    }`}
+                  >
+                    {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                  </div>
+                  <span
+                    className={`text-xs font-medium text-center max-w-20 ${
+                      index <= activeStep ? "text-gray-900" : "text-gray-500"
+                    }`}
+                  >
+                    {label}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Main Content */}
+        <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
+          <CardContent sx={{ p: { xs: '0.4rem', sm: '1.5rem', md: '2rem' } }}>
+            <div className="min-h-[500px]">{getStepContent(activeStep)}</div>
+            {/* Navigation Buttons */}
+            <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
+              <Button
+                variant="outline"
+                onClick={handleBack}
+                disabled={activeStep === 0}
+                className="px-6 bg-transparent"
+              >
+                Back
+              </Button>
+
+              <div className="flex items-center justify-end w-full gap-3">
+                {activeStep !== steps.length - 1 &&
+                  <Button
+                    onClick={handleNext}
+                    disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
+                    className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                  >
+                    {(isSavingContact || submittingResponses || creatingQuote) ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        {activeStep === 0 ? "Saving..." : 
+                        activeStep === 1 ? "Adding Services..." :
+                        activeStep === 2 ? "Submitting Responses..." :
+                        "Submitting Quote..."}
+                      </>
+                    ): (
+                      "Next"
+                    )}
+                  </Button>
+                }
               </div>
             </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto py-8">
-            {/* Progress Section */}
-            <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
-              <CardContent className="p-6">
-                <div className="mb-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="text-sm font-medium text-gray-700">
-                      Step {activeStep + 1} of {steps.length}
-                    </span>
-                    <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
-                  </div>
-                  <Progress value={progressPercentage} className="h-2" />
-                </div>
-
-                {/* Step Indicators */}
-                <div className="flex justify-between items-center">
-                  {steps.map((label, index) => (
-                    <div key={label} className="flex flex-col items-center space-y-2">
-                      <div
-                        className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
-                          index < activeStep
-                            ? "bg-green-500 border-green-500 text-white"
-                            : index === activeStep
-                              ? "bg-blue-500 border-blue-500 text-white"
-                              : "bg-gray-100 border-gray-300 text-gray-400"
-                        }`}
-                      >
-                        {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
-                      </div>
-                      <span
-                        className={`text-xs font-medium text-center max-w-20 ${
-                          index <= activeStep ? "text-gray-900" : "text-gray-500"
-                        }`}
-                      >
-                        {label}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Main Content */}
-            <Card className="shadow-xl border-0 bg-white/90 backdrop-blur-sm">
-              <CardContent sx={{ p: { xs: '0.4rem', sm: '1.5rem', md: '2rem' } }}>
-                <div className="min-h-[500px]">{getStepContent(activeStep)}</div>
-
-                {/* Navigation Buttons */}
-                <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
-                  <Button
-                    variant="outline"
-                    onClick={handleBack}
-                    disabled={activeStep === 0}
-                    className="px-6 bg-transparent"
-                  >
-                    Back
-                  </Button>
-
-                  <div className="flex items-center justify-end w-full gap-3">
-                    {activeStep !== steps.length - 1 &&
-                      <Button
-                        onClick={handleNext}
-                        disabled={!isStepComplete(activeStep) || isSavingContact || submittingResponses || creatingQuote || submittingQuote}
-                        className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
-                      >
-                        {(isSavingContact || submittingResponses || creatingQuote) ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            {activeStep === 0 ? "Saving..." : 
-                            activeStep === 1 ? "Adding Services..." :
-                            activeStep === 2 ? "Submitting Responses..." :
-                            "Submitting Quote..."}
-                          </>
-                        ): (
-                          "Next"
-                        )}
-                      </Button>
-                    }
-
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </>
-      )}
+          </CardContent>
+        </Card>
+      </div>
     </div>
   )
 }

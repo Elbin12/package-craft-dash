@@ -636,22 +636,22 @@ export const BookingWizard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50 relative">
+    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 relative">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 shadow-sm">
+      {/* <div className="bg-white border-b border-gray-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
           <div className="text-center sm:text-left flex-1">
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Create Your Quote</h1>
             <p className="text-gray-600">Complete the steps below to create your quote</p>
           </div>
         </div>
-      </div>
+      </div> */}
 
       <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
         {/* Progress Section */}
         <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-6">
-            <div className="mb-6">
+            {/* <div className="mb-6">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm font-medium text-gray-700">
                   Step {activeStep + 1} of {steps.length}
@@ -659,7 +659,7 @@ export const BookingWizard = () => {
                 <span className="text-sm font-medium text-gray-700">{Math.round(progressPercentage)}% Complete</span>
               </div>
               <Progress value={progressPercentage} className="h-2" />
-            </div>
+            </div> */}
 
             {/* Step Indicators */}
             <div className="flex justify-between items-center">
@@ -670,7 +670,7 @@ export const BookingWizard = () => {
                       index < activeStep
                         ? "bg-green-500 border-green-500 text-white"
                         : index === activeStep
-                          ? "bg-blue-500 border-blue-500 text-white"
+                          ? "bg-green-600 border-green-600 text-white"
                           : "bg-gray-100 border-gray-300 text-gray-400"
                     }`}
                   >
@@ -751,7 +751,7 @@ export const BookingWizard = () => {
                       creatingQuote ||
                       submittingQuote
                     }
-                    className="px-6 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800"
+                    className="px-6 bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
                   >
                     {(isSavingContact || submittingResponses || creatingQuote) ? (
                       <>

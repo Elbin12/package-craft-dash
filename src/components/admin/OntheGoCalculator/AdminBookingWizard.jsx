@@ -230,7 +230,7 @@ export const AdminBookingWizard = () => {
         if (submission_id) {
           submissionResponse = await updateSubmission({ id: submission_id, ...payload }).unwrap()
         } else {
-          submissionResponse = await createSubmission(payload).unwrap()
+          submissionResponse = await createSubmission({...payload, is_on_the_go:true}).unwrap()
           updateBookingData({
             submission_id: submissionResponse.submission_id,
           })
@@ -333,7 +333,6 @@ export const AdminBookingWizard = () => {
 
       // Prepare the payload for quote submission
       const payload = {
-        is_on_the_go:true,
         coupon_id: bookingData?.coupon_id || null,
         customer_confirmation: true,
         selected_packages: selectedPackages.map(pkg => ({

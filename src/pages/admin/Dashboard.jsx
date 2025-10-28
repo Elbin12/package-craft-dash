@@ -18,6 +18,13 @@ import { useGetDashboardDataQuery, useGetSubmissionsQuery } from '../../store/ap
 import DashboardSkeleton from '../../components/skeletons/DashboardSkeleton';
 import SubmissionsSkeleton from '../../components/skeletons/SubmissionsSkeleton';
 import {useDebounce} from '../../hooks/useDebounce';
+import { useCreateQuestionResponsesMutation, useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
+import QuestionsForm from '../../components/user/forms/QuestionsForm';
+import { transformSubmissionData } from '../../utils/transformSubmissionData';
+import { transformQuestionAnswersToAPIFormat } from '../../utils/transformQuestionAnswersToAPIFormat';
+import { set } from 'date-fns';
+import { Dialog, DialogContent } from '@mui/material';
+import { QuoteDetailsModal } from './QuoteDetailsModal';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -38,8 +45,22 @@ const Dashboard = () => {
   const [search, setSearch] = useState('');
   const [pageSize, setPageSize] = useState(10);
 
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editedData, setEditedData] = useState(null);
+
   const debouncedSearchTerm = useDebounce(search, 500)
 
+  const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
+
+  const {
+    data: submissionDataDetails,
+    isSuccess,
+    isFetching,
+  } = useGetQuoteDetailsQuery(selectedSubmissionId, {
+    refetchOnMountOrArgChange: true,
+  });
 
   const {
     data: dashboardData,
@@ -65,6 +86,81 @@ const Dashboard = () => {
     status,
     search:debouncedSearchTerm,
   });
+
+  const handleViewSubmission = (submissionId) => {
+    console.log('Viewing submission:', submissionId);
+    setSelectedSubmissionId(submissionId);
+    setIsModalOpen(true);
+    setIsEditMode(false);
+  };
+
+  const handleEdit = () => {
+    setIsEditMode(true);
+    setEditedData(transformSubmissionData(submissionDataDetails));
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditMode(false);
+    setEditedData(null);
+  };
+
+  console.log(editedData, 'editedData')
+
+  const handleUpdate = (updatedAnswers) => {
+    console.log('Updated Answers:', updatedAnswers);
+    setEditedData(prev => ({
+      ...prev,
+      ...updatedAnswers
+    }));
+  };
+
+  const handleSaveEdit = async () => {
+    const { submission_id, selectedServices, questionAnswers } = editedData;
+    try {
+      const serviceResponses = transformQuestionAnswersToAPIFormat(
+        questionAnswers,
+        selectedServices.map(ss => ({ id: ss.id }))
+      );
+
+      console.log(serviceResponses, 'serviceResponses') 
+
+      const responsePromises = selectedServices.map(async (service) => {
+        const responses = serviceResponses[service.id] || [];
+        
+        if (responses.length === 0) {
+          console.log(`No responses for service ${service.id}, skipping...`);
+          return;
+        }
+
+        const payload = { responses };
+
+        console.log(payload, 'payload')
+        
+        try {
+          const result = await updateQuestionResponses({
+            submissionId: submission_id,
+            serviceId: service.id,
+            payload
+          }).unwrap();
+          console.log(`Responses submitted for service ${service.id}:`, result);
+          return result;
+        } catch (error) {
+          console.error(`Failed to submit responses for service ${service.id}:`, error);
+          throw new Error(`Failed to submit responses for ${service.name}`);
+        }
+      });
+
+      await Promise.all(responsePromises);
+      alert('Quote updated successfully!');
+      setIsEditMode(false);
+      setIsModalOpen(false);
+      setEditedData(null);
+      setSelectedSubmissionId(null);
+    } catch (error) {
+      console.error('Error updating quote:', error);
+      alert('Failed to update quote. Please try again.');
+    }
+  };
 
   if (dashboardLoading || !dashboardData) {
     return <DashboardSkeleton />;
@@ -121,7 +217,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div style={{ backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' }}>
+    <div style={{backgroundColor: '#f9fafb', minHeight: '100vh', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif', position: 'relative' }}>
       {/* Header */}
       <div style={{ marginBottom: '32px' }}>
         <h1 style={{color: '#111827', margin: '0 0 8px 0' }} className='font-normal text-4xl'>
@@ -478,6 +574,22 @@ const Dashboard = () => {
                     <td style={{ padding: '12px 0', color: '#6b7280', fontSize: '12px' }}>
                       {new Date(sub.created_at).toLocaleDateString()}
                     </td>
+                    <td style={{ padding: '12px 0' }}>
+                    <button
+                      onClick={() => handleViewSubmission(sub.id)}
+                      style={{
+                        padding: '6px 12px',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '12px'
+                      }}
+                    >
+                      View
+                    </button>
+                  </td>
                   </tr>
                 ))
               )}
@@ -587,6 +699,76 @@ const Dashboard = () => {
           </div>
         )}
       </div>
+      {!isEditMode ? (
+        <QuoteDetailsModal
+          open={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false)
+            setIsEditMode(false)
+            setEditedData(null)
+            setSelectedSubmissionId(null)
+          }}
+          data={submissionDataDetails}
+          isLoading={isFetching}
+          onEdit={handleEdit}
+        />
+      ) : (
+        <Dialog
+          open={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false)
+            setIsEditMode(false)
+            setEditedData(null)
+          }}
+          fullWidth
+          maxWidth="md"
+          scroll="paper"
+        >
+          <DialogContent dividers>
+            <div>
+              <div
+                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}
+              >
+                <h2 style={{ fontSize: "24px", fontWeight: 600, color: "#111827" }}>Edit Quote</h2>
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <button
+                    onClick={handleCancelEdit}
+                    style={{
+                      padding: "8px 16px",
+                      backgroundColor: "#6b7280",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveEdit}
+                    style={{
+                      padding: "8px 16px",
+                      backgroundColor: "#10b981",
+                      color: "white",
+                      border: "none",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <QuestionsForm data={editedData} onUpdate={(updates) => handleUpdate(updates)} />
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </div>
   );
 };

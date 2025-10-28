@@ -33,7 +33,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
       refetchOnMountOrArgChange: true,
     }),
   )
-  console.log(serviceQueries, 'allServiceQuestions')
+  // console.log(serviceQueries, 'allServiceQuestions')
 
   useEffect(() => {
     setForceRefresh((prev) => prev + 1)
@@ -588,7 +588,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   }
 
   // Debug log
-  console.log('Current question answers:', data.questionAnswers)
+  // console.log('Current question answers:', data.questionAnswers)
 
   return (
     <Box>

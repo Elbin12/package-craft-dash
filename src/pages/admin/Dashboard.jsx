@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -18,7 +18,7 @@ import { useGetDashboardDataQuery, useGetSubmissionsQuery } from '../../store/ap
 import DashboardSkeleton from '../../components/skeletons/DashboardSkeleton';
 import SubmissionsSkeleton from '../../components/skeletons/SubmissionsSkeleton';
 import {useDebounce} from '../../hooks/useDebounce';
-import { useCreateQuestionResponsesMutation, useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
+import { useCreateQuestionResponsesMutation, useGetQuoteDetailsQuery, useUpdateQuestionResponsesForSubmittedMutation } from '../../store/api/user/quoteApi';
 import QuestionsForm from '../../components/user/forms/QuestionsForm';
 import { transformSubmissionData } from '../../utils/transformSubmissionData';
 import { transformQuestionAnswersToAPIFormat } from '../../utils/transformQuestionAnswersToAPIFormat';
@@ -50,9 +50,12 @@ const Dashboard = () => {
   const [isEditMode, setIsEditMode] = useState(false);
   const [editedData, setEditedData] = useState(null);
 
+  const [isSubmitted, setIsSubmitted] = useState(false);
+
   const debouncedSearchTerm = useDebounce(search, 500)
 
   const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
+  const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
 
   const {
     data: submissionDataDetails,
@@ -61,6 +64,12 @@ const Dashboard = () => {
   } = useGetQuoteDetailsQuery(selectedSubmissionId, {
     refetchOnMountOrArgChange: true,
   });
+
+  useEffect(() => {
+    if (isSuccess && submissionDataDetails?.status === 'submitted') {
+      setIsSubmitted(true);
+    }
+  }, [submissionDataDetails]);
 
   const {
     data: dashboardData,
@@ -88,7 +97,7 @@ const Dashboard = () => {
   });
 
   const handleViewSubmission = (submissionId) => {
-    console.log('Viewing submission:', submissionId);
+    console.log('Viewing submission:', submissionId, isSubmitted);
     setSelectedSubmissionId(submissionId);
     setIsModalOpen(true);
     setIsEditMode(false);
@@ -137,11 +146,21 @@ const Dashboard = () => {
         console.log(payload, 'payload')
         
         try {
-          const result = await updateQuestionResponses({
-            submissionId: submission_id,
-            serviceId: service.id,
-            payload
-          }).unwrap();
+          let result;
+          if (isSubmitted) {
+            result = await updateQuestionResponsesForSubmitted({
+              submissionId: submission_id,
+              serviceId: service.id,
+              payload
+            }).unwrap();
+          } else {
+            result = await updateQuestionResponses({
+              submissionId: submission_id,
+              serviceId: service.id,
+              payload
+            }).unwrap();
+          }
+          refetchSubmissions();
           console.log(`Responses submitted for service ${service.id}:`, result);
           return result;
         } catch (error) {
@@ -725,11 +744,11 @@ const Dashboard = () => {
           scroll="paper"
         >
           <DialogContent dividers>
-            <div>
+            <div className='space-y-4'>
+                <QuestionsForm data={editedData} onUpdate={(updates) => handleUpdate(updates)} />
               <div
-                style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}
+                style={{ display: "flex", justifyContent: "end", marginBottom: "20px" }}
               >
-                <h2 style={{ fontSize: "24px", fontWeight: 600, color: "#111827" }}>Edit Quote</h2>
                 <div style={{ display: "flex", gap: "8px" }}>
                   <button
                     onClick={handleCancelEdit}
@@ -760,10 +779,6 @@ const Dashboard = () => {
                     Save Changes
                   </button>
                 </div>
-              </div>
-
-              <div>
-                <QuestionsForm data={editedData} onUpdate={(updates) => handleUpdate(updates)} />
               </div>
             </div>
           </DialogContent>

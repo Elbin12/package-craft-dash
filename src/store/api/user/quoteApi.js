@@ -40,6 +40,14 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote', 'Submission'],
     }),
+    updateQuestionResponsesForSubmitted: builder.mutation({
+      query: ({submissionId, serviceId, payload}) => ({
+        url: `${submissionId}/services/${serviceId}/responses/edit/`,
+        method: 'PUT',
+        data: payload,
+      }),
+      invalidatesTags: ['Quote', 'Submission'],
+    }),
     createServiceToSubmission: builder.mutation({
       query: ({submissionId, payload}) => ({
         url: `${submissionId}/add-services/`,
@@ -99,10 +107,18 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote'],
     }),
+    addAvailabilities: builder.mutation({
+      query: ({ submissionId, payload }) => ({
+        url: `submissions/${submissionId}/availability/`,
+        method: 'POST',
+        data: payload,
+      }),
+      invalidatesTags: ['Quote', 'Submission'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
-  useDeclineQuoteMutation, useApplyCouponMutation
+  useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation
  } = quoteApi;

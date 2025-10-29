@@ -280,7 +280,7 @@ export const CheckoutSummary = ({
       console.log(result, 'coupon result')
       
       if (result) {
-        const discount = parseFloat((result?.original_amount - result?.discounted_amount).toFixed(2));
+        const discount = parseFloat((result?.discounted_amount));
         setAppliedCoupon({
           code: couponCode,
           discount: discount || 0
@@ -370,17 +370,36 @@ export const CheckoutSummary = ({
   const calculateAddonsTotal = () => {
     return selectedAddons.reduce((total, addonId) => {
       const addon = addonsData.find(addon => addon.id === addonId)
-      return total + (addon ? Number.parseFloat(addon.base_price || 0) : 0)
+      const quantity = addonQuantities[addonId] || 1
+      return total + (addon ? Number.parseFloat(addon.base_price || 0) * quantity : 0)
     }, 0)
   }
 
-  const totalSelectedPrice = calculateTotalSelectedPrice()
-  const addonsTotal = calculateAddonsTotal()
+  const calculateCouponDiscount = (subtotal, appliedCoupon) => {
+    if (!appliedCoupon) return 0;
+    
+    const discountValue = Number.parseFloat(appliedCoupon.discount || 0);
+    
+    if (appliedCoupon.type === "percent") {
+      return (subtotal * discountValue) / 100;
+    }
+    
+    // flat discount
+    return discountValue;
+  };
+
+
+  const totalSelectedPrice = Number.parseFloat(calculateTotalSelectedPrice()) || 0
+  const addonsTotal = Number.parseFloat(calculateAddonsTotal()) || 0
   const surchargeAmount = quoteData.quote_surcharge_applicable
     ? Number.parseFloat(quoteData.location_details?.trip_surcharge || 0)
     : 0
+  const couponDiscount = Number.parseFloat(appliedCoupon?.discount || 0)
   // const finalTotal = formatPrice(totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0))
-  const finalTotal = formatPrice(Math.max(0, totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0)))
+  const subtotal = totalSelectedPrice + addonsTotal + surchargeAmount;
+  const couponAmount = calculateCouponDiscount(subtotal, appliedCoupon);
+  const finalTotal = formatPrice(Math.max(0, subtotal - couponAmount));
+  // const finalTotal = formatPrice(Math.max(0, totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0)))
 
   return (
     <Box>
@@ -1063,20 +1082,21 @@ export const CheckoutSummary = ({
                 </Typography>
                 {selectedAddons.map((addonId) => {
                   const addon = addonsData.find(a => a.id === addonId)
+                  const quantity = addonQuantities[addonId] || 1
                   if (addon) {
                     return (
                       <Box key={addon.id} mb={1}>
                         <Box display="flex" justifyContent="space-between">
                           <Box>
                             <Typography variant="body1" fontWeight={500}>
-                              {addon.name}
+                              {addon.name} {quantity > 1 && `(x${quantity})`}
                             </Typography>
                             <Typography variant="caption" color="text.secondary">
-                              Add-on service
+                              Add-on service {quantity > 1 && `• $${formatPrice(addon.base_price)} each`}
                             </Typography>
                           </Box>
                           <Typography variant="body1" fontWeight={600}>
-                            ${formatPrice(addon.base_price)}
+                            ${formatPrice(Number.parseFloat(addon.base_price) * quantity)}
                           </Typography>
                         </Box>
                       </Box>

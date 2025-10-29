@@ -227,14 +227,13 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
               <CardHeader
                 title={
                   <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <DollarSign size={18} color="#51b7ae
-"/>
+                    <DollarSign size={18} color="#51b7ae"/>
                     <Typography variant="subtitle1">Pricing Summary</Typography>
                   </Box>
                 }
               />
-              <CardContent>
-                {/* <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+              <CardContent spacing={4}>
+                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography>Base Price</Typography>
                   <Typography>${data.total_base_price}</Typography>
                 </Box>
@@ -242,10 +241,10 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                   <Typography>Adjustments</Typography>
                   <Typography>${data.total_adjustments}</Typography>
                 </Box>
-                <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                {/* <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography>Surcharges</Typography>
                   <Typography>${data.total_surcharges}</Typography>
-                </Box>
+                </Box> */}
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography>Add-ons</Typography>
                   <Typography>${data.total_addons_price}</Typography>
@@ -255,7 +254,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                     <Typography>Discount</Typography>
                     <Typography>- ${data.discounted_amount}</Typography>
                   </Box>
-                )} */}
+                )}
                 <Divider sx={{ my: 2, borderColor: "primary.contrastText" }} />
                 <Box sx={{ display: "flex", justifyContent: "space-between" }}>
                   <Typography variant="h6">Final Total</Typography>

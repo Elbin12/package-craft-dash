@@ -11,11 +11,12 @@ import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
-import { useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
+import { useAddAvailabilitiesMutation, useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography,Card, CardContent } from "@mui/material"
 import SignatureCanvas from "react-signature-canvas";
+import { AvailabilitySelection } from "./AvailabilitySelection"
 
 
 const steps = [
@@ -28,6 +29,7 @@ const steps = [
 export const BookingWizard = () => {
   const [searchParams] = useSearchParams();
   const submissionIdFromUrl = searchParams.get("submission_id");
+  const [showAvailabilityScreen, setShowAvailabilityScreen] = useState(false);
 
   const [signature, setSignature] = useState('');
   const [addiditional_notes, setAdditionalNotes] = useState();
@@ -168,11 +170,19 @@ export const BookingWizard = () => {
   }, [isSuccess, submissionData]);
 
   useLayoutEffect(() => {
-    if(submissionData?.status.includes("submitted", "declined")){
-      navigate(`/quote/details/${submissionData?.id}`)
-    }
     if (isSuccess && submissionData) {
-      setActiveStep(3);
+      if(submissionData?.status.includes("submitted", "declined")){
+        if (submissionData.availabilities && submissionData.availabilities.length > 0) {
+          // Has availabilities, redirect to quote details
+          navigate(`/quote/details/${submissionData?.id}`);
+        } else {
+          // No availabilities, show availability screen
+          setShowAvailabilityScreen(true);
+        }
+      } else {
+        // Not submitted yet, go to checkout
+        setActiveStep(3);
+      }
     }
   }, [isSuccess, submissionData]);
 
@@ -192,6 +202,7 @@ export const BookingWizard = () => {
   const [createQuote, { isLoading: creatingQuote }] = useCreateQuoteMutation()
   const [createQuestionResponses, { isLoading: submittingResponses }] = useCreateQuestionResponsesMutation()
   const [addServiceToSubmission] = useCreateServiceToSubmissionMutation();
+  const [addAvailabilities, { isLoading: addingAvailabilities }] = useAddAvailabilitiesMutation();
   
   const isSavingContact = creating || updating
   const navigate = useNavigate()
@@ -494,13 +505,43 @@ export const BookingWizard = () => {
       await submitQuote({ submissionId: submission_id, payload }).unwrap();
       
       localStorage.removeItem("bookingData");      // Navigate to success page or quote details
-      navigate(`/quote/details/${submission_id}`);
+      // navigate(`/quote/details/${submission_id}`);
+      setShowAvailabilityScreen(true);
       
     } catch (err) {
       console.error("Failed to submit quote", err);
       alert("Could not submit booking. Please try again.");
     }
   }
+
+  const handleAvailabilityConfirm = async (availabilities) => {
+    try {
+      const { submission_id } = bookingData;
+      
+      if (!submission_id) {
+        alert("Missing submission ID.");
+        return;
+      }
+
+      const payload = {
+        availabilities: availabilities.map(a => ({
+          date: a.date,
+          time: a.time
+        }))
+      };
+
+      console.log('Submitting availabilities:', payload);
+      
+      await addAvailabilities({ submissionId: submission_id, payload }).unwrap();
+      
+      // Redirect to quote details page
+      navigate(`/quote/details/${submission_id}`);
+      
+    } catch (err) {
+      console.error("Failed to submit availabilities", err);
+      alert("Could not submit availabilities. Please try again.");
+    }
+  };
 
   const handleReset = () => {
     setActiveStep(0)
@@ -633,6 +674,10 @@ export const BookingWizard = () => {
         }
       }
     }
+  }
+
+  if (showAvailabilityScreen) {
+    return <AvailabilitySelection onConfirm={handleAvailabilityConfirm} isLoading={addingAvailabilities} />;
   }
 
   return (

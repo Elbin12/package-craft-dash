@@ -166,7 +166,7 @@ const QuoteDetailsPage = () => {
   };
 
   const findFinalTotal = ()=> {
-    return formatPrice(total_base_price) + formatPrice(total_adjustments) + formatPrice(total_surcharges); 
+    return formatPrice(total_base_price) ; 
   }
 
   const renderQuestionResponse = (response) => {
@@ -473,7 +473,7 @@ const QuoteDetailsPage = () => {
 
                       {/* Selected Package Display */}
                       {!is_bid_in_person && status!=="declined"&&
-                        selection.package_quotes?.[0] && (
+                        selection.package_quotes?.find(pkg => pkg.is_selected) && (
                             <Box sx={{ mb: 3 }}>
                               <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
                                 Selected Package
@@ -493,7 +493,7 @@ const QuoteDetailsPage = () => {
                                 <CardContent sx={{ p: 4 }}>
                                   <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
                                     <Typography variant="h6" fontWeight={700}>
-                                      {selection.package_quotes[0].package_name}
+                                      {selection.package_quotes?.find(pkg => pkg.is_selected).package_name}
                                     </Typography>
                                     <Chip
                                       label="Selected"
@@ -506,7 +506,7 @@ const QuoteDetailsPage = () => {
                                   </Box>
 
                                   <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                    ${formatPrice(selection.package_quotes[0].total_price)}
+                                    ${formatPrice(selection.package_quotes?.find(pkg => pkg.is_selected).total_price)}
                                   </Typography>
 
                                   {/* Features List */}
@@ -532,11 +532,11 @@ const QuoteDetailsPage = () => {
                                     }}
                                   >
                                     {[
-                                      ...(selection.package_quotes[0].included_features_details || []).map((f) => ({
+                                      ...(selection.package_quotes?.find(pkg => pkg.is_selected).included_features_details || []).map((f) => ({
                                         ...f,
                                         included: true,
                                       })),
-                                      ...(selection.package_quotes[0].excluded_features_details || []).map((f) => ({
+                                      ...(selection.package_quotes?.find(pkg => pkg.is_selected).excluded_features_details || []).map((f) => ({
                                         ...f,
                                         included: false,
                                       })),
@@ -752,18 +752,20 @@ const QuoteDetailsPage = () => {
                   </Box>
                   <CardContent>
                     <Box display="flex" flexDirection="column" gap={2}>
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Typography variant="body2">Price</Typography>
-                        <Typography variant="subtitle2">
-                          ${formatPrice(findFinalTotal() || 0)}
-                        </Typography>
-                      </Box>
+                      {service_selections?.map((selection) => (
+                        <Box
+                          sx={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Typography variant="body2">{selection?.service_details?.name}</Typography>
+                          <Typography variant="subtitle2">
+                            ${formatPrice(selection?.final_total_price || 0)}
+                          </Typography>
+                        </Box>
+                      ))}
                       
                       {/* Add-ons Price */}
                       {total_addons_price && parseFloat(total_addons_price) > 0 && (

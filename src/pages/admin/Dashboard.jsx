@@ -65,9 +65,13 @@ const Dashboard = () => {
     refetchOnMountOrArgChange: true,
   });
 
+  console.log(isSubmitted, 'isSubmitted')
   useEffect(() => {
+    console.log(submissionDataDetails?.status, 'submissionDataDetails');
     if (isSuccess && submissionDataDetails?.status === 'submitted') {
       setIsSubmitted(true);
+    }else{
+      setIsSubmitted(false);
     }
   }, [submissionDataDetails]);
 
@@ -97,10 +101,11 @@ const Dashboard = () => {
   });
 
   const handleViewSubmission = (submissionId) => {
-    console.log('Viewing submission:', submissionId, isSubmitted);
+    // console.log('Viewing submission:', submissionId, isSubmitted);
     setSelectedSubmissionId(submissionId);
     setIsModalOpen(true);
     setIsEditMode(false);
+    setIsSubmitted(false);
   };
 
   const handleEdit = () => {
@@ -111,6 +116,7 @@ const Dashboard = () => {
   const handleCancelEdit = () => {
     setIsEditMode(false);
     setEditedData(null);
+    setIsSubmitted(false);
   };
 
   console.log(editedData, 'editedData')
@@ -160,6 +166,7 @@ const Dashboard = () => {
               payload
             }).unwrap();
           }
+          setIsSubmitted(false);
           refetchSubmissions();
           console.log(`Responses submitted for service ${service.id}:`, result);
           return result;
@@ -726,10 +733,13 @@ const Dashboard = () => {
             setIsEditMode(false)
             setEditedData(null)
             setSelectedSubmissionId(null)
+            setIsSubmitted(false)
+            refetchSubmissions();
           }}
           data={submissionDataDetails}
           isLoading={isFetching}
           onEdit={handleEdit}
+          isSubmitted={isSubmitted}
         />
       ) : (
         <Dialog

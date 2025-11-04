@@ -636,7 +636,10 @@ const QuoteDetailsPage = () => {
                             fontWeight={600}
                             sx={{ color: '#023c8f', mb: 0.5 }}
                           >
-                            {addon.name}
+                            {addon.addon_name}
+                            {addon.quantity && addon.quantity > 1 && (
+                              <> × {addon.quantity}</>
+                            )}
                           </Typography>
                           {addon.description && (
                             <Typography 
@@ -653,6 +656,13 @@ const QuoteDetailsPage = () => {
                               {addon.description}
                             </Typography>
                           )}
+                          <Typography 
+                              variant="body2" 
+                              color="text.secondary"
+                              sx={{ mt: 0.5 }}
+                            >
+                              ${formatPrice(addon.addon_price)} each
+                            </Typography>
                         </Box>
                         <Box sx={{ textAlign: 'right', flexShrink: 0 }}>
                           <Typography 
@@ -660,7 +670,7 @@ const QuoteDetailsPage = () => {
                             fontWeight={700}
                             sx={{ color: '#42bd3f' }}
                           >
-                            ${formatPrice(addon.base_price)}
+                            ${formatPrice(addon.addon_price) * (addon?.quantity)}
                           </Typography>
                         </Box>
                       </Box>

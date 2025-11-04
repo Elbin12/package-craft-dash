@@ -261,7 +261,7 @@ yPosition = 20;
           
           pdf.setFontSize(8);
           pdf.setFont('helvetica', 'bold');
-          pdf.setTextColor(...mediumGray);
+          pdf.setTextColor(0, 0, 0);
           pdf.text('IMPORTANT DISCLAIMER:', margin, yPosition);
           yPosition += 8;
           
@@ -406,48 +406,93 @@ yPosition = 20;
     if (addons?.length > 0) {
       addSectionHeader('Additional Services');
 
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...mediumGray);
+      pdf.text(`${addons.length} additional service${addons.length > 1 ? 's' : ''} selected`, margin, yPosition);
+      yPosition += 15;
+
       addons.forEach((addon, index) => {
-        checkPageBreak(20);
+        // Calculate height needed for this addon
+        const descriptionHeight = addon.description 
+          ? pdf.splitTextToSize(addon.description, contentWidth - 10).length * 4 + 8
+          : 0;
+        const addonHeight = 30 + descriptionHeight;
         
-        // Addon item styling
+        checkPageBreak(addonHeight);
+        
+        // Addon item styling with hover effect simulation
         pdf.setFillColor(252, 252, 252);
-        pdf.rect(margin - 2, yPosition - 2, contentWidth + 4, 18, 'F');
+        const boxHeight = 25 + descriptionHeight;
+        pdf.rect(margin - 2, yPosition - 2, contentWidth + 4, boxHeight, 'F');
         
+        // Add bottom border if not last item
+        if (index < addons.length - 1) {
+          pdf.setDrawColor(240, 240, 240);
+          pdf.setLineWidth(0.3);
+          pdf.line(margin - 2, yPosition + boxHeight - 2, margin + contentWidth + 2, yPosition + boxHeight - 2);
+        }
+        
+        // Addon name with quantity
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
-        pdf.setTextColor(...darkGray);
-        pdf.text(`${addon.name}`, margin + 2, yPosition + 6);
-        
-        const addonPrice = formatPrice(addon.base_price);
-        const priceWidth = pdf.getTextWidth(addonPrice);
-        pdf.setTextColor(...accentGreen);
-        pdf.text(addonPrice, margin + contentWidth - priceWidth - 2, yPosition + 6);
-        yPosition += 12;
+        pdf.setTextColor(...primaryBlue);
+        let addonTitle = addon.addon_name;
+        if (addon.quantity && addon.quantity > 1) {
+          addonTitle += ` × ${addon.quantity}`;
+        }
+        pdf.text(addonTitle, margin + 2, yPosition + 6);
+        yPosition += 10;
 
+        // Description if exists
         if (addon.description) {
           pdf.setFontSize(8);
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(...mediumGray);
-          yPosition += addWrappedText(addon.description, margin + 5, yPosition, contentWidth - 10) + 8;
+          yPosition += addWrappedText(addon.description, margin + 5, yPosition, contentWidth - 10);
+          yPosition += 5;
         }
+
+        // Price per unit
+        pdf.setFontSize(8);
+        pdf.setFont('helvetica', 'normal');
+        pdf.setTextColor(...mediumGray);
+        pdf.text(`${formatPrice(addon.addon_price)} each`, margin + 5, yPosition);
+        yPosition += 8;
+
+        // Total price (quantity × unit price) - aligned to right
+        const totalAddonPrice = parseFloat(addon.addon_price) * (addon.quantity || 1);
+        const totalPriceText = `${formatPrice(totalAddonPrice)}`;
+        const priceWidth = pdf.getTextWidth(totalPriceText);
+        
+        pdf.setFontSize(11);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(...accentGreen);
+        pdf.text(totalPriceText, margin + contentWidth - priceWidth - 2, yPosition - 15);
+        
         yPosition += 5;
       });
+
 
       yPosition += 15;
     }
 
     // ===== PRICING SUMMARY =====
     if (!is_bid_in_person && status !== "declined") {
-      checkPageBreak(80);
+      checkPageBreak(100);
       
       addSectionHeader('Pricing Summary', accentGreen);
 
       // Professional pricing table
       pdf.setFillColor(...lightGray);
-      pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, 50, 'F');
+      const tableHeight = 60 + (service_selections?.length * 8) + 
+        (total_addons_price && parseFloat(total_addons_price) > 0 ? 8 : 0) +
+        (quote?.applied_coupon ? 8 : 0);
+      
+      pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, tableHeight, 'F');
       pdf.setDrawColor(...mediumGray);
       pdf.setLineWidth(0.5);
-      pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, 50, 'D');
+      pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, tableHeight, 'D');
 
       const priceTableX = margin + contentWidth - 115;
       let priceTableY = yPosition + 5;
@@ -456,15 +501,26 @@ yPosition = 20;
       pdf.setFont('helvetica', 'normal');
       pdf.setTextColor(...darkGray);
 
-      // Service price
-      pdf.text('Base Service:', priceTableX, priceTableY);
-      pdf.text(formatPrice(final_total - (total_addons_price || 0)), priceTableX + 80, priceTableY);
-      priceTableY += 8;
+      // Service prices
+      service_selections?.forEach((selection) => {
+        pdf.text(selection?.service_details?.name || 'Service', priceTableX, priceTableY);
+        pdf.text(formatPrice(selection?.final_total_price || 0), priceTableX + 80, priceTableY);
+        priceTableY += 8;
+      });
 
       // Add-ons if any
       if (total_addons_price && parseFloat(total_addons_price) > 0) {
-        pdf.text('Additional Services:', priceTableX, priceTableY);
+        pdf.text('Add-ons:', priceTableX, priceTableY);
         pdf.text(formatPrice(total_addons_price), priceTableX + 80, priceTableY);
+        priceTableY += 8;
+      }
+
+      // Applied coupon if any
+      if (quote?.applied_coupon) {
+        pdf.setTextColor(...accentGreen);
+        pdf.text(`Discount (${quote.applied_coupon.code}):`, priceTableX, priceTableY);
+        pdf.text(`-${formatPrice(quote.discounted_amount)}`, priceTableX + 80, priceTableY);
+        pdf.setTextColor(...darkGray);
         priceTableY += 8;
       }
 
@@ -477,13 +533,14 @@ yPosition = 20;
       pdf.setFontSize(12);
       pdf.setFont('helvetica', 'bold');
       pdf.setTextColor(...accentGreen);
-      pdf.text('TOTAL:', priceTableX, priceTableY);
+      pdf.text('FINAL TOTAL:', priceTableX, priceTableY);
       
       const finalTotalText = formatPrice(final_total || 0);
       const finalWidth = pdf.getTextWidth(finalTotalText);
       pdf.text(finalTotalText, priceTableX + 100 - finalWidth, priceTableY);
+      priceTableY += 8;
 
-      yPosition += 60;
+      yPosition += tableHeight + 10;
     }
 
     // ===== ADDITIONAL INFORMATION =====

@@ -51,10 +51,6 @@ export const AvailabilitySelection = ({ onConfirm, isLoading }) => {
               <p className="text-lg text-green-600 mb-4">
                 We'll be in touch shortly.
               </p>
-              <p className="text-gray-700 font-medium">Awesome!</p>
-              <p className="text-gray-600 text-sm">
-                We'll be get in touch shortly to set it all up!
-              </p>
             </div>
 
             {/* Availability Section */}
@@ -62,11 +58,6 @@ export const AvailabilitySelection = ({ onConfirm, isLoading }) => {
               <h3 className="text-xl font-semibold text-gray-900 mb-4 text-center">
                 What would be some good days for us to do this?
               </h3>
-              <p className="text-gray-600 text-center mb-6">
-                After clicking the checkmarks of the items you are interested
-                in, please let us know when you'd like to have the work
-                completed!
-              </p>
 
               {/* Availability Inputs */}
               <div className="space-y-4 mb-6">

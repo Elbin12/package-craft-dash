@@ -803,13 +803,19 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
               }
             />
             <CardContent>
-              {data.additional_data?.preferred_start_date && (
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <Calendar size={16} />
-                  <Typography>
-                    Preferred Start Date:{" "}
-                    {new Date(data.additional_data.preferred_start_date).toLocaleDateString()}
-                  </Typography>
+              {data.availabilities?.length > 0 && (
+                <Box mb={2}>
+                  <Box display="flex" alignItems="center" gap={1} mb={1}>
+                    <Calendar size={16} />
+                    <Typography>Preferred Dates:</Typography>
+                  </Box>
+                  {data.availabilities.map((availability, index) => (
+                    <Box key={index} display="flex" alignItems="center" gap={1} ml={3}>
+                      <Typography>
+                        {new Date(availability.date).toLocaleDateString()} – {availability.time}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Box>
               )}
               {data.additional_data?.preferred_contact_method && (

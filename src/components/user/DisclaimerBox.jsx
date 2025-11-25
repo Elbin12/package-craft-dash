@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 import { useState } from "react";
 
 export default function DisclaimerBox({ title, content, bgColor, textColor }) {
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(true);
 
   // Show expand/collapse for very long content
   const isLong = content.length > 500; 

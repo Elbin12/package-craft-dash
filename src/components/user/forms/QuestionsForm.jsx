@@ -254,7 +254,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           </Typography>
         </Box>
         
-        <Box sx={{ pl: 2 }}>
+        <Box sx={{ pl: {xs:0, sm:2} }}>
           {renderQuestionContent(question, serviceId)}
         </Box>
       </Box>
@@ -352,7 +352,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                     display: 'flex', 
                     alignItems: 'center', 
                     gap: 2,
-                    padding: '12px',
+                    padding: { xs: '8px', sm: '10px', md: '11px' },
                     border: isSelected ? '1px solid #779cd1' : '1px solid #e0e0e0',
                     borderRadius: '8px',
                     backgroundColor: isSelected ? '#f8fbff' : 'white'
@@ -379,12 +379,12 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                       />
                     }
                     label={
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                         {option.image && (
                           <Box 
                             sx={{ 
-                              width: 90, 
-                              height: 90, 
+                              width: {xs: 50, sm: 75, md: 90}, 
+                              height: {xs: 50, sm: 75, md: 90}, 
                               display: 'flex', 
                               alignItems: 'center', 
                               justifyContent: 'center',
@@ -403,7 +403,11 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                               />
                           </Box>
                         )}
-                        <Typography>{option.text}</Typography>
+                        <Typography
+                          sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' } }}
+                        >
+                          {option.text}
+                        </Typography>
                       </Box>
                     }
                   />
@@ -447,7 +451,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                         }}
                         sx={{ width: 80 }}
                       />
-                      <Typography variant="caption" sx={{ color: '#666' }}>
+                      <Typography variant="caption" sx={{ color: '#666', fontSize: { xs: '0.55rem', sm: '0.7rem', md: '0.8rem' } }}>
                         (Max: {option.max_quantity})
                       </Typography>
                     </Box>

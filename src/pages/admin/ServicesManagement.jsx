@@ -21,6 +21,7 @@ import {
   DialogActions,
   DialogContentText,
   CircularProgress,
+  Switch
 } from '@mui/material';
 import {
   Add,
@@ -183,6 +184,19 @@ const ServicesManagement = () => {
     }
   };
 
+  const handleToggleActive = async (service) => {
+    try {
+      await updateService({
+        id: service.id,
+        is_active: !service.is_active,
+      }).unwrap();
+      
+      console.log(`Service ${service.name} active status toggled`);
+    } catch (error) {
+      console.error('Failed to update service status:', error);
+    }
+  };
+
   if (isLoading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
@@ -293,11 +307,19 @@ const ServicesManagement = () => {
                                 />
                               </TableCell>
                               <TableCell>
-                                <Chip 
-                                  label={service.is_active ? 'active' : 'inactive'} 
-                                  size="small"
-                                  color={service.is_active ? 'success' : 'default'}
-                                />
+                                <Box display="flex" alignItems="center" gap={1}>
+                                  <Switch
+                                    checked={service.is_active}
+                                    onChange={() => handleToggleActive(service)}
+                                    size="small"
+                                    color="success"
+                                  />
+                                  <Chip 
+                                    label={service.is_active ? 'active' : 'inactive'} 
+                                    size="small"
+                                    color={service.is_active ? 'success' : 'default'}
+                                  />
+                                </Box>
                               </TableCell>
                               <TableCell>{new Date(service.created_at).toLocaleDateString()}</TableCell>
                               <TableCell align="right">

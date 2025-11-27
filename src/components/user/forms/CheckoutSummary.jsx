@@ -396,7 +396,7 @@ export const CheckoutSummary = ({
     : 0
   const couponDiscount = Number.parseFloat(appliedCoupon?.discount || 0)
   // const finalTotal = formatPrice(totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0))
-  const subtotal = totalSelectedPrice + addonsTotal + surchargeAmount;
+  const subtotal = totalSelectedPrice + addonsTotal;
   const couponAmount = calculateCouponDiscount(subtotal, appliedCoupon);
   const finalTotal = formatPrice(Math.max(0, subtotal - couponAmount));
   // const finalTotal = formatPrice(Math.max(0, totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0)))

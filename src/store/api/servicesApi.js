@@ -28,7 +28,26 @@ export const servicesApi = createApi({
         method: 'PATCH',
         data: serviceData,
       }),
-      invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
+      async onQueryStarted({ id, ...patch }, { dispatch, queryFulfilled }) {
+        try {
+          const { data: updatedService } = await queryFulfilled;
+
+          // Update getServices cache
+          dispatch(
+            servicesApi.util.updateQueryData("getServices", undefined, draft => {
+              const index = draft.findIndex(s => s.id === id);
+              if (index !== -1) {
+                draft[index] = {
+                  ...draft[index],
+                  ...updatedService,
+                };
+              }
+            })
+          );
+        } catch (err) {
+          console.error("Failed to update cache:", err);
+        }
+      },
     }),
     EditService: builder.mutation({
       query: ({ id, ...serviceData }) => ({

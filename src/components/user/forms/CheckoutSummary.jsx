@@ -26,7 +26,7 @@ import {
   DialogContent,
 } from "@mui/material"
 import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
-import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation } from "../../../store/api/user/quoteApi"
+import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation, useGetGlobalCouponsQuery } from "../../../store/api/user/quoteApi"
 import { useRef } from "react"
 import SignatureCanvas from "react-signature-canvas"
 import { useNavigate } from "react-router-dom"
@@ -50,7 +50,8 @@ export const CheckoutSummary = ({
   handleNext,
   isBidInPerson,
   setIsBidInPerson,
-  admin
+  admin,
+  signature,
 }) => {
   const [selectedPackages, setSelectedPackages] = useState({})
   const [expandedServices, setExpandedServices] = useState({})
@@ -81,6 +82,8 @@ export const CheckoutSummary = ({
     refetchOnFocus: true,
     refetchOnReconnect: true,
   })
+
+  const { data: globalCoupons, isLoading: isLoadingCoupons } = useGetGlobalCouponsQuery();
 
   useEffect(() => {
     if (response?.addons) {
@@ -672,23 +675,23 @@ export const CheckoutSummary = ({
                                   {/* ✅ Professional Features List */}
                                   <Box textAlign="left" 
                                     sx={{ 
-                                      maxHeight: 300, 
+                                      // maxHeight: 300, 
                                       overflowY: "auto", 
                                       pb:2,
-                                      "&::-webkit-scrollbar": {
-                                        width: 4
-                                      },
-                                      "&::-webkit-scrollbar-track": {
-                                        background: "#f1f1f1",
-                                        borderRadius: 3
-                                      },
-                                      "&::-webkit-scrollbar-thumb": {
-                                        background: "#c1c1c1",
-                                        borderRadius: 3,
-                                        "&:hover": {
-                                          background: "#a8a8a8"
-                                        }
-                                      }
+                                      // "&::-webkit-scrollbar": {
+                                      //   width: 4
+                                      // },
+                                      // "&::-webkit-scrollbar-track": {
+                                      //   background: "#f1f1f1",
+                                      //   borderRadius: 3
+                                      // },
+                                      // "&::-webkit-scrollbar-thumb": {
+                                      //   background: "#c1c1c1",
+                                      //   borderRadius: 3,
+                                      //   "&:hover": {
+                                      //     background: "#a8a8a8"
+                                      //   }
+                                      // }
                                     }}
                                   >
                                     {[
@@ -993,6 +996,78 @@ export const CheckoutSummary = ({
                 </Box>
               </>
             }
+
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                Available Coupons
+              </Typography>
+
+              {isLoadingCoupons && (
+                <Typography variant="body2" color="text.secondary">Loading coupons...</Typography>
+              )}
+
+              {!isLoadingCoupons && globalCoupons?.length === 0 && (
+                <Typography variant="body2" color="text.secondary">
+                  No coupons available.
+                </Typography>
+              )}
+
+              {!isLoadingCoupons && globalCoupons?.length > 0 && (
+                <Box display="flex" flexDirection="column" gap={1}>
+                  {globalCoupons.map((coupon) => {
+                    return (
+                      <Box
+                        key={coupon.id}
+                        sx={{
+                          p: 2,
+                          bgcolor: '#f9fbff',
+                          border: '1px solid #d0e3ff',
+                          borderRadius: 1,
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <Box>
+                          {/* Coupon Code */}
+                          <Typography fontWeight={600} sx={{ color: "#023c8f" }}>
+                            {coupon.code}
+                          </Typography>
+
+                          {/* Discount Details */}
+                          <Typography variant="body2" color="text.primary">
+                            {coupon.percentage_discount
+                              ? `• ${coupon.percentage_discount}% off`
+                              : null}
+                          </Typography>
+
+                          <Typography variant="body2" color="text.primary">
+                            {coupon.fixed_discount
+                              ? `• $${coupon.fixed_discount} off`
+                              : null}
+                          </Typography>
+                        </Box>
+
+                        {/* Use Button */}
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => setCouponCode(coupon.code.toUpperCase())}
+                          sx={{ 
+                            borderColor: '#023c8f', 
+                            color: '#023c8f',
+                            opacity: 1 
+                          }}
+                        >
+                          Use
+                        </Button>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              )}
+            </Box>
+
             
             {couponError && (
               <Typography variant="body2" color="error" sx={{ mt: 1 }}>
@@ -1158,7 +1233,7 @@ export const CheckoutSummary = ({
                 <Typography variant="subtitle2" gutterBottom sx={{ color: '#023c8f', fontWeight: 600 }}>
                   Signature
                 </Typography>
-                <Box
+                {/* <Box
                   sx={{
                     border: '1px solid #e0e0e0',
                     borderRadius: '8px',
@@ -1185,7 +1260,27 @@ export const CheckoutSummary = ({
                       onEnd={()=>{handleSignatureEnd(sigCanvasRef)}}
                     />
                   </Box>
-                </Box>
+                </Box> */}
+                <TextField
+                  placeholder="Type your full name as signature"
+                  fullWidth
+                  value={signature}
+                  size="small"
+                  onChange={(e) => {
+                    setSignature(e.target.value)
+                  }}
+                  sx={{
+                    mt: 1,
+                    '& .MuiOutlinedInput-root': {
+                      '&:hover fieldset': {
+                        borderColor: '#023c8f',
+                      },
+                      '&.Mui-focused fieldset': {
+                        borderColor: '#023c8f',
+                      },
+                    },
+                  }}
+                />
                 <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
                   <Button
                     variant="outlined"
@@ -1199,7 +1294,7 @@ export const CheckoutSummary = ({
                       },
                     }}
                     onClick={() => {
-                      sigCanvasRef.current.clear();
+                      // sigCanvasRef.current.clear();
                       setSignature('');
                     }}
                   >

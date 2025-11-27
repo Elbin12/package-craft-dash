@@ -75,6 +75,7 @@ const CouponsManagement = () => {
           fixed_discount: coupon.fixed_discount?.toString() || "",
           expiration_date: coupon.expiration_date ? coupon.expiration_date.substring(0, 16) : '',
           is_active: coupon.is_active,
+          is_global: coupon.is_global,
         }),
       )
     } else {
@@ -119,6 +120,7 @@ const CouponsManagement = () => {
           : null,
         expiration_date: new Date(formData.expiration_date).toISOString(),
         is_active: formData.is_active,
+        is_global: formData.is_global,
       }
 
       console.log(couponData,'coupon data')
@@ -547,6 +549,17 @@ const CouponsManagement = () => {
               }}
               error={Boolean(formErrors.expiration_date)}
               helperText={formErrors.expiration_date?.[0]}
+            />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={formData.is_global}
+                  onChange={(e) => handleFormChange("is_global", e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Is Global Coupon"
             />
 
             <FormControlLabel

@@ -145,6 +145,15 @@ export const handleDownloadPDF = async (setIsGeneratingPDF, quote) => {
       }
     };
 
+    const isBase64Signature = (sig) => {
+      if (!sig) return false;
+      return (
+        sig.startsWith("data:image") ||
+        (sig.length > 200 && /^[A-Za-z0-9+/=]+$/.test(sig))
+      );
+    };
+
+
     // ===== HEADER SECTION =====
     // Company header with blue accent
    
@@ -567,16 +576,41 @@ yPosition = 20;
 
       if (!is_bid_in_person && additional_data.signature) {
         checkPageBreak(50);
-        
+
         pdf.setFontSize(10);
         pdf.setFont('helvetica', 'bold');
         pdf.setTextColor(...primaryBlue);
         pdf.text('CUSTOMER APPROVAL', margin, yPosition);
         yPosition += 15;
 
+        const sig = additional_data.signature;
+        const isImage = isBase64Signature(sig);
+
         try {
-          pdf.addImage(`data:image/png;base64,${additional_data.signature}`, 'PNG', margin, yPosition, 80, 25);
-          yPosition += 30;
+          pdf.setFontSize(9);
+          pdf.setFont('helvetica', 'bold');
+          pdf.setTextColor(...darkGray);
+          pdf.text('Signature:', margin, yPosition);
+          yPosition += 5;
+
+          if (isImage) {
+            // image signature
+            const imgSrc = sig.startsWith("data:image")
+              ? sig
+              : `data:image/png;base64,${sig}`;
+
+            pdf.addImage(imgSrc, "PNG", margin, yPosition, 80, 25);
+            yPosition += 30;
+
+          } else {
+            // text signature
+            pdf.setFontSize(8);
+            pdf.setFont('helvetica', 'normal');
+            pdf.setTextColor(...mediumGray);
+            pdf.text(sig, margin, yPosition);
+            yPosition += 10;
+          }
+
         } catch (error) {
           pdf.setFont('helvetica', 'normal');
           pdf.setTextColor(...mediumGray);
@@ -586,7 +620,11 @@ yPosition = 20;
 
         pdf.setFontSize(8);
         pdf.setTextColor(...mediumGray);
-        pdf.text(`Digitally approved on: ${new Date(created_at).toLocaleDateString()}`, margin, yPosition);
+        pdf.text(
+          `Digitally approved on: ${new Date(created_at).toLocaleDateString()}`,
+          margin,
+          yPosition
+        );
         yPosition += 10;
       }
     }

@@ -115,10 +115,15 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote', 'Submission'],
     }),
+    getGlobalCoupons: builder.query({
+      query: () => ({ url: 'coupons/global/' }),
+      providesTags: ['Coupons'],
+    })
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
-  useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation
+  useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
+  useGetGlobalCouponsQuery
  } = quoteApi;

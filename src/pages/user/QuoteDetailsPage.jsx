@@ -512,7 +512,7 @@ const QuoteDetailsPage = () => {
                                   {/* Features List */}
                                   <Box
                                     sx={{ 
-                                      maxHeight: {xs:240,sm:280, md:340}, 
+                                      // maxHeight: {xs:240,sm:280, md:340}, 
                                       overflowY: "auto", 
                                       pb:2,
                                       "&::-webkit-scrollbar": {
@@ -696,15 +696,51 @@ const QuoteDetailsPage = () => {
                   <CardContent sx={{ p: 3 }}>
                     <Stack spacing={3}>
                       {!is_bid_in_person && additional_data.signature && (
+                        // <Box>
+                        //   <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
+                        //     Signature
+                        //   </Typography>
+                        //   {/* <img
+                        //     src={`data:image/png;base64,${additional_data.signature}`}
+                        //     alt="Signature"
+                        //     style={{ border: "1px solid #ccc", maxWidth: "200px" }}
+                        //   /> */}
+                        //   <Typography variant="body2" sx={{ fontSize: "1rem", }}>
+                        //     {additional_data.signature}
+                        //   </Typography>
+                        // </Box>
                         <Box>
                           <Typography variant="subtitle2" sx={{ color: "#64748b", mb: 1 }}>
                             Signature
                           </Typography>
-                          <img
-                            src={`data:image/png;base64,${additional_data.signature}`}
-                            alt="Signature"
-                            style={{ border: "1px solid #ccc", maxWidth: "200px" }}
-                          />
+
+                          {(() => {
+                            const sig = additional_data?.signature;
+
+                            // If no signature → return nothing
+                            if (!sig) return null;
+
+                            // --- reliable checks ---
+                            const looksLikeBase64 =
+                              sig.startsWith("data:image") ||
+                              (sig.length > 200 && /^[A-Za-z0-9+/=]+$/.test(sig));
+
+                            return looksLikeBase64 ? (
+                              <img
+                                src={
+                                  sig.startsWith("data:image")
+                                    ? sig
+                                    : `data:image/png;base64,${sig}`
+                                }
+                                alt="Signature"
+                                style={{ border: "1px solid #ccc", maxWidth: "200px" }}
+                              />
+                            ) : (
+                              <Typography variant="body2" sx={{ fontSize: "1rem" }}>
+                                {sig}
+                              </Typography>
+                            );
+                          })()}
                         </Box>
                       )}
 

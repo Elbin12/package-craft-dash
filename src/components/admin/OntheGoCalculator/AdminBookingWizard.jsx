@@ -17,9 +17,9 @@ import QuoteDetailsPage from "../../../pages/user/QuoteDetailsPage"
 
 
 const steps = [
-  "Your Information",
+  "Your Info",
   "Select Services",
-  "Answer Questions",
+  "Final Details",
   "Review & Submit"
 ];
 

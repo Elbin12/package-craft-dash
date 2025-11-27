@@ -20,9 +20,9 @@ import { AvailabilitySelection } from "./AvailabilitySelection"
 
 
 const steps = [
-  "Your Information",
+  "Your Info",
   "Select Services",
-  "Answer Questions",
+  "Final Details",
   "Review & Submit"
 ];
 
@@ -642,7 +642,7 @@ export const BookingWizard = () => {
       case 3:
         return <CheckoutSummary data={bookingData} onUpdate={updateBookingData} termsAccepted={termsAccepted} setTermsAccepted={setTermsAccepted}
         additionalNotes={addiditional_notes} setAdditionalNotes={setAdditionalNotes} handleSignatureEnd={handleSignatureEnd} setSignature={setSignature}
-        isStepComplete={isStepComplete} handleNext={handleNext} isBidInPerson={isBidInPerson} setIsBidInPerson={setIsBidInPerson}
+        isStepComplete={isStepComplete} handleNext={handleNext} isBidInPerson={isBidInPerson} setIsBidInPerson={setIsBidInPerson} signature={signature}
         />;
       default:
         return "Unknown step";

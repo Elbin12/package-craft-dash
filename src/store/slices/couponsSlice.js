@@ -9,6 +9,7 @@ const initialState = {
     discount_value: '',
     expiration_date: '',
     is_active: true,
+    is_global: false,
   },
 };
 

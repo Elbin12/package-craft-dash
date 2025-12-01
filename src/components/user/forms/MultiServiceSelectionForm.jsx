@@ -70,7 +70,7 @@ const MultiServiceSelectionForm = ({ data, onUpdate }) => {
               className={`cursor-pointer ${checked ? "border-blue-500 bg-blue-50" : ""}`}
               onClick={() => toggleService(service)}
             >
-              <CardContent className="flex items-center space-x-3 px-5 py-4">
+              <CardContent className="flex items-center space-x-3 px-5 py-2">
                 <Checkbox checked={checked} onChange={() => toggleService(service)} />
                 <div>
                   <p className="font-semibold">{service.name}</p>

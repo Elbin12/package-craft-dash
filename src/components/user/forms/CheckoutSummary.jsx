@@ -519,7 +519,7 @@ export const CheckoutSummary = ({
               >
                 <Box display="flex" alignItems="center" justifyContent="space-between"
                   sx={{
-                    minHeight: { xs: 48, sm: 36 },
+                    minHeight: { xs: 44, sm: 36 },
                     gap: 1,
                   }}
                 >
@@ -955,6 +955,7 @@ export const CheckoutSummary = ({
                 </Typography>
                 <Box display="flex" gap={2} alignItems="flex-start" flexDirection={{ xs: 'column', sm: 'row' }}>
                   <TextField
+                    size="small"
                     placeholder="Enter coupon code"
                     fullWidth
                     value={couponCode}
@@ -1327,7 +1328,7 @@ export const CheckoutSummary = ({
                 <Box display="flex" gap={2} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
                   <Button
                     variant="outlined"
-                    size="large"
+                    size="small"
                     onClick={handleDeclineClick}
                     sx={{
                       color: "#d32f2f",
@@ -1345,7 +1346,7 @@ export const CheckoutSummary = ({
 
                   <Button
                     variant="contained"
-                    size="large"
+                    size="small"
                     disabled={!isStepComplete(3)}
                     sx={{
                       bgcolor: "#42bd3f",

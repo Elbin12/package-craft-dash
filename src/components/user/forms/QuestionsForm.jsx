@@ -222,8 +222,8 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           {question.image && (
             <Box 
               sx={{ 
-                width: 120, 
-                height: 120, 
+                width: 80, 
+                height: 80, 
                 display: 'flex', 
                 alignItems: 'center', 
                 justifyContent: 'center',
@@ -245,7 +245,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           <Typography 
             sx={{ 
               color: '#2c2c6c',
-              fontSize: '22px',
+              fontSize: { xs: '16px', sm: '18px' },
               fontWeight: 400,
               lineHeight: 1.4
             }}
@@ -448,6 +448,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                         inputProps={{
                           min: 1,
                           max: option.max_quantity,
+                          sx: { height: {xs:32, md:36}, padding: '0 8px' }
                         }}
                         sx={{ width: 80 }}
                       />
@@ -632,7 +633,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                 border: '1px solid #ddd',
                 borderRadius: '8px !important',
                 '&:before': { display: 'none' },
-                boxShadow: 'none'
+                boxShadow: 'none',
               }}
             >
               <AccordionSummary 
@@ -641,9 +642,9 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                   backgroundColor: '#023c8f',
                   color: 'white',
                   borderRadius: '8px',
-                  minHeight: 48,
+                  minHeight: 44,
                   '&.Mui-expanded': {
-                    minHeight: 48,
+                    minHeight: 44,
                     borderRadius: '8px 8px 0 0'
                   },
                   '& .MuiAccordionSummary-content': {

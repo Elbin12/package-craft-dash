@@ -171,7 +171,7 @@ export const BookingWizard = () => {
 
   useLayoutEffect(() => {
     if (isSuccess && submissionData) {
-      if(submissionData?.status.includes("submitted", "declined")){
+      if(submissionData?.status.includes("approved", "declined")){
         if (submissionData.availabilities && submissionData.availabilities.length > 0) {
           // Has availabilities, redirect to quote details
           navigate(`/quote/details/${submissionData?.id}`);
@@ -692,7 +692,7 @@ export const BookingWizard = () => {
         </div>
       </div> */}
 
-      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-4 py-8">
         {/* Progress Section */}
         <Card className="mb-8 shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardContent className="p-6">
@@ -711,7 +711,7 @@ export const BookingWizard = () => {
               {steps.map((label, index) => (
                 <div key={label} className="flex flex-col items-center space-y-2">
                   <div
-                    className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-200 ${
+                    className={`flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-full border-2 transition-all duration-200 ${
                       index < activeStep
                         ? "bg-green-500 border-green-500 text-white"
                         : index === activeStep
@@ -719,10 +719,10 @@ export const BookingWizard = () => {
                           : "bg-gray-100 border-gray-300 text-gray-400"
                     }`}
                   >
-                    {index < activeStep ? <CheckCircle className="h-5 w-5" /> : <Circle className="h-5 w-5" />}
+                    {index < activeStep ? <CheckCircle className="h-4 w-4 sm:h-5 sm:w-5" /> : <Circle className="h-4 w-4 sm:h-5 sm:w-5" />}
                   </div>
                   <span
-                    className={`text-xs font-medium text-center max-w-20 ${
+                    className={`text-[.65rem] sm:text-xs font-medium text-center max-w-20 ${
                       index <= activeStep ? "text-gray-900" : "text-gray-500"
                     }`}
                   >

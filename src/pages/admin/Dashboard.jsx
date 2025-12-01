@@ -68,7 +68,7 @@ const Dashboard = () => {
   console.log(isSubmitted, 'isSubmitted')
   useEffect(() => {
     console.log(submissionDataDetails?.status, 'submissionDataDetails');
-    if (isSuccess && submissionDataDetails?.status === 'submitted') {
+    if (isSuccess && submissionDataDetails?.status === 'approved') {
       setIsSubmitted(true);
     }else{
       setIsSubmitted(false);

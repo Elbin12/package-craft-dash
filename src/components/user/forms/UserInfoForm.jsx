@@ -154,6 +154,7 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
         <TextField
           fullWidth
           label="Street Address"
+          size="small"
           value={inputValue}
           onChange={handleChange}
           placeholder="Search for a location..."
@@ -295,12 +296,14 @@ useEffect(() => {
             >
               <TextField
                 label="First Name"
+                size="small"
                 value={data.userInfo?.firstName || ""}
                 onChange={handleChange("firstName")}
                 required={!admin}
               />
               <TextField
                 label="Last Name"
+                size="small"
                 value={data.userInfo?.lastName || ""}
                 onChange={handleChange("lastName")}
                 required={!admin}
@@ -327,6 +330,7 @@ useEffect(() => {
                 label="Province, City"
                 value={data.userInfo?.selectedLocation || ''}
                 onChange={handleChange('selectedLocation')}
+                size="small"
               >
                 <MenuItem value="">Select Location</MenuItem>
                 {locations.map(loc => (
@@ -349,9 +353,11 @@ useEffect(() => {
                 label="Company Name"
                 value={data.userInfo?.companyName || ""}
                 onChange={handleChange("companyName")}
+                size="small"
               />
               <TextField
                 label="Postal Code"
+                size="small"
                 value={data.userInfo?.postalCode || ""}
                 onChange={handleChange("postalCode")}
                 required={!admin}
@@ -364,11 +370,12 @@ useEffect(() => {
                 display: "grid",
                 gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
                 gap: 3,
-                alignItems: "start",
+                alignItems: "end",
               }}
             >
               <TextField
                 label="Primary Phone"
+                size="small"
                 value={data.userInfo?.phone || ""}
                 onChange={handleChange("phone")}
                 onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
@@ -389,10 +396,11 @@ useEffect(() => {
                 }
               />
               <Box>
-                <Typography variant="body2" sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontSize: {xs:12, md:14} }}>
                   Would it be okay for us to correspond with you via Text/SMS? (You must select one.)
                 </Typography>
                 <Button
+                  size="small"
                   variant={
                     data.userInfo?.smsConsent === true ? "contained" : "outlined"
                   }
@@ -404,6 +412,7 @@ useEffect(() => {
                   YES
                 </Button>
                 <Button
+                  size="small"
                   variant={
                     data.userInfo?.smsConsent === false ? "contained" : "outlined"
                   }
@@ -422,10 +431,11 @@ useEffect(() => {
                 display: "grid",
                 gridTemplateColumns: { xs: "1fr", md: "1fr 1fr" },
                 gap: 3,
-                alignItems: "start",
+                alignItems: "end",
               }}
             >
               <TextField
+                size="small"
                 label="Email Address"
                 value={data.userInfo?.email || ""}
                 onChange={handleChange("email")}
@@ -447,10 +457,11 @@ useEffect(() => {
                 }
               />
               <Box>
-                <Typography variant="body2" sx={{ mb: 1 }}>
+                <Typography variant="body2" sx={{ mb: 1, fontSize: {xs:12, md:14} }}>
                   Would it be okay for us to correspond with you via email? (You must select one.)
                 </Typography>
                 <Button
+                  size="small"
                   variant={
                     data.userInfo?.emailConsent === true ? "contained" : "outlined"
                   }
@@ -462,6 +473,7 @@ useEffect(() => {
                   YES
                 </Button>
                 <Button
+                  size="small"
                   variant={
                     data.userInfo?.emailConsent === false ? "contained" : "outlined"
                   }
@@ -476,6 +488,7 @@ useEffect(() => {
 
             {/* Sixth row: Where did you hear about us (full width) */}
             <TextField
+              size="small"
               select
               fullWidth
               label="Where did you hear about us?"
@@ -501,10 +514,11 @@ useEffect(() => {
 
         {/* Seventh row: Project Type (full width) */}
         <Box>
-          <Typography variant="body2" sx={{ mb: 1 }}>
+          <Typography variant="body2" sx={{ mb: 1, fontSize: {xs:12, md:14} }}>
             What type of project is this?
           </Typography>
           <Button
+            size="small"
             variant={
               data.userInfo?.projectType === "residential"
                 ? "contained"
@@ -518,6 +532,7 @@ useEffect(() => {
             Residential
           </Button>
           <Button
+            size="small"
             variant={
               data.userInfo?.projectType === "commercial"
                 ? "contained"
@@ -534,6 +549,7 @@ useEffect(() => {
         {/* Property Name - only show if commercial */}
         {data.userInfo?.projectType === "commercial" && (
           <TextField
+            size="small"
             fullWidth
             label="Property Name"
             value={data.userInfo?.propertyName || ""}
@@ -543,6 +559,7 @@ useEffect(() => {
 
         {/* Eighth row: Number of floors (full width) */}
         <TextField
+          size="small"
           select
           fullWidth
           label="Number of floors (above ground)"
@@ -558,6 +575,7 @@ useEffect(() => {
 
         {/* Ninth row: Current/Previous Customer (full width) */}
         <TextField
+          size="small"
           select
           fullWidth
           label="Are you a current or previous customer?"
@@ -571,6 +589,7 @@ useEffect(() => {
 
         {/* Tenth row: House Size (full width) */}
         <TextField
+          size="small"
           select
           fullWidth
           label="Actual House Size/Square Footage"

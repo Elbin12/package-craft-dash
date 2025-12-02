@@ -24,6 +24,7 @@ import {
   DialogTitle,
   DialogActions,
   DialogContent,
+  Stack,
 } from "@mui/material"
 import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
 import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation, useGetGlobalCouponsQuery } from "../../../store/api/user/quoteApi"
@@ -429,6 +430,52 @@ export const CheckoutSummary = ({
           }
         </Box>
 
+        {response?.bid_notes_public && (
+          <Card sx={{ mb: 2, borderRadius:1}}>
+            <Box sx={{ p: 3, py: 2, bgcolor: '#fffbf0' }}>
+              <Stack direction="row" alignItems="center" spacing={2}>
+                <Box>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      color: "#d97706",
+                      fontSize: { xs: "1rem", sm: "1.2rem", md: "1.5rem" },
+                    }}
+                  >
+                    Important Instructions
+                  </Typography>
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      color: "#92400e",
+                      fontSize: { xs: "0.7rem", sm: "0.75rem" },
+                      fontWeight: 500,
+                    }}
+                  >
+                    Please review these notes carefully
+                  </Typography>
+                </Box>
+              </Stack>
+            </Box>
+            <CardContent sx={{ p: 3, bgcolor: '#ffffff' }}>
+              <Box>
+                <Typography
+                  variant="body1"
+                  sx={{
+                    whiteSpace: "pre-wrap",
+                    fontSize: { xs: "0.9rem", sm: "1rem" },
+                    color: "text.primary",
+                    lineHeight: 1.7,
+                  }}
+                >
+                  {response?.bid_notes_public}
+                </Typography>
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Customer Info */}
         <Card sx={{ mb: 2 }}>
           <CardContent sx={{ px: {xs:2, md:3}, py: 0.5 }}>
@@ -771,7 +818,7 @@ export const CheckoutSummary = ({
                   {selection.question_responses?.length > 0 && (
                     <Box mt={2}>
                       <Typography variant="subtitle1" fontWeight={600} sx={{ color: "#023c8f", fontSize:{ xs: "1rem", sm: "1.2rem", md: "1.3rem"} }}>
-                        Your Responses
+                        Job Specs
                       </Typography>
                       <Box sx={{ bgcolor: "#f8f9fa", borderRadius: 1, p: 1 }}>
                         {selection.question_responses.map((response, index) => (

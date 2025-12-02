@@ -251,6 +251,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
             }}
           >
           {question.text}
+          <span style={{ color: '#d32f2f', marginLeft: '4px' }}>*</span>
           </Typography>
         </Box>
         
@@ -684,6 +685,43 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           )
         })}
       </Box>
+      {allServiceQuestions.some(serviceData => {
+      const hasUnansweredQuestions = getAllQuestionsFlattened(serviceData.questions)
+        .filter(question => shouldShowQuestion(question, serviceData.service.id))
+        .some(question => {
+          const questionKey = `${serviceData.service.id}_${question.id}`;
+          
+          switch (question.type) {
+            case "yes_no":
+            case "conditional":
+            case "describe":
+            case "options":
+              return !data.questionAnswers?.[questionKey];
+            
+            case "quantity":
+              return !Object.keys(data.questionAnswers || {}).some(k => 
+                k.startsWith(`${serviceData.service.id}_${question.id}_`) && 
+                k.endsWith('_quantity') &&
+                parseInt(data.questionAnswers[k]) > 0
+              );
+            
+            case "multiple_yes_no":
+              return !question.sub_questions?.some(subQ => {
+                const subKey = `${serviceData.service.id}_${question.id}_${subQ.id}`;
+                return data.questionAnswers?.[subKey] === "yes" || data.questionAnswers?.[subKey] === "no";
+              });
+            
+            default:
+              return false;
+          }
+        });
+      
+      return hasUnansweredQuestions;
+    }) && (
+      <Alert severity="warning" sx={{ mt: 3 }}>
+        Please answer all required questions (marked with *) before proceeding to the next step.
+      </Alert>
+    )}
     </Box>
   )
 }

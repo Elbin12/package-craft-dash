@@ -11,7 +11,7 @@ import PackageSelectionForm from "./forms/PackageSelectionForm"
 import QuestionsForm from "./forms/QuestionsForm"
 import CheckoutSummary from "./forms/CheckoutSummary"
 import MultiServiceSelectionForm from "./forms/MultiServiceSelectionForm"
-import { useAddAvailabilitiesMutation, useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
+import { useAddAvailabilitiesMutation, useCreateQuestionResponsesMutation, useCreateServiceToSubmissionMutation, useCreateSubmissionMutation, useGetQuoteDetailsQuery, useGetServiceQuestionsQuery, useSubmitQuoteMutation, useUpdateSubmissionMutation } from "../../store/api/user/quoteApi"
 import { useDispatch } from "react-redux"
 import { resetBookingData } from "../../store/slices/bookingSlice"
 import { Box, Typography,Card, CardContent } from "@mui/material"
@@ -64,6 +64,18 @@ export const BookingWizard = () => {
       quoteDetails: null,
       selectedPackages: [],
     };
+  });
+
+  // After bookingData state declaration
+  const selectedServices = bookingData?.selectedServices || [];
+
+  // Always call the hook for each service, but skip the query if no service
+  const serviceQueries = Array.from({ length: Math.max(1, selectedServices.length) }).map((_, index) => {
+    const service = selectedServices[index];
+    return useGetServiceQuestionsQuery(service?.id || '', {
+      skip: !service?.id,
+      refetchOnMountOrArgChange: true,
+    });
   });
 
   useEffect(() => {
@@ -619,8 +631,123 @@ export const BookingWizard = () => {
     }
       case 1:
         return Array.isArray(bookingData.selectedServices) && bookingData.selectedServices.length > 0;
-      case 2:
-        return true; // Questions are optional, so always allow proceeding
+      case 2: {
+        // Check if all questions for all selected services have been answered
+        const { selectedServices, questionAnswers } = bookingData;
+        
+        if (!selectedServices || selectedServices.length === 0) {
+          return false;
+        }
+
+        // Check if service queries have loaded
+        const allQueriesLoaded = serviceQueries.every(q => !q.isLoading && q.data);
+        if (!allQueriesLoaded) {
+          return false;
+        }
+
+        // Get all questions from the loaded service queries
+        let allQuestionsAnswered = true;
+
+        for (let i = 0; i < selectedServices.length; i++) {
+          const service = selectedServices[i];
+          const queryData = serviceQueries[i]?.data;
+          
+          if (!queryData || !queryData.questions) {
+            continue;
+          }
+
+          // Flatten all questions including child questions
+          const flattenQuestions = (questions) => {
+            const flattened = [];
+            const processQuestion = (question) => {
+              flattened.push(question);
+              if (question.child_questions && question.child_questions.length > 0) {
+                question.child_questions.forEach(childQuestion => {
+                  processQuestion(childQuestion);
+                });
+              }
+            };
+            questions.forEach(q => processQuestion(q));
+            return flattened;
+          };
+
+          const allQuestions = flattenQuestions(queryData.questions);
+
+          // Check if question should be shown based on conditional logic
+          const shouldShowQuestion = (question) => {
+            if (!question.parent_question || !question.condition_answer) {
+              return true;
+            }
+            const parentKey = `${service.id}_${question.parent_question}`;
+            const parentAnswer = questionAnswers?.[parentKey];
+            return parentAnswer === question.condition_answer;
+          };
+
+          // Check each visible question
+          for (const question of allQuestions) {
+            if (!shouldShowQuestion(question)) {
+              continue; // Skip conditional questions that shouldn't be shown
+            }
+
+            const questionKey = `${service.id}_${question.id}`;
+            
+            switch (question.question_type) {
+              case "yes_no":
+              case "conditional":
+                if (!questionAnswers[questionKey] || 
+                    (questionAnswers[questionKey] !== "yes" && questionAnswers[questionKey] !== "no")) {
+                  allQuestionsAnswered = false;
+                  break;
+                }
+                break;
+                
+              case "describe":
+              case "options":
+                if (!questionAnswers[questionKey]) {
+                  allQuestionsAnswered = false;
+                  break;
+                }
+                break;
+                
+              case "quantity":
+                // Check if at least one option is selected with quantity > 0
+                const hasQuantityAnswer = Object.keys(questionAnswers).some(k => {
+                  if (k.startsWith(`${service.id}_${question.id}_`) && k.endsWith('_quantity')) {
+                    const quantity = parseInt(questionAnswers[k]);
+                    return quantity > 0;
+                  }
+                  return false;
+                });
+                if (!hasQuantityAnswer) {
+                  allQuestionsAnswered = false;
+                  break;
+                }
+                break;
+                
+              case "multiple_yes_no":
+                // Check if at least one sub-question is answered
+                const hasSubAnswer = Object.keys(questionAnswers).some(k => 
+                  k.startsWith(`${service.id}_${question.id}_`) && 
+                  (questionAnswers[k] === "yes" || questionAnswers[k] === "no")
+                );
+                if (!hasSubAnswer) {
+                  allQuestionsAnswered = false;
+                  break;
+                }
+                break;
+                
+              default:
+                break;
+            }
+            
+            if (!allQuestionsAnswered) break;
+          }
+          
+          if (!allQuestionsAnswered) break;
+        }
+        
+        return allQuestionsAnswered;
+      }
       case 3:
         if (isBidInPerson) {
         return termsAccepted;

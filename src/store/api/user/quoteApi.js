@@ -118,12 +118,20 @@ export const quoteApi = createApi({
     getGlobalCoupons: builder.query({
       query: () => ({ url: 'coupons/global/' }),
       providesTags: ['Coupons'],
-    })
+    }),
+    addNotes: builder.mutation({
+      query: ({ submissionId, payload }) => ({
+        url: `${submissionId}/notes/`,
+        method: 'PATCH',
+        data: payload,
+      }),
+      invalidatesTags: ['Quote', 'Submission'],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
   useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
-  useGetGlobalCouponsQuery
+  useGetGlobalCouponsQuery, useAddNotesMutation
  } = quoteApi;

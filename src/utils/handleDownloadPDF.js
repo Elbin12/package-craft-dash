@@ -547,6 +547,17 @@ yPosition = 20;
       const finalTotalText = formatPrice(final_total || 0);
       const finalWidth = pdf.getTextWidth(finalTotalText);
       pdf.text(finalTotalText, priceTableX + 100 - finalWidth, priceTableY);
+      // "Plus Tax" text (smaller + gray)
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(...darkGray);
+
+      // Place "Plus Tax" just below or slightly under the number
+      pdf.text(
+        'Plus Tax',
+        priceTableX + 100 - finalWidth,   // align under the number
+        priceTableY + 6                    // slight vertical offset
+      );
       priceTableY += 8;
 
       yPosition += tableHeight + 10;

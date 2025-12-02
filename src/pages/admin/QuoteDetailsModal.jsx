@@ -19,6 +19,7 @@ import {
   IconButton,
   Grid,
   Collapse,
+  TextField,
 } from "@mui/material"
 import {
   User,
@@ -38,15 +39,24 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Save,
 } from "lucide-react"
-import { useCreateQuestionResponsesMutation, useUpdateQuestionResponsesForSubmittedMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useUpdateQuestionResponsesForSubmittedMutation } from "../../store/api/user/quoteApi"
+import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
   const [tab, setTab] = useState("overview")
   const [expandedPackages, setExpandedPackages] = useState({})
 
+  const [editPrivate, setEditPrivate] = useState(false);
+  const [editPublic, setEditPublic] = useState(false);
+  const [privateNotes, setPrivateNotes] = useState(data?.bid_notes_private || "");
+  const [publicNotes, setPublicNotes] = useState(data?.bid_notes_public || "");
+
   const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
   const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
+
+  const [addNotes] = useAddNotesMutation();
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue)
@@ -86,14 +96,34 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
       console.log('Submission ID:', data.id)
       console.log('Service ID:', service.service_id)
       onClose(); // Close the modal after successful update
+      setEditPrivate(false);
+      setEditPublic(false);
     } catch (error) {
       console.error('Error updating package:', error)
     }
   }
+  
+  const handleSavePrivate = () => {
+    // TODO: save privateNotes to backend
+    setEditPrivate(false);
+    addNotes({ submissionId: data.id, payload: { bid_notes_private: privateNotes } });
+  };
+
+  const handleSavePublic = () => {
+    // TODO: save publicNotes to backend
+    setEditPublic(false);
+    addNotes({ submissionId: data.id, payload: { bid_notes_public: publicNotes } });
+  };
+
+  const handleClose = () => {
+    onClose();
+    setEditPrivate(false);
+    setEditPublic(false);
+  }
 
   if (isLoading) {
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
         <DialogContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 300 }}>
           <CircularProgress />
         </DialogContent>
@@ -103,7 +133,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
   if (!data) {
     return (
-      <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
+      <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth>
         <DialogContent sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: 300 }}>
           <Typography color="text.secondary">No data available</Typography>
         </DialogContent>
@@ -112,7 +142,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   }
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth scroll="paper">
+    <Dialog open={open} onClose={handleClose} maxWidth="lg" fullWidth scroll="paper">
       {/* Header */}
       <Box
         sx={{
@@ -142,7 +172,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
               Edit
             </Button>
           )}
-          <IconButton onClick={onClose} sx={{ color: "primary.contrastText" }}>
+          <IconButton onClick={handleClose} sx={{ color: "primary.contrastText" }}>
             <X />
           </IconButton>
         </Box>
@@ -741,7 +771,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                     <Box>
                       <Typography variant="h6" display="flex" alignItems="center" gap={1} gutterBottom mb={2}>
                         <FileText size={20} />
-                        Question Responses
+                        Job Specs
                       </Typography>
                       {service.question_responses.map((response, rIdx) => (
                         <Box key={rIdx} sx={{ borderLeft: "2px solid #ddd", pl: 2, mb: 2 }}>
@@ -793,63 +823,165 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
         {/* Additional Info */}
         {tab === "additional" && (
-          <Card>
-            <CardHeader
-              title={
-                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                  <FileText size={20} color="#51b7ae" />
-                  <Typography variant="subtitle1">Additional Information</Typography>
-                </Box>
-              }
-            />
-            <CardContent>
-              {data.availabilities?.length > 0 && (
-                <Box mb={2}>
-                  <Box display="flex" alignItems="center" gap={1} mb={1}>
-                    <Calendar size={16} />
-                    <Typography>Preferred Dates:</Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Card>
+              <CardHeader
+                title={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <FileText size={20} color="#51b7ae" />
+                    <Typography variant="subtitle1">Additional Information</Typography>
                   </Box>
-                  {data.availabilities.map((availability, index) => (
-                    <Box key={index} display="flex" alignItems="center" gap={1} ml={3}>
-                      <Typography>
-                        {new Date(availability.date).toLocaleDateString()} – {availability.time}
-                      </Typography>
+                }
+              />
+              <CardContent>
+                {data.availabilities?.length > 0 && (
+                  <Box mb={3}>
+                    <Box display="flex" alignItems="center" gap={1} mb={1.5}>
+                      <Calendar size={16} />
+                      <Typography fontWeight={600}>Preferred Dates:</Typography>
                     </Box>
-                  ))}
-                </Box>
-              )}
-              {data.additional_data?.preferred_contact_method && (
-                <Box display="flex" alignItems="center" gap={1} mb={2}>
-                  <Phone size={16} />
-                  <Typography>Preferred Contact Method: {data.additional_data.preferred_contact_method}</Typography>
-                </Box>
-              )}
-              {data.additional_data?.additional_notes && (
-                <Box display="flex" alignItems="flex-start" gap={1} mb={2}>
-                  <FileText size={16} />
-                  <Typography whiteSpace="pre-wrap">{data.additional_data.additional_notes}</Typography>
-                </Box>
-              )}
-              {data.additional_data?.submitted_at && (
-                <Box display="flex" alignItems="center" gap={1}>
-                  <Calendar size={16} />
-                  <Typography>
-                    Submitted At: {new Date(data.additional_data.submitted_at).toLocaleString()}
+                    {data.availabilities.map((availability, index) => (
+                      <Box key={index} display="flex" alignItems="center" gap={1} ml={3} mb={0.5}>
+                        <Typography>
+                          {new Date(availability.date).toLocaleDateString()} – {availability.time}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                )}
+                
+                {data.additional_data?.preferred_contact_method && (
+                  <Box display="flex" alignItems="center" gap={1} mb={3}>
+                    <Phone size={16} />
+                    <Typography>
+                      <strong>Preferred Contact Method:</strong> {data.additional_data.preferred_contact_method}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {data.additional_data?.submitted_at && (
+                  <Box display="flex" alignItems="center" gap={1} mb={3}>
+                    <Calendar size={16} />
+                    <Typography>
+                      <strong>Submitted At:</strong> {new Date(data.additional_data.submitted_at).toLocaleString()}
+                    </Typography>
+                  </Box>
+                )}
+
+                {data.additional_data?.additional_notes && (
+                  <Box mb={3}>
+                    <Box display="flex" alignItems="flex-start" gap={1} mb={1}>
+                      <FileText size={16} />
+                      <Typography fontWeight={600}>Additional Notes:</Typography>
+                    </Box>
+                    <Typography whiteSpace="pre-wrap" ml={3}>
+                      {data.additional_data.additional_notes}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {!data.additional_data && !data.availabilities?.length && (
+                  <Typography color="text.secondary" align="center" py={3}>
+                    No additional information available
                   </Typography>
-                </Box>
-              )}
-              {!data.additional_data && (
-                <Typography color="text.secondary" align="center" py={3}>
-                  No additional information available
-                </Typography>
-              )}
-            </CardContent>
-          </Card>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Bid Notes Section */}
+            <div gap={2} style={{ display: 'flex', gap: '16px' }}>
+              {/* Bid Notes (Private) */}
+              <Grid item xs={12} md={6} width={"50%"}>
+                <Card>
+                  <CardHeader
+                    sx={{
+                      bgcolor: "#1976d2",
+                      color: "white",
+                      py: 1.5
+                    }}
+                    title={
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          BID NOTES (PRIVATE)
+                        </Typography>
+                        <IconButton size="small" sx={{ color: "white" }} onClick={() => setEditPrivate(!editPrivate)}>
+                          {editPrivate ? <Save size={18} /> : <Edit2 size={18} />}
+                        </IconButton>
+                      </Box>
+                    }
+                  />
+                  <CardContent sx={{ minHeight: 200, bgcolor: "#fafafa" }}>
+                    <Typography whiteSpace="pre-wrap" color="text.secondary">
+                      {editPrivate ? (
+                        <Box display="flex" flexDirection="column" gap={2}>
+                          <TextField
+                            multiline
+                            minRows={6}
+                            value={privateNotes}
+                            onChange={(e) => setPrivateNotes(e.target.value)}
+                            variant="outlined"
+                            fullWidth
+                          />
+                          <Button variant="contained" onClick={handleSavePrivate}>Save</Button>
+                        </Box>
+                      ) : (
+                        <Typography whiteSpace="pre-wrap" color="text.secondary">
+                          {privateNotes || "No private notes available"}
+                        </Typography>
+                      )}
+                    </Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {/* Bid Notes (Public) */}
+              <Grid item xs={12} md={6} width={"50%"}>
+                <Card>
+                  <CardHeader
+                    sx={{
+                      bgcolor: "#1976d2",
+                      color: "white",
+                      py: 1.5
+                    }}
+                    title={
+                      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <Typography variant="subtitle1" fontWeight={600}>
+                          BID NOTES (PUBLIC)
+                        </Typography>
+                        <IconButton size="small" sx={{ color: "white" }} onClick={() => setEditPublic(!editPublic)}>
+                          {editPublic ? <Save size={18} /> : <Edit2 size={18} />}
+                        </IconButton>
+                      </Box>
+                    }
+                  />
+                  <CardContent sx={{ minHeight: 200, bgcolor: "#fafafa" }}>
+                    {editPublic ? (
+                      <Box display="flex" flexDirection="column" gap={2}>
+                        <TextField
+                          multiline
+                          minRows={6}
+                          value={publicNotes}
+                          onChange={(e) => setPublicNotes(e.target.value)}
+                          variant="outlined"
+                          fullWidth
+                        />
+                        <Button variant="contained" onClick={handleSavePublic}>Save</Button>
+                      </Box>
+                    ) : (
+                      <Typography whiteSpace="pre-wrap" color="text.secondary">
+                        {publicNotes || "No public notes available"}
+                      </Typography>
+                    )}
+                  </CardContent>
+                </Card>
+              </Grid>
+            </div>
+          </Box>
         )}
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} variant="outlined">
+        <Button onClick={handleClose} variant="outlined">
           Close
         </Button>
       </DialogActions>

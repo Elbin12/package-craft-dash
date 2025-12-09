@@ -140,6 +140,10 @@ export const handleDownloadPDF = async (setIsGeneratingPDF, quote) => {
           return response.option_responses?.map((opt) => `${opt.option_text}: ${opt.quantity}`).join(", ") || "N/A";
         case "describe":
           return response.option_responses?.map((opt) => opt.option_text).join(", ") || "N/A";
+        case "measurement":
+          return response.measurement_responses?.map((measurement) => 
+            `${measurement.option_text} - Length: ${measurement.length || 'N/A'}, Width: ${measurement.width || 'N/A'}, Quantity: ${measurement.quantity || 'N/A'}`
+          ).join(" | ") || "N/A";
         default:
           return "N/A";
       }
@@ -319,7 +323,7 @@ yPosition = 20;
           pdf.setTextColor(255, 255, 255);
           pdf.text('SELECTED PACKAGE', margin, yPosition + 7);
           
-          const priceText = formatPrice(packageInfo.total_price);
+          const priceText = formatPrice(packageInfo.effective_total_price);
           const priceWidth = pdf.getTextWidth(priceText);
           pdf.text(priceText, margin + contentWidth - priceWidth, yPosition + 7);
           
@@ -496,7 +500,7 @@ yPosition = 20;
       pdf.setFillColor(...lightGray);
       const tableHeight = 60 + (service_selections?.length * 8) + 
         (total_addons_price && parseFloat(total_addons_price) > 0 ? 8 : 0) +
-        (quote?.applied_coupon ? 8 : 0);
+        (quote?.is_coupon_applied ? 8 : 0);
       
       pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, tableHeight, 'F');
       pdf.setDrawColor(...mediumGray);
@@ -525,7 +529,7 @@ yPosition = 20;
       }
 
       // Applied coupon if any
-      if (quote?.applied_coupon) {
+      if (quote?.is_coupon_applied) {
         pdf.setTextColor(...accentGreen);
         pdf.text(`Discount (${quote.applied_coupon.code}):`, priceTableX, priceTableY);
         pdf.text(`-${formatPrice(quote.discounted_amount)}`, priceTableX + 80, priceTableY);

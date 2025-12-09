@@ -94,7 +94,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
         })
       } else {
         question.pricing_rules?.forEach((rule) => {
-          if (question.question_type === "yes_no") {
+          if (question.question_type === "yes_no" || question.question_type === "measurement") {
             allRules.push({
               questionId: question.id,
               packageId: rule.package,
@@ -143,7 +143,7 @@ const PriceSetupForm = ({ data, onUpdate }) => {
     const rules = []
     flattenedQuestions.forEach((question) => {
       packages.forEach((pkg) => {
-        if (question.question_type === "yes_no") {
+        if (question.question_type === "yes_no" || question.question_type === "measurement") {
           // For simple yes_no, we create a rule for the 'yes' answer
           const existingRule = priceRules.find(
             (r) => r.questionId === question.id && r.packageId === pkg.id && r.answer === "yes",
@@ -201,6 +201,40 @@ const PriceSetupForm = ({ data, onUpdate }) => {
   }, [flattenedQuestions, packages])
 
   const isValueEditable = (priceType) => !["ignore", "bid_in_person"].includes(priceType)
+
+  const buildMeasurementPayload = (questionId) => {
+    const rulesForQuestion = priceRules.filter(
+      (r) => r.questionId === questionId && r.answer === "yes"
+    );
+
+    const pricing_rules = rulesForQuestion.map((rule) => {
+      const isZeroed = ["ignore", "bid_in_person"].includes(rule.priceType);
+      const rawValue = isZeroed ? 0 : rule.value || 0;
+      
+      return {
+        package_id: rule.packageId,
+        pricing_type: mapToApiPricingType(rule.priceType),
+        value_type: rule.valueType || "amount",
+        value: Number(rawValue).toFixed(2),
+      };
+    });
+
+    return {
+      question_id: questionId,
+      pricing_rules,
+    };
+  };
+
+  const handleSaveMeasurement = async (questionId) => {
+    try {
+      const payload = buildMeasurementPayload(questionId);
+      await createQuestionPricing(payload).unwrap();
+      alert("Measurement pricing saved successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save measurement pricing. Please try again.");
+    }
+  };
 
   const updatePriceRule = (questionId, packageId, field, value, answer, optionId) => {
     setPriceRules((prevRules) =>
@@ -442,6 +476,177 @@ const PriceSetupForm = ({ data, onUpdate }) => {
   // Recursive rendering function for questions and their nested children
   const renderQuestionTable = (question, level = 0) => {
     const questionDisplayTitle = question.question_text || question.sub_question_text
+    console.log(question, 'rendering question')
+
+    if (question.question_type === "measurement") {
+      return (
+        <Box key={question.id} mb={4} pl={level * 2}>
+          <Typography variant="subtitle1" fontWeight="bold" fontSize={30} mb={2}>
+            {questionDisplayTitle}
+          </Typography>
+
+          <TableContainer component={Paper}>
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Packages</TableCell>
+                  {packages.map((pkg) => (
+                    <TableCell key={pkg.id} align="center">
+                      {pkg.name}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {/* single row only */}
+                <TableRow>
+                  <TableCell>Price per unit</TableCell>
+                  {packages.map((pkg) => {
+                    const rule = getPriceRule(question.id, pkg.id, "yes", undefined);
+                    const valueMenuKey = `${question.id}-${pkg.id}-yes-undefined`;
+
+                    return (
+                      <TableCell key={pkg.id} align="center">
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Box display="flex" alignItems="center" position="relative">
+                            <TextField
+                              size="small"
+                              type="number"
+                              value={isValueEditable(rule?.priceType) ? (rule?.value ?? 0) : ""}
+                              onChange={(e) => {
+                                if (!isValueEditable(rule?.priceType)) return;
+                                updatePriceRule(
+                                  question.id,
+                                  pkg.id,
+                                  "value",
+                                  Number(e.target.value),
+                                  "yes",
+                                  undefined
+                                );
+                              }}
+                              disabled={!isValueEditable(rule?.priceType)}
+                              placeholder={!isValueEditable(rule?.priceType) ? "" : undefined}
+                              sx={{
+                                width: 100,
+                                minWidth: 80,
+                                "& .MuiInputBase-input": {
+                                  paddingLeft: "32px",
+                                  textAlign: "right",
+                                },
+                              }}
+                            />
+
+                            <IconButton
+                              size="small"
+                              onClick={(e) =>
+                                handleValueTypeMenuOpen(
+                                  e,
+                                  question.id,
+                                  pkg.id,
+                                  "yes",
+                                  undefined
+                                )
+                              }
+                              disabled={!isValueEditable(rule?.priceType)}
+                              sx={{
+                                position: "absolute",
+                                left: 4,
+                                zIndex: 1,
+                                width: 20,
+                                height: 20,
+                                bgcolor: "rgba(0, 0, 0, 0.1)",
+                                "&:hover": { bgcolor: "rgba(0, 0, 0, 0.2)" },
+                              }}
+                            >
+                              {rule?.valueType === "percent" ? (
+                                <Percent sx={{ fontSize: 12 }} />
+                              ) : (
+                                <AttachMoney sx={{ fontSize: 12 }} />
+                              )}
+                            </IconButton>
+
+                            <Menu
+                              anchorEl={valueTypeMenus[valueMenuKey]}
+                              open={Boolean(valueTypeMenus[valueMenuKey])}
+                              onClose={() =>
+                                handleValueTypeMenuClose(
+                                  question.id,
+                                  pkg.id,
+                                  "yes",
+                                  undefined
+                                )
+                              }
+                            >
+                              <MenuItem
+                                onClick={() =>
+                                  handleValueTypeSelect(
+                                    question.id,
+                                    pkg.id,
+                                    "yes",
+                                    undefined,
+                                    "amount"
+                                  )
+                                }
+                                selected={rule?.valueType === "amount"}
+                              >
+                                <AttachMoney sx={{ mr: 1, fontSize: 16 }} />
+                                Price
+                              </MenuItem>
+                              <MenuItem
+                                onClick={() =>
+                                  handleValueTypeSelect(
+                                    question.id,
+                                    pkg.id,
+                                    "yes",
+                                    undefined,
+                                    "percent"
+                                  )
+                                }
+                                selected={rule?.valueType === "percent"}
+                              >
+                                <Percent sx={{ mr: 1, fontSize: 16 }} />
+                                Percent
+                              </MenuItem>
+                            </Menu>
+                          </Box>
+
+                          <IconButton
+                            size="small"
+                            onClick={(e) =>
+                              handlePopoverOpen(e, question.id, pkg.id, "yes", undefined)
+                            }
+                            sx={{
+                              bgcolor: getPriceTypeColor(rule?.priceType || "ignore"),
+                              color: "white",
+                              width: 24,
+                              height: 24,
+                            }}
+                          >
+                            <Typography fontSize="small">
+                              {getPriceTypeIcon(rule?.priceType || "ignore")}
+                            </Typography>
+                          </IconButton>
+                        </Box>
+                      </TableCell>
+                    );
+                  })}
+                </TableRow>
+              </TableBody>
+            </Table>
+          </TableContainer>
+
+          <Box display="flex" justifyContent="flex-end" mt={1}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => handleSaveMeasurement(question.id)}
+            >
+              Save
+            </Button>
+          </Box>
+        </Box>
+      );
+    }
 
     // Conditional questions are special: they don't have their own pricing table,
     // but act as containers for child questions based on conditions.

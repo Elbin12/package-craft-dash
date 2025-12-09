@@ -41,7 +41,7 @@ import {
   ChevronUp,
   Save,
 } from "lucide-react"
-import { useAddNotesMutation, useCreateQuestionResponsesMutation, useUpdateQuestionResponsesForSubmittedMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation } from "../../store/api/user/quoteApi"
 import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
@@ -53,6 +53,10 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [privateNotes, setPrivateNotes] = useState(data?.bid_notes_private || "");
   const [publicNotes, setPublicNotes] = useState(data?.bid_notes_public || "");
 
+  const [editingPackagePrice, setEditingPackagePrice] = useState({});
+  const [tempPackagePrices, setTempPackagePrices] = useState({});
+
+  const [editPackagePrice] = useEditPackagePriceMutation();
   const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
   const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
 
@@ -119,6 +123,57 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
     onClose();
     setEditPrivate(false);
     setEditPublic(false);
+  }
+
+  const handleEditPackagePrice = (serviceIdx, pkgIdx) => {
+    const key = `${serviceIdx}-${pkgIdx}`
+    setEditingPackagePrice(prev => ({
+      ...prev,
+      [key]: true
+    }))
+  }
+
+  const handleSavePackagePrice = async (serviceIdx, pkgIdx, packageId) => {
+    const key = `${serviceIdx}-${pkgIdx}`
+    const newPrice = tempPackagePrices[key]
+    
+    if (!newPrice || isNaN(parseFloat(newPrice))) {
+      return
+    }
+
+    try {
+      await editPackagePrice({
+        packageId: packageId,
+        payload: { admin_override_price: parseFloat(newPrice) }
+      }).unwrap()
+      
+      setEditingPackagePrice(prev => ({
+        ...prev,
+        [key]: false
+      }))
+      setTempPackagePrices(prev => {
+        const updated = { ...prev }
+        delete updated[key]
+        return updated
+      })
+      
+      onClose(); // Close modal to refresh data
+    } catch (error) {
+      console.error('Error updating package price:', error)
+    }
+  }
+
+  const handleCancelEditPrice = (serviceIdx, pkgIdx) => {
+    const key = `${serviceIdx}-${pkgIdx}`
+    setEditingPackagePrice(prev => ({
+      ...prev,
+      [key]: false
+    }))
+    setTempPackagePrices(prev => {
+      const updated = { ...prev }
+      delete updated[key]
+      return updated
+    })
   }
 
   if (isLoading) {
@@ -626,15 +681,17 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                                   justifyContent: "space-between", 
                                   alignItems: "center",
                                   p: 2,
-                                  cursor: "pointer"
+                                  cursor: editingPackagePrice[key] ? "default" : "pointer"
                                 }}
-                                onClick={() => togglePackage(serviceIdx, pkgIdx)}
+                                onClick={() => !editingPackagePrice[key] && togglePackage(serviceIdx, pkgIdx)}
                               >
-                                <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                                  <IconButton size="small" sx={{ bgcolor: "#1976d2", color: "white", width: 32, height: 32 }}>
-                                    {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
-                                  </IconButton>
-                                  <Box>
+                                <Box sx={{ display: "flex", alignItems: "center", gap: 2, flex: 1 }}>
+                                  {!editingPackagePrice[key] && (
+                                    <IconButton size="small" sx={{ bgcolor: "#1976d2", color: "white", width: 32, height: 32 }}>
+                                      {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                                    </IconButton>
+                                  )}
+                                  <Box sx={{ flex: 1 }}>
                                     <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                                       <Typography variant="h6" sx={{ fontWeight: 600 }}>
                                         {pkg.package_name}
@@ -652,27 +709,87 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                                         />
                                       )}
                                     </Box>
-                                    <Typography variant="body2" color="text.secondary">
-                                      ${pkg.total_price}
-                                    </Typography>
-                                    <Typography variant="caption" color="text.secondary">
-                                      Plus Tax
-                                    </Typography>
+                                    
+                                    {editingPackagePrice[key] ? (
+                                      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 1 }}>
+                                        <TextField
+                                          size="small"
+                                          type="number"
+                                          label="Override Price"
+                                          value={tempPackagePrices[key] || pkg.total_price}
+                                          onChange={(e) => setTempPackagePrices(prev => ({
+                                            ...prev,
+                                            [key]: e.target.value
+                                          }))}
+                                          InputProps={{
+                                            startAdornment: <Typography sx={{ mr: 0.5 }}>$</Typography>,
+                                          }}
+                                          sx={{ width: 150 }}
+                                          onClick={(e) => e.stopPropagation()}
+                                        />
+                                        <IconButton 
+                                          size="small" 
+                                          color="success"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleSavePackagePrice(serviceIdx, pkgIdx, pkg.id)
+                                          }}
+                                        >
+                                          <Save size={18} />
+                                        </IconButton>
+                                        <IconButton 
+                                          size="small" 
+                                          color="error"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handleCancelEditPrice(serviceIdx, pkgIdx)
+                                          }}
+                                        >
+                                          <X size={18} />
+                                        </IconButton>
+                                      </Box>
+                                    ) : (
+                                      <>
+                                        <Typography variant="body2" color="text.secondary">
+                                          ${pkg.total_price}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                          Plus Tax
+                                        </Typography>
+                                      </>
+                                    )}
                                   </Box>
                                 </Box>
-                                {isSubmitted && !pkg.is_selected && (
-                                  <Button
-                                    variant="contained"
-                                    size="small"
-                                    onClick={(e) => {
-                                      e.stopPropagation() // Prevent toggle when clicking button
-                                      handlePackageSelect(serviceIdx, pkgIdx)
-                                    }}
-                                    sx={{ ml: 2 }}
-                                  >
-                                    Select
-                                  </Button>
-                                )}
+                                
+                                <Box sx={{ display: "flex", gap: 1 }}>
+                                  {data.status === 'submitted' && !editingPackagePrice[key] && (
+                                    <>
+                                      <Button
+                                        variant="outlined"
+                                        size="small"
+                                        startIcon={<Edit2 size={16} />}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          handleEditPackagePrice(serviceIdx, pkgIdx)
+                                        }}
+                                      >
+                                        Edit Price
+                                      </Button>
+                                      {!pkg.is_selected && (
+                                        <Button
+                                          variant="contained"
+                                          size="small"
+                                          onClick={(e) => {
+                                            e.stopPropagation()
+                                            handlePackageSelect(serviceIdx, pkgIdx)
+                                          }}
+                                        >
+                                          Select
+                                        </Button>
+                                      )}
+                                    </>
+                                  )}
+                                </Box>
                               </Box>
 
                               {/* Expandable Package Details */}

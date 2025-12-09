@@ -24,7 +24,7 @@ export const questionsApi = createApi({
     }),
     updateQuestion: builder.mutation({
       query: ({ formData }) => ({
-        url: `${formData.get("id")}/`,
+        url: `${formData.id}/`,
         method: 'PATCH',
         data: formData,
       }),

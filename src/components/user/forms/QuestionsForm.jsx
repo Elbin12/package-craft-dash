@@ -15,6 +15,7 @@ import {
   AccordionSummary,
   AccordionDetails,
   Alert,
+  Button,
 } from "@mui/material"
 import { ExpandMore } from "@mui/icons-material"
 import { useGetServiceQuestionsQuery } from "../../../store/api/user/quoteApi"
@@ -26,6 +27,8 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   const [expandedService, setExpandedService] = useState(null)
 
   const selectedServices = data?.selectedServices || []
+
+  console.log(data, 'allServiceQuestionsState')
 
   const serviceQueries = selectedServices.map((service) =>
     useGetServiceQuestionsQuery(service.id, {
@@ -112,12 +115,15 @@ export const QuestionsForm = ({ data, onUpdate }) => {
       parent_question: question.parent_question,
       condition_answer: question.condition_answer,
       condition_option: question.condition_option,
+      allow_quantity: question.allow_quantity || false,
+      measurement_unit: question.measurement_unit || null,
+      max_measurements: question.max_measurements || null,
       options: [],
       sub_questions: [],
       child_questions: [],
     }
 
-    if (["describe", "quantity", "options"].includes(question.question_type) && question.options) {
+    if (["describe", "quantity", "options", "measurement"].includes(question.question_type) && question.options) {
       normalized.options = Array.from(question.options)
         .sort((a, b) => (a.order || 0) - (b.order || 0))
         .map((opt) => ({
@@ -176,6 +182,63 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     })
   }
 
+  const handleAddMeasurement = (serviceId, questionId) => {
+    const updatedAnswers = { ...data.questionAnswers }
+    
+    // Find the next available index for this question
+    let index = 0
+    while (Object.keys(updatedAnswers).some(key => 
+      key.startsWith(`${serviceId}_${questionId}_measurement_${index}_`)
+    )) {
+      index++
+    }
+    
+    // Initialize the new measurement entry with empty values
+    updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_option`] = ''
+    updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_length`] = ''
+    updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_width`] = ''
+    updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_quantity`] = 1
+    
+    onUpdate({ questionAnswers: updatedAnswers })
+  }
+
+  const handleRemoveMeasurement = (serviceId, questionId, index) => {
+    const updatedAnswers = { ...data.questionAnswers }
+    
+    // Remove all keys for this measurement index
+    delete updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_option`]
+    delete updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_length`]
+    delete updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_width`]
+    delete updatedAnswers[`${serviceId}_${questionId}_measurement_${index}_quantity`]
+    
+    onUpdate({ questionAnswers: updatedAnswers })
+  }
+
+  const getMeasurementCount = (serviceId, questionId) => {
+    const keys = Object.keys(data.questionAnswers || {})
+    const measurementKeys = keys.filter(key => 
+      key.startsWith(`${serviceId}_${questionId}_measurement_`) && 
+      key.endsWith('_option')
+    )
+    return measurementKeys.length
+  }
+
+  const getMeasurementIndices = (serviceId, questionId) => {
+    const keys = Object.keys(data.questionAnswers || {})
+    const indices = new Set()
+    
+    keys.forEach(key => {
+      if (key.startsWith(`${serviceId}_${questionId}_measurement_`)) {
+        const match = key.match(/_measurement_(\d+)_/)
+        if (match) {
+          indices.add(parseInt(match[1]))
+        }
+      }
+    })
+    
+    return Array.from(indices).sort((a, b) => a - b)
+  }
+
   const getAllQuestionsFlattened = (questions) => {
     const flattened = []
     
@@ -206,6 +269,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
   }
 
   const renderQuestion = (question, serviceId) => {
+    console.log('Rendering question:', question)
     return (
       <Box key={question.id} sx={{ mb: 3 }}>
         <Box
@@ -521,6 +585,237 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                 </Box>
               )
             })}
+          </Box>
+        )
+
+      case "measurement":
+        const measurementIndices = getMeasurementIndices(serviceId, question.id)
+        const currentCount = measurementIndices.length
+        const canAddMore = question.max_measurements === null || currentCount < question.max_measurements
+
+        return (
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+            {measurementIndices.map((index) => {
+              const optionKey = `${serviceId}_${question.id}_measurement_${index}_option`
+              const lengthKey = `${serviceId}_${question.id}_measurement_${index}_length`
+              const widthKey = `${serviceId}_${question.id}_measurement_${index}_width`
+              const quantityKey = `${serviceId}_${question.id}_measurement_${index}_quantity`
+              
+              const selectedOption = data.questionAnswers?.[optionKey] || ''
+              const length = data.questionAnswers?.[lengthKey] || ''
+              const width = data.questionAnswers?.[widthKey] || ''
+              const quantity = data.questionAnswers?.[quantityKey] !== undefined ? data.questionAnswers[quantityKey] : 1
+
+              return (
+                <Box 
+                  key={index}
+                  sx={{ 
+                    display: 'flex', 
+                    flexDirection: 'column',
+                    gap: 2,
+                    padding: { xs: '12px', sm: '14px', md: '16px' },
+                    border: '1px solid #779cd1',
+                    borderRadius: '8px',
+                    backgroundColor: '#f8fbff',
+                    position: 'relative'
+                  }}
+                >
+                  {/* Remove Button */}
+                  {currentCount > 1 && (
+                    <Box sx={{ position: 'absolute', top: 8, right: 8 }}>
+                      <button
+                        onClick={() => handleRemoveMeasurement(serviceId, question.id, index)}
+                        style={{
+                          background: '#d32f2f',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          padding: '4px 8px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </Box>
+                  )}
+
+                  {/* Option Dropdown */}
+                  <Box>
+                    <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block', fontWeight: 500 }}>
+                      Select Option <span style={{ color: '#d32f2f' }}>*</span>
+                    </Typography>
+                    <FormControl fullWidth size="small">
+                      <select
+                        value={selectedOption}
+                        onChange={(e) => {
+                          handleAnswerChange(serviceId, question.id, e.target.value, null, `measurement_${index}_option`)
+                        }}
+                        style={{
+                          padding: '8px 12px',
+                          borderRadius: '4px',
+                          border: '1px solid #c4c4c4',
+                          fontSize: '14px',
+                          backgroundColor: 'white',
+                          cursor: 'pointer',
+                          height: '40px'
+                        }}
+                      >
+                        <option value="">Please choose an option</option>
+                        {question.options?.map((option) => (
+                          <option key={option.id} value={option.id}>
+                            {option.text}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                  </Box>
+                  
+                  {/* Measurement Inputs in One Row */}
+                  <Box sx={{ 
+                    display: 'flex', 
+                    gap: 2, 
+                    alignItems: 'flex-end',
+                    flexWrap: 'wrap'
+                  }}>
+                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: 100 }}>
+                      <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block', fontWeight: 500 }}>
+                        Length ({question.measurement_unit || 'cm'})
+                      </Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        fullWidth
+                        value={length}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          handleAnswerChange(serviceId, question.id, value, null, `measurement_${index}_length`)
+                        }}
+                        inputProps={{
+                          min: 0,
+                          step: 0.1,
+                          sx: { height: {xs:36, md:40}, padding: '0 12px' }
+                        }}
+                        placeholder="0.0"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            '&:hover fieldset': { borderColor: '#023c8f' },
+                            '&.Mui-focused fieldset': { borderColor: '#023c8f' },
+                          },
+                        }}
+                      />
+                    </Box>
+                    
+                    <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 auto' }, minWidth: 100 }}>
+                      <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block', fontWeight: 500 }}>
+                        Width ({question.measurement_unit || 'cm'})
+                      </Typography>
+                      <TextField
+                        type="number"
+                        size="small"
+                        fullWidth
+                        value={width}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          handleAnswerChange(serviceId, question.id, value, null, `measurement_${index}_width`)
+                        }}
+                        inputProps={{
+                          min: 0,
+                          step: 0.1,
+                          sx: { height: {xs:36, md:40}, padding: '0 12px' }
+                        }}
+                        placeholder="0.0"
+                        sx={{
+                          '& .MuiOutlinedInput-root': {
+                            '&:hover fieldset': { borderColor: '#023c8f' },
+                            '&.Mui-focused fieldset': { borderColor: '#023c8f' },
+                          },
+                        }}
+                      />
+                    </Box>
+
+                    {question.allow_quantity && (
+                      <Box sx={{ flex: { xs: '1 1 100%', sm: '0 0 auto' }, minWidth: 100 }}>
+                        <Typography variant="caption" sx={{ color: '#666', mb: 0.5, display: 'block', fontWeight: 500 }}>
+                          Quantity
+                        </Typography>
+                        <TextField
+                          type="number"
+                          size="small"
+                          value={quantity}
+                          onChange={(e) => {
+                            const inputValue = e.target.value
+                            
+                            if (inputValue === '') {
+                              handleAnswerChange(serviceId, question.id, '', null, `measurement_${index}_quantity`)
+                              return
+                            }
+                            
+                            const numericValue = Number.parseInt(inputValue)
+                            
+                            if (!isNaN(numericValue) && numericValue >= 1) {
+                              handleAnswerChange(serviceId, question.id, numericValue, null, `measurement_${index}_quantity`)
+                            }
+                          }}
+                          onBlur={(e) => {
+                            const inputValue = e.target.value
+                            if (inputValue === '' || isNaN(Number.parseInt(inputValue)) || parseInt(inputValue) < 1) {
+                              handleAnswerChange(serviceId, question.id, 1, null, `measurement_${index}_quantity`)
+                            }
+                          }}
+                          inputProps={{
+                            min: 1,
+                            sx: { height: {xs:36, md:40}, padding: '0 12px' }
+                          }}
+                          sx={{ 
+                            width: 100,
+                            '& .MuiOutlinedInput-root': {
+                              '&:hover fieldset': { borderColor: '#023c8f' },
+                              '&.Mui-focused fieldset': { borderColor: '#023c8f' },
+                            },
+                          }}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                </Box>
+              )
+            })}
+
+            {/* Add New Area Button */}
+            {canAddMore && (
+              <Button
+                onClick={() => handleAddMeasurement(serviceId, question.id)}
+                size="small"
+                sx={{
+                  px:2,
+                  backgroundColor: "#42bd3f",
+                  color: "white",
+                  border: "none",
+                  borderRadius: "6px",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  fontWeight: 500,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  width: "fit-content",
+                  textTransform: "none", // Prevents uppercase text
+                  "&:hover": {
+                    backgroundColor: "#3aa838",
+                  },
+                }}
+              >
+                <span style={{ fontSize: "18px" }}>+</span> Add a new area
+              </Button>
+
+            )}
+
+            {question.max_measurements !== null && (
+              <Typography variant="caption" sx={{ color: '#666', fontStyle: 'italic' }}>
+                Maximum {question.max_measurements} measurement(s) allowed ({currentCount}/{question.max_measurements})
+              </Typography>
+            )}
           </Box>
         )
 

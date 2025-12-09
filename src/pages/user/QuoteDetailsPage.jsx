@@ -186,6 +186,36 @@ const QuoteDetailsPage = () => {
         return response.option_responses.map((opt) => `${opt.option_text}: ${opt.quantity}`).join(", ");
       case "describe":
         return response.option_responses.map((opt) => opt.option_text).join(", ");
+      case "measurement":
+      return (
+        <Box sx={{ mt: 0.5 }}>
+          {response.measurement_responses.map((measurement, idx) => (
+            <Box 
+              key={measurement.id} 
+              sx={{ 
+                mb: idx < response.measurement_responses.length - 1 ? 1 : 0,
+                pl: 1,
+                borderLeft: "3px solid #023c8f"
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, color: "#023c8f", fontSize: { xs: "0.75rem", sm: "0.85rem", md: "0.95rem" } }}>
+                {measurement.option_text}
+              </Typography>
+              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 0.5 }}>
+                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                  Length: <strong>{measurement.length}</strong>
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                  Width: <strong>{measurement.width}</strong>
+                </Typography>
+                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                  Quantity: <strong>{measurement.quantity}</strong>
+                </Typography>
+              </Box>
+            </Box>
+          ))}
+        </Box>
+      );
       default:
         return "N/A";
     }
@@ -582,9 +612,9 @@ const QuoteDetailsPage = () => {
                                   <Typography variant="body1" sx={{ color: "#023c8f", flex: 1, mr: 1, fontSize: { xs: "0.8rem", sm: "1rem", md: "1rem" }}}>
                                     {response.question_text}
                                   </Typography>
-                                  <Typography variant="body2" sx={{color: "#023c8f", fontWeight: 600, minWidth: 'fit-content', pl:1, fontSize: { xs: "0.7rem", sm: "0.85rem", md: "0.9rem" }}}>
+                                  <Box sx={{color: "#023c8f", fontWeight: 600, pl: response.question_type === "measurement" ? 0 : 1, fontSize: { xs: "0.75rem", sm: "0.85rem", md: "1rem" }}}>
                                     {renderQuestionResponse(response)}
-                                  </Typography>
+                                  </Box>
                                 </Box>
                               </Box>
                             ))}

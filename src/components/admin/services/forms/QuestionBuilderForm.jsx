@@ -48,9 +48,29 @@ const QUESTION_TYPES = [
   { value: "quantity", label: "Quantity Selection" },
   { value: "yes_no", label: "Simple Yes/No" },
   { value: "conditional", label: "Conditional (If Yes)" },
+  { value: "measurement", label: "Measurement" },
 ]
 
-const isOptionType = (type) => ["describe", "quantity"].includes(type)
+const MEASUREMENT_UNITS = [
+  { value: "feet", label: "Feet" },
+  { value: "inches", label: "Inches" },
+  { value: "meters", label: "Meters" },
+  { value: "centimeters", label: "Centimeters" },
+  { value: "metres", label: "Metres" },
+  { value: "centimetres", label: "Centimetres" },
+]
+
+const MAX_MEASUREMENTS_OPTIONS = [
+  { value: null, label: "Infinite measurements allowed" },
+  { value: 1, label: "1 measurement" },
+  { value: 2, label: "2 measurements" },
+  { value: 3, label: "3 measurements" },
+  { value: 4, label: "4 measurements" },
+  { value: 5, label: "5 measurements" },
+  { value: 10, label: "10 measurements" },
+]
+
+const isOptionType = (type) => ["describe", "quantity", "measurement"].includes(type)
 const isSubQuestionType = (type) => type === "multiple_yes_no"
 
 const QuestionBuilderForm = ({ data, onUpdate }) => {
@@ -66,6 +86,12 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
     parent_question: null,
     condition_answer: null,
     conditional_child: null, // for conditional type
+
+    // Add these for measurement type
+    measurement_unit: "centimeters",
+    allow_quantity: true,
+    max_measurements: null,
+
   })
   const [errors, setErrors] = useState({})
   const [isLoading, setIsLoading] = useState(false)
@@ -91,6 +117,13 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const [currentImageContext, setCurrentImageContext] = useState(null)
   const [questionImages, setQuestionImages] = useState({})
   const [optionImages, setOptionImages] = useState({})
+
+  const [editingMeasurementId, setEditingMeasurementId] = useState(null)
+  const [editingMeasurementData, setEditingMeasurementData] = useState({
+    unit: "",
+    allowQuantity: true,
+    maxMeasurements: null,
+  })
 
   const [createQuestion] = useCreateQuestionMutation()
   const [createQuestionOption] = useCreateQuestionOptionMutation()
@@ -315,6 +348,14 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         newErrors.sub_questions = "At least one sub-question is required for multiple yes/no type"
       }
     }
+    if (q.question_type === "measurement") {
+      if (!q.measurement_unit) {
+        newErrors.measurement_unit = "Please select a unit of measure"
+      }
+      if (!q.options || q.options.length === 0) {
+        newErrors.options = "At least one measurement option is required"
+      }
+    }
     if (q.question_type === "conditional") {
       if (q.conditional_child) {
         if (!q.conditional_child.question_text || q.conditional_child.question_text.trim().length < 5) {
@@ -353,6 +394,19 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       formData.append("question_text", newQuestion.question_text.trim())
       formData.append("question_type", newQuestion.question_type)
       formData.append("order", questions.length + 1)
+
+      // Add measurement-specific fields
+      if (newQuestion.question_type === "measurement") {
+        questionPayload.measurement_unit = newQuestion.measurement_unit
+        questionPayload.allow_quantity = newQuestion.allow_quantity
+        questionPayload.max_measurements = newQuestion.max_measurements
+        
+        formData.append("measurement_unit", newQuestion.measurement_unit)
+        formData.append("allow_quantity", newQuestion.allow_quantity)
+        if (newQuestion.max_measurements !== null) {
+          formData.append("max_measurements", newQuestion.max_measurements)
+        }
+      }
 
       if (questionImages["new"]) {
         questionPayload.image = questionImages["new"]
@@ -473,6 +527,38 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       })
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleUpdateMeasurementSettings = async (question) => {
+    try {
+      const payload = {
+        id: question.id,
+        question_text: question.question_text,
+        question_type: question.question_type,
+        order: question.order,
+        service: data.id,
+        measurement_unit: editingMeasurementData.unit,
+        allow_quantity: editingMeasurementData.allowQuantity,
+      }
+      if (editingMeasurementData.maxMeasurements !== null) {
+        payload.max_measurements = editingMeasurementData.maxMeasurements
+      }
+
+      // Include existing options
+      if (question.options && question.options.length > 0) {
+        payload.options = question.options
+      }
+
+      const updated = await updateQuestion({ formData:payload }).unwrap()
+
+      const updatedQuestions = questions.map((q) => (q.id === question.id ? { ...q, ...updated } : q))
+      setQuestions(updatedQuestions)
+      onUpdate({ questions: updatedQuestions })
+      setEditingMeasurementId(null)
+    } catch (err) {
+      console.error("Failed to update measurement settings:", err)
+      setErrors({ general: "Failed to update measurement settings. Please try again." })
     }
   }
 
@@ -621,49 +707,98 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       customOrder || (existingOptions.length > 0 ? Math.max(...existingOptions.map((opt) => opt.order || 0)) + 1 : 1)
 
     try {
-      const payload = {
-        question: questionId,
-        question_id: questionId,
-        option_text: optionText.trim(),
-        order: nextOrder,
-      }
+      // For measurement type, use updateQuestion instead of createQuestionOption
+      if (currentQuestion?.question_type === "measurement") {
+        // Add the new option to the existing options
+        const updatedOptions = [
+          ...existingOptions,
+          {
+            option_text: optionText.trim(),
+            order: nextOrder,
+            is_active: true,
+          },
+        ]
 
-      if (currentQuestion?.question_type === "quantity") {
-        payload.allow_quantity = true
-        payload.max_quantity = Number.parseInt(maxQty) || 1
-      }
-
-      const imageKey = forChild
-        ? `child_${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
-        : `${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
-      if (optionImages[imageKey]) {
-        payload.image = optionImages[imageKey]
-      }
-
-      const optionResult = await createQuestionOption(payload).unwrap()
-
-      const updatedQuestions = questions.map((q) => {
-        if (!forChild && q.id === questionId) {
-          return { ...q, options: [...(q.options || []), optionResult] }
+        const payload = {
+          id: questionId,
+          question_text: currentQuestion.question_text,
+          question_type: currentQuestion.question_type,
+          order: currentQuestion.order,
+          service: data.id,
+          measurement_unit: currentQuestion.measurement_unit,
+          allow_quantity: currentQuestion.allow_quantity,
+          options: updatedOptions,
         }
-        if (forChild && q.id === parentQuestionId) {
-          return {
-            ...q,
-            child_questions: q.child_questions.map((child) =>
-              child.id === questionId ? { ...child, options: [...(child.options || []), optionResult] } : child,
-            ),
+        if (currentQuestion.max_measurements !== null) {
+          payload.max_measurements = currentQuestion.max_measurements
+        }
+
+
+        const updated = await updateQuestion({ formData:payload }).unwrap()
+
+        const updatedQuestions = questions.map((q) => {
+          if (!forChild && q.id === questionId) {
+            return { ...q, ...updated }
           }
-        }
-        return q
-      })
+          if (forChild && q.id === parentQuestionId) {
+            return {
+              ...q,
+              child_questions: q.child_questions.map((child) =>
+                child.id === questionId ? { ...child, ...updated } : child
+              ),
+            }
+          }
+          return q
+        })
 
-      setQuestions(updatedQuestions)
-      onUpdate({ questions: updatedQuestions })
-      // Clear image state for the added option
-      setOptionImages((prev) => {
-        const { [imageKey]: _, ...rest } = prev
-        return rest
-      })
+        setQuestions(updatedQuestions)
+        onUpdate({ questions: updatedQuestions })
+      } else {
+        // For other question types, use the existing createQuestionOption API
+        const payload = {
+          question: questionId,
+          question_id: questionId,
+          option_text: optionText.trim(),
+          order: nextOrder,
+        }
+
+        if (currentQuestion?.question_type === "quantity") {
+          payload.allow_quantity = true
+          payload.max_quantity = Number.parseInt(maxQty) || 1
+        }
+
+        const imageKey = forChild
+          ? `child_${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
+          : `${questionId}_${currentQuestion?.options?.find((opt) => opt.id === questionId)?.tempId}`
+        if (optionImages[imageKey]) {
+          payload.image = optionImages[imageKey]
+        }
+
+        const optionResult = await createQuestionOption(payload).unwrap()
+
+        const updatedQuestions = questions.map((q) => {
+          if (!forChild && q.id === questionId) {
+            return { ...q, options: [...(q.options || []), optionResult] }
+          }
+          if (forChild && q.id === parentQuestionId) {
+            return {
+              ...q,
+              child_questions: q.child_questions.map((child) =>
+                child.id === questionId ? { ...child, options: [...(child.options || []), optionResult] } : child
+              ),
+            }
+          }
+          return q
+        })
+
+        setQuestions(updatedQuestions)
+        onUpdate({ questions: updatedQuestions })
+        // Clear image state for the added option
+        setOptionImages((prev) => {
+          const { [imageKey]: _, ...rest } = prev
+          return rest
+        })
+      }
     } catch (err) {
       console.error("Failed to add option", err)
     }
@@ -671,30 +806,76 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
   const handleDeleteOptionFromQuestion = async (questionId, optionId, isChild = false, parentQuestionId = null) => {
     try {
-      await deleteQuestionOption(optionId).unwrap()
+      const currentQuestion = isChild
+        ? questions.find((q) => q.id === parentQuestionId)?.child_questions?.find((child) => child.id === questionId)
+        : questions.find((q) => q.id === questionId)
 
-      const updatedQuestions = questions.map((q) => {
-        if (!isChild && q.id === questionId) {
-          return {
-            ...q,
-            options: q.options.filter((opt) => opt.id !== optionId),
-          }
-        }
-        if (isChild && q.id === parentQuestionId) {
-          return {
-            ...q,
-            child_questions: q.child_questions.map((child) =>
-              child.id === questionId
-                ? { ...child, options: child.options.filter((opt) => opt.id !== optionId) }
-                : child,
-            ),
-          }
-        }
-        return q
-      })
+      // For measurement type, use updateQuestion instead of deleteQuestionOption
+      if (currentQuestion?.question_type === "measurement") {
 
-      setQuestions(updatedQuestions)
-      onUpdate({ questions: updatedQuestions })
+        // Remove the option from the existing options
+        const updatedOptions = currentQuestion.options.filter((opt) => opt.id !== optionId)
+
+        const payload = {
+          id: questionId,
+          question_text: currentQuestion.question_text,
+          question_type: currentQuestion.question_type,
+          order: currentQuestion.order,
+          service: data.id,
+          measurement_unit: currentQuestion.measurement_unit,
+          allow_quantity: currentQuestion.allow_quantity,
+          options: updatedOptions,
+        }
+        if (currentQuestion.max_measurements !== null) {
+          payload.max_measurements = currentQuestion.max_measurements
+        }
+
+        const updated = await updateQuestion({ formData:payload }).unwrap()
+
+        const updatedQuestions = questions.map((q) => {
+          if (!isChild && q.id === questionId) {
+            return { ...q, ...updated }
+          }
+          if (isChild && q.id === parentQuestionId) {
+            return {
+              ...q,
+              child_questions: q.child_questions.map((child) =>
+                child.id === questionId ? { ...child, ...updated } : child
+              ),
+            }
+          }
+          return q
+        })
+
+        setQuestions(updatedQuestions)
+        onUpdate({ questions: updatedQuestions })
+      } else {
+        // For other question types, use the existing deleteQuestionOption API
+        await deleteQuestionOption(optionId).unwrap()
+
+        const updatedQuestions = questions.map((q) => {
+          if (!isChild && q.id === questionId) {
+            return {
+              ...q,
+              options: q.options.filter((opt) => opt.id !== optionId),
+            }
+          }
+          if (isChild && q.id === parentQuestionId) {
+            return {
+              ...q,
+              child_questions: q.child_questions.map((child) =>
+                child.id === questionId
+                  ? { ...child, options: child.options.filter((opt) => opt.id !== optionId) }
+                  : child
+              ),
+            }
+          }
+          return q
+        })
+
+        setQuestions(updatedQuestions)
+        onUpdate({ questions: updatedQuestions })
+      }
     } catch (err) {
       console.error("Failed to delete option:", err)
     }
@@ -854,7 +1035,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
           Options:
         </Typography>
         <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1, mb: 1 }}>
-          {options.map((option) => (
+          {options?.map((option) => (
             <Box
               key={option.id || option.tempId || Math.random()}
               sx={{
@@ -907,46 +1088,96 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                         onClick={async () => {
                           if (editingOptionText.trim()) {
                             try {
-                              const result = await updateQuestionOption({
-                                id: option.id,
-                                option_text: editingOptionText.trim(),
-                                order: Number.parseInt(editingOrderValue) || option.order || 1,
-                                question: question.id,
-                                ...(question.question_type === "quantity" && {
-                                  allow_quantity: true,
-                                  max_quantity: Number.parseInt(editingMaxQty) || option.max_quantity || 1,
-                                }),
-                              }).unwrap()
-
-                              const updatedQuestions = questions.map((q) => {
-                                if (!isChild && q.id === question.id) {
-                                  return {
-                                    ...q,
-                                    options: q.options
-                                      .map((opt) => (opt.id === option.id ? result : opt))
-                                      .sort((a, b) => (a.order || 0) - (b.order || 0)),
-                                  }
+                              // For measurement type, use updateQuestion
+                              if (question.question_type === "measurement") {
+                                const payload = {
+                                  id: question.id,
+                                  question_text: question.question_text,
+                                  question_type: question.question_type,
+                                  order: question.order,
+                                  service: data.id,
+                                  measurement_unit: question.measurement_unit,
+                                  allow_quantity: question.allow_quantity,
                                 }
-                                if (isChild && q.id === parentQuestionId) {
-                                  return {
-                                    ...q,
-                                    child_questions: q.child_questions.map((child) =>
-                                      child.id === question.id
-                                        ? {
-                                            ...child,
-                                            options: child.options
-                                              .map((opt) => (opt.id === option.id ? result : opt))
-                                              .sort((a, b) => (a.order || 0) - (b.order || 0)),
-                                          }
-                                        : child,
-                                    ),
-                                  }
+                                if (question.max_measurements !== null) {
+                                  payload.max_measurements = question.max_measurements
                                 }
-                                return q
-                              })
 
-                              setQuestions(updatedQuestions)
-                              onUpdate({ questions: updatedQuestions })
+                                // Update the specific option in the options array
+                                const updatedOptions = question.options.map((opt) =>
+                                  opt.id === option.id
+                                    ? {
+                                        ...opt,
+                                        option_text: editingOptionText.trim(),
+                                        order: Number.parseInt(editingOrderValue) || option.order || 1,
+                                      }
+                                    : opt
+                                )
+                                payload.options = updatedOptions
+
+                                const updated = await updateQuestion({ formData:payload }).unwrap()
+
+                                const updatedQuestions = questions.map((q) => {
+                                  if (!isChild && q.id === question.id) {
+                                    return { ...q, ...updated }
+                                  }
+                                  if (isChild && q.id === parentQuestionId) {
+                                    return {
+                                      ...q,
+                                      child_questions: q.child_questions.map((child) =>
+                                        child.id === question.id ? { ...child, ...updated } : child
+                                      ),
+                                    }
+                                  }
+                                  return q
+                                })
+
+                                setQuestions(updatedQuestions)
+                                onUpdate({ questions: updatedQuestions })
+                              } else {
+                                // For other question types, use updateQuestionOption
+                                const result = await updateQuestionOption({
+                                  id: option.id,
+                                  option_text: editingOptionText.trim(),
+                                  order: Number.parseInt(editingOrderValue) || option.order || 1,
+                                  question: question.id,
+                                  ...(question.question_type === "quantity" && {
+                                    allow_quantity: true,
+                                    max_quantity: Number.parseInt(editingMaxQty) || option.max_quantity || 1,
+                                  }),
+                                }).unwrap()
+
+                                const updatedQuestions = questions.map((q) => {
+                                  if (!isChild && q.id === question.id) {
+                                    return {
+                                      ...q,
+                                      options: q.options
+                                        .map((opt) => (opt.id === option.id ? result : opt))
+                                        .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                    }
+                                  }
+                                  if (isChild && q.id === parentQuestionId) {
+                                    return {
+                                      ...q,
+                                      child_questions: q.child_questions.map((child) =>
+                                        child.id === question.id
+                                          ? {
+                                              ...child,
+                                              options: child.options
+                                                .map((opt) => (opt.id === option.id ? result : opt))
+                                                .sort((a, b) => (a.order || 0) - (b.order || 0)),
+                                            }
+                                          : child
+                                      ),
+                                    }
+                                  }
+                                  return q
+                                })
+
+                                setQuestions(updatedQuestions)
+                                onUpdate({ questions: updatedQuestions })
+                              }
+
                               setEditingOptionId(null)
                               setEditingOrderValue("")
                               setEditingMaxQty("")
@@ -980,7 +1211,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                       />
                     </IconButton>
                   </Tooltip>
-                  <Typography variant="body2">{option.option_text || option}</Typography>
+                  <Typography variant="body2">{option.option_text || ""}</Typography>
                   {question.question_type === "quantity" && (
                     <Typography variant="body2" color="text.secondary" sx={{ fontSize: "12px" }}>
                       (Max: {option.max_quantity || 1})
@@ -1419,6 +1650,119 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
           >
             Add
           </Button>
+        </Box>
+      </Box>
+    )
+  }
+
+  const renderMeasurementFields = () => {
+    if (newQuestion.question_type !== "measurement") return null
+
+    return (
+      <Box sx={{ mt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+        <FormControl fullWidth size="small">
+          <InputLabel>Unit of Measure</InputLabel>
+          <Select
+            value={newQuestion.measurement_unit}
+            label="Unit of Measure"
+            onChange={(e) =>
+              setNewQuestion((prev) => ({
+                ...prev,
+                measurement_unit: e.target.value,
+              }))
+            }
+          >
+            {MEASUREMENT_UNITS.map((unit) => (
+              <MenuItem key={unit.value} value={unit.value}>
+                {unit.label}
+              </MenuItem>
+            ))}
+          </Select>
+          {errors.measurement_unit && (
+            <Typography color="error" variant="caption">
+              {errors.measurement_unit}
+            </Typography>
+          )}
+        </FormControl>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Number of Measurements
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+            <Button
+              variant={newQuestion.max_measurements === null ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setNewQuestion((prev) => ({
+                  ...prev,
+                  max_measurements: null,
+                }))
+              }
+            >
+              Infinite measurements allowed
+            </Button>
+            <Button
+              variant={newQuestion.max_measurements !== null ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setNewQuestion((prev) => ({
+                  ...prev,
+                  max_measurements: prev.max_measurements === null ? 1 : prev.max_measurements,
+                }))
+              }
+            >
+              X number of measurements
+            </Button>
+          </Box>
+          {newQuestion.max_measurements !== null && (
+            <TextField
+              type="number"
+              size="small"
+              label="Maximum Measurements"
+              value={newQuestion.max_measurements}
+              onChange={(e) =>
+                setNewQuestion((prev) => ({
+                  ...prev,
+                  max_measurements: Math.max(1, parseInt(e.target.value) || 1),
+                }))
+              }
+              inputProps={{ min: 1 }}
+              sx={{ mt: 2, width: '200px' }}
+            />
+          )}
+        </Box>
+
+        <Box>
+          <Typography variant="subtitle2" gutterBottom>
+            Allow Quantities?
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant={newQuestion.allow_quantity ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setNewQuestion((prev) => ({
+                  ...prev,
+                  allow_quantity: true,
+                }))
+              }
+            >
+              Yes
+            </Button>
+            <Button
+              variant={!newQuestion.allow_quantity ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setNewQuestion((prev) => ({
+                  ...prev,
+                  allow_quantity: false,
+                }))
+              }
+            >
+              No
+            </Button>
+          </Box>
         </Box>
       </Box>
     )
@@ -2001,6 +2345,170 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                     {/* Display sub-questions for multiple_yes_no type with edit/delete functionality */}
                     {isSubQuestionType(question.question_type) && renderSubQuestionList(question)}
 
+                    {/* Display measurement details */}
+                    {question.question_type === "measurement" && (
+  <Box sx={{ mb: 2 }}>
+    <Typography variant="subtitle2" gutterBottom>
+      Measurements
+    </Typography>
+    {editingMeasurementId === question.id ? (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2, p: 2, border: "1px solid #e0e0e0", borderRadius: 1 }}>
+        <FormControl size="small" fullWidth>
+          <InputLabel>Unit of Measure</InputLabel>
+          <Select
+            value={editingMeasurementData.unit}
+            label="Unit of Measure"
+            onChange={(e) =>
+              setEditingMeasurementData((prev) => ({
+                ...prev,
+                unit: e.target.value,
+              }))
+            }
+          >
+            {MEASUREMENT_UNITS.map((unit) => (
+              <MenuItem key={unit.value} value={unit.value}>
+                {unit.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <Box>
+          <Typography variant="body2" gutterBottom>
+            Number of Measurements
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1, alignItems: "center", mb: 1 }}>
+            <Button
+              variant={editingMeasurementData.maxMeasurements === null ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setEditingMeasurementData((prev) => ({
+                  ...prev,
+                  maxMeasurements: null,
+                }))
+              }
+            >
+              Infinite measurements allowed
+            </Button>
+            <Button
+              variant={editingMeasurementData.maxMeasurements !== null ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setEditingMeasurementData((prev) => ({
+                  ...prev,
+                  maxMeasurements: prev.maxMeasurements === null ? 1 : prev.maxMeasurements,
+                }))
+              }
+            >
+              X number of measurements
+            </Button>
+          </Box>
+          {editingMeasurementData.maxMeasurements !== null && (
+            <TextField
+              type="number"
+              size="small"
+              label="Maximum Measurements"
+              value={editingMeasurementData.maxMeasurements}
+              onChange={(e) =>
+                setEditingMeasurementData((prev) => ({
+                  ...prev,
+                  maxMeasurements: Math.max(1, parseInt(e.target.value) || 1),
+                }))
+              }
+              inputProps={{ min: 1 }}
+              sx={{ width: '200px' }}
+            />
+          )}
+        </Box>
+
+        <Box>
+          <Typography variant="body2" gutterBottom>
+            Allow Quantities?
+          </Typography>
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant={editingMeasurementData.allowQuantity ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setEditingMeasurementData((prev) => ({
+                  ...prev,
+                  allowQuantity: true,
+                }))
+              }
+            >
+              Yes
+            </Button>
+            <Button
+              variant={!editingMeasurementData.allowQuantity ? "contained" : "outlined"}
+              size="small"
+              onClick={() =>
+                setEditingMeasurementData((prev) => ({
+                  ...prev,
+                  allowQuantity: false,
+                }))
+              }
+            >
+              No
+            </Button>
+          </Box>
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
+          <Button
+            size="small"
+            onClick={() => setEditingMeasurementId(null)}
+          >
+            Cancel
+          </Button>
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<Save />}
+            onClick={() => handleUpdateMeasurementSettings(question)}
+          >
+            Save
+          </Button>
+        </Box>
+      </Box>
+    ) : (
+      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", alignItems: "center" }}>
+        <Chip
+          label={`Unit: ${MEASUREMENT_UNITS.find((u) => u.value === question.measurement_unit)?.label || question.measurement_unit}`}
+          size="small"
+          variant="outlined"
+        />
+        <Chip
+          label={question.allow_quantity ? "Quantities: Yes" : "Quantities: No"}
+          size="small"
+          variant="outlined"
+        />
+        <Chip
+          label={
+            question.max_measurements === null
+              ? "Infinite measurements allowed"
+              : `Max: ${question.max_measurements} measurement${question.max_measurements !== 1 ? "s" : ""}`
+          }
+          size="small"
+          variant="outlined"
+        />
+        <IconButton
+          size="small"
+          onClick={() => {
+            setEditingMeasurementId(question.id)
+            setEditingMeasurementData({
+              unit: question.measurement_unit,
+              allowQuantity: question.allow_quantity,
+              maxMeasurements: question.max_measurements,
+            })
+          }}
+        >
+          <Edit sx={{ fontSize: "16px", color: "#1976d2" }} />
+        </IconButton>
+      </Box>
+    )}
+  </Box>
+)}
+
                     {/* Display conditional child questions */}
                     {question.question_type === "conditional" &&
                       Array.isArray(question.child_questions) &&
@@ -2154,6 +2662,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
             {renderNewQuestionOptions()}
             {renderNewQuestionSubQuestions()}
+            
+            {renderMeasurementFields()}
+            {renderNewQuestionSubQuestions()}
 
             {/* Conditional Question Section */}
             {newQuestion.question_type === "conditional" && (
@@ -2278,6 +2789,9 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                 parent_question: null,
                 condition_answer: null,
                 conditional_child: null,
+                measurement_unit: "centimeters",
+                allow_quantity: true,
+                max_measurements: null,
               })
               // Clear temporary image states
               setQuestionImages({})

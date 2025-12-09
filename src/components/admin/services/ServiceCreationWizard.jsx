@@ -214,20 +214,20 @@ export const ServiceCreationWizard = ({
         case 2:
           if (!savedSteps[2]) {
             // Create questions
-            for (const question of serviceData.questions) {
-              const questionPayload = {
-                service: serviceData.id,
-                question_text: question.question_text,
-                question_type: question.question_type,
-                order: question.order
-              };
+            // for (const question of serviceData.questions) {
+            //   const questionPayload = {
+            //     service: serviceData.id,
+            //     question_text: question.question_text,
+            //     question_type: question.question_type,
+            //     order: question.order
+            //   };
               
-              if (question.options) {
-                questionPayload.options = question.options;
-              }
+            //   if (question.options) {
+            //     questionPayload.options = question.options;
+            //   }
               
-              await createQuestion(questionPayload).unwrap();
-            }
+            //   await createQuestion(questionPayload).unwrap();
+            // }
             setSavedSteps((prev) => ({ ...prev, 2: true }));
           }
           break;

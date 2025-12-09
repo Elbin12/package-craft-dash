@@ -127,11 +127,19 @@ export const quoteApi = createApi({
       }),
       invalidatesTags: ['Quote', 'Submission'],
     }),
+    
+    editPackagePrice: builder.mutation({
+      query: ({ packageId, payload }) => ({
+        url: `package-quotes/${packageId}/price/`,
+        method: 'PATCH',
+        data: payload,
+      }),
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
   useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
-  useGetGlobalCouponsQuery, useAddNotesMutation
+  useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation
  } = quoteApi;

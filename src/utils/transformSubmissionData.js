@@ -69,6 +69,20 @@ export const transformSubmissionData = (submissionData) => ({
             ] = subResponse.answer ? "yes" : "no";
           });
           break;
+        
+        case "measurement":
+          response.measurement_responses.forEach((measureResponse, index) => {
+            const optionKey = `${serviceId}_${questionId}_measurement_${index}_option`;
+            const lengthKey = `${serviceId}_${questionId}_measurement_${index}_length`;
+            const widthKey = `${serviceId}_${questionId}_measurement_${index}_width`;
+            const quantityKey = `${serviceId}_${questionId}_measurement_${index}_quantity`;
+            acc[optionKey] = measureResponse.option;
+            acc[lengthKey] = measureResponse.length;
+            acc[widthKey] = measureResponse.width;
+            acc[quantityKey] = measureResponse.quantity;
+            acc[optionKey] = measureResponse.option;
+          });
+          break;
 
         default:
           console.warn(`Unknown question type: ${response.question_type}`);

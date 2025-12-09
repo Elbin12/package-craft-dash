@@ -445,7 +445,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                     </Typography>
                     <Chip 
                       label={data.status.toUpperCase()} 
-                      color={data.status === 'submitted' ? 'success' : 'default'}
+                      color={data.status === 'approved' ? 'success' : 'default'}
                       size="small"
                       sx={{ mt: 0.5 }}
                     />
@@ -519,10 +519,10 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                         mb: 1.5
                       }}
                     >
-                      <Typography variant="subtitle2" fontWeight={700} color="primary">
+                      <Typography>
                         {service.service_details?.name || 'Service ' + (idx + 1)}
                       </Typography>
-                      <Typography variant="subtitle2" fontWeight={700} color="primary">
+                      <Typography fontWeight={600} >
                         ${service.final_total_price}
                       </Typography>
                     </Box>
@@ -750,19 +750,34 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                                       </Box>
                                     ) : (
                                       <>
-                                        <Typography variant="body2" color="text.secondary">
-                                          ${pkg.total_price}
-                                        </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                          Plus Tax
-                                        </Typography>
+                                        {pkg.admin_override_price ? (
+                                          <Box sx={{ display: "flex", flexDirection: "column" }}>
+                                            <Typography 
+                                              variant="body2" 
+                                              sx={{ textDecoration: "line-through", color: "text.disabled" }}
+                                            >
+                                              Original: ${pkg.total_price}
+                                            </Typography>
+
+                                            <Typography 
+                                              variant="body1" 
+                                              sx={{ fontWeight: 600, color: "#d32f2f" }}
+                                            >
+                                              Override: ${pkg.effective_total_price}
+                                            </Typography>
+                                          </Box>
+                                        ) : (
+                                          <Typography variant="body2" color="text.secondary">
+                                            ${pkg.effective_total_price}
+                                          </Typography>
+                                        )}
                                       </>
                                     )}
                                   </Box>
                                 </Box>
                                 
                                 <Box sx={{ display: "flex", gap: 1 }}>
-                                  {data.status === 'submitted' && !editingPackagePrice[key] && (
+                                  {(data.status === 'submitted' || data.status === "approved") && (
                                     <>
                                       <Button
                                         variant="outlined"
@@ -775,7 +790,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                                       >
                                         Edit Price
                                       </Button>
-                                      {!pkg.is_selected && (
+                                      {data.status === "approved" && !pkg.is_selected && (
                                         <Button
                                           variant="contained"
                                           size="small"
@@ -816,10 +831,31 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                                       <Typography variant="caption" color="text.secondary">
                                         Total
                                       </Typography>
-                                      <Typography variant="body1" fontWeight={600} color="primary">
-                                        ${pkg.total_price}
-                                      </Typography>
+
+                                      {pkg.admin_override_price ? (
+                                        <Box sx={{ display: "flex", flexDirection: "column" }}>
+                                          <Typography 
+                                            variant="body2" 
+                                            sx={{ textDecoration: "line-through", color: "text.disabled" }}
+                                          >
+                                            Original: ${pkg.total_price}
+                                          </Typography>
+
+                                          <Typography 
+                                            variant="body1" 
+                                            fontWeight={600} 
+                                            sx={{ color: "#d32f2f" }}
+                                          >
+                                            Override: ${pkg.effective_total_price}
+                                          </Typography>
+                                        </Box>
+                                      ) : (
+                                        <Typography variant="body1" fontWeight={600} color="primary">
+                                          ${pkg.total_price}
+                                        </Typography>
+                                      )}
                                     </Grid>
+
                                   </Grid>
 
                                   {pkg.package_description && (
@@ -928,6 +964,31 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                               ))}
                             </Box>
                           )}
+                          {response.measurement_responses.map((measurement, idx) => (
+                            <Box 
+                              key={measurement.id} 
+                              sx={{ 
+                                mb: idx < response.measurement_responses.length - 1 ? 1 : 0,
+                                pl: 1,
+                                borderLeft: "3px solid #023c8f"
+                              }}
+                            >
+                              <Typography variant="body2" sx={{ fontWeight: 600, color: "#023c8f", fontSize: { xs: "0.75rem", sm: "0.85rem", md: "0.95rem" } }}>
+                                {measurement.option_text}
+                              </Typography>
+                              <Box sx={{ display: "flex", gap: 2, flexWrap: "wrap", mt: 0.5 }}>
+                                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                                  Length: <strong>{measurement.length}</strong>
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                                  Width: <strong>{measurement.width}</strong>
+                                </Typography>
+                                <Typography variant="caption" sx={{ fontSize: { xs: "0.7rem", sm: "0.75rem", md: "0.85rem" } }}>
+                                  Quantity: <strong>{measurement.quantity}</strong>
+                                </Typography>
+                              </Box>
+                            </Box>
+                          ))}
                         </Box>
                       ))}
                     </Box>

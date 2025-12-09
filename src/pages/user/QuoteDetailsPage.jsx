@@ -537,7 +537,7 @@ const QuoteDetailsPage = () => {
                                   </Box>
 
                                   <Typography variant="h4" sx={{ color: "#42bd3f", fontWeight: 700, mb: 2 }}>
-                                    ${formatPrice(selection.package_quotes?.find(pkg => pkg.is_selected).total_price)}
+                                    ${formatPrice(selection.package_quotes?.find(pkg => pkg.is_selected).effective_total_price)}
                                   </Typography>
 
                                   {/* Features List */}
@@ -932,7 +932,7 @@ const QuoteDetailsPage = () => {
                         </Typography>
                       </Box> */}
 
-                      {quote?.applied_coupon &&
+                      {quote?.is_coupon_applied &&
                         <Box display="flex" flexDirection="column" gap={2}>
                           <Box
                             sx={{

@@ -129,9 +129,9 @@ export const CheckoutSummary = ({
 
   useEffect(() => {
       setIsBidInPerson(quoteData?.is_bid_in_person)
-      // if(quoteData?.applied_coupon){
-      //   setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.applied_coupon?.discount_value} || null)
-      // }
+      if(quoteData?.applied_coupon){
+        setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.discounted_amount} || null)
+      }
   }, [quoteData])
 
   useEffect(()=>{
@@ -176,7 +176,7 @@ export const CheckoutSummary = ({
             service_selection_id: serviceId,
             package_id: packageDetails.package,
             package_name: packageDetails.package_name,
-            total_price: packageDetails.total_price,
+            effective_total_price: packageDetails.effective_total_price,
           }
         }
         return null
@@ -395,7 +395,7 @@ export const CheckoutSummary = ({
       const serviceSelection = quoteData?.service_selections.find((s) => s.id === serviceId)
       const packageDetails = serviceSelection?.package_quotes.find((p) => p.id === packageId)
       if (packageDetails) {
-        total += Number.parseFloat(packageDetails.total_price || 0)
+        total += Number.parseFloat(packageDetails.effective_total_price || 0)
       }
     })
     return total
@@ -734,7 +734,7 @@ export const CheckoutSummary = ({
                                       mb:2
                                     }}
                                   >
-                                    ${formatPrice(packageQuote.total_price)}
+                                    ${formatPrice(packageQuote.effective_total_price)}
                                   </Typography>
 
                                   <Typography 
@@ -1210,7 +1210,7 @@ export const CheckoutSummary = ({
                             </Typography>
                           </Box>
                           <Typography variant="body1" fontWeight={600}>
-                            ${formatPrice(pkg.total_price)}
+                            ${formatPrice(pkg.effective_total_price)}
                           </Typography>
                         </Box>
                       </Box>

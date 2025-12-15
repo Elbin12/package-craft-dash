@@ -1403,7 +1403,7 @@ export const CheckoutSummary = ({
                   />
 
                 <Box display="flex" gap={2} sx={{ minWidth: { xs: "100%", sm: "auto" } }}>
-                  <Button
+                  {/* <Button
                     variant="outlined"
                     size="small"
                     onClick={handleDeclineClick}
@@ -1419,7 +1419,7 @@ export const CheckoutSummary = ({
                     }}
                   >
                     Decline
-                  </Button>
+                  </Button> */}
 
                   <Button
                     variant="contained"

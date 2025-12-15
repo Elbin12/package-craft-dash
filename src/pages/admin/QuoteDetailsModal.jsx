@@ -950,7 +950,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                             <Box sx={{ ml: 1.5, mt: 1 }}>
                               {response?.option_responses.map((opt, oIdx) => (
                                 <Typography key={oIdx} variant="body2" color="text.secondary">
-                                  • {opt?.option_text} {opt?.quantity >= 1 ? `(Qty: ${opt?.quantity})` : ''}
+                                  • {opt?.option_text} {response.question_type === "quantity" && opt?.quantity >= 1 ? ` (Qty: ${opt.quantity})` : ""}
                                 </Typography>
                               ))}
                             </Box>

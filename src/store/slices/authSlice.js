@@ -5,13 +5,16 @@ import { BASE_URL } from '../axios/axios';
 
 const access = localStorage.getItem('access');
 const refresh = localStorage.getItem('refresh');
+const userData = localStorage.getItem('user');
+const parsedUser = userData ? JSON.parse(userData) : null;
 
 const initialState = {
-  admin: null,
+  user: parsedUser,
+  admin: parsedUser, // Keep for backward compatibility
   access: access,
   refresh: refresh,
   error: null,
-  isAuthenticated: false,
+  isAuthenticated: !!access && !!parsedUser,
   loading: false,
   success: false,
 };
@@ -57,10 +60,16 @@ const authSlice = createSlice({
   initialState,
   reducers: {
     logout: (state) => {
+      state.user = null;
+      state.admin = null;
       state.access = null;
       state.refresh = null;
       state.isAuthenticated = false;
       state.error = null;
+      // Clear localStorage
+      localStorage.removeItem('access');
+      localStorage.removeItem('refresh');
+      localStorage.removeItem('user');
     },
     clearError: (state) => {
       state.error = null;
@@ -68,8 +77,18 @@ const authSlice = createSlice({
     setCredentials: (state, action) => {
       state.access = action.payload.access;
       state.refresh = action.payload.refresh;
+      if (action.payload.user) {
+        state.user = action.payload.user;
+        state.admin = action.payload.user;
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+      }
       state.isAuthenticated = true;
       state.error = null;
+    },
+    updateUser: (state, action) => {
+      state.user = action.payload;
+      state.admin = action.payload;
+      localStorage.setItem('user', JSON.stringify(action.payload));
     },
   },
   extraReducers: (builder) => {
@@ -83,8 +102,14 @@ const authSlice = createSlice({
         state.loading = false;
         state.access = action.payload.access;
         state.refresh = action.payload.refresh;
+        state.user = action.payload.user;
+        state.admin = action.payload.user; // Keep for backward compatibility
+        
+        // Store in localStorage
         localStorage.setItem('access', action.payload.access);
         localStorage.setItem('refresh', action.payload.refresh);
+        localStorage.setItem('user', JSON.stringify(action.payload.user));
+        
         state.isAuthenticated = true;
         state.error = null;
         state.success = true;
@@ -98,20 +123,30 @@ const authSlice = createSlice({
       // Logout User
       .addCase(logoutUser.fulfilled, (state) => {
         state.user = null;
+        state.admin = null;
         state.access = null;
         state.refresh = null;
         state.isAuthenticated = false;
         state.error = null;
+        // Clear localStorage
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        localStorage.removeItem('user');
       })
       .addCase(logoutUser.rejected, (state) => {
         state.user = null;
+        state.admin = null;
         state.access = null;
         state.refresh = null;
         state.isAuthenticated = false;
         state.error = null;
+        // Clear localStorage
+        localStorage.removeItem('access');
+        localStorage.removeItem('refresh');
+        localStorage.removeItem('user');
       });
   },
 });
 
-export const { logout, clearError, setCredentials } = authSlice.actions;
+export const { logout, clearError, setCredentials, updateUser } = authSlice.actions;
 export default authSlice.reducer;

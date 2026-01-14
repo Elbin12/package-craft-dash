@@ -309,8 +309,9 @@ yPosition = 20;
         yPosition += 20;
 
         // Selected Package with professional styling
-        if (!is_bid_in_person && status !== "declined" && selection.package_quotes?.[0]) {
-          const packageInfo = selection.package_quotes[0];
+        const selectedPackage = selection.package_quotes?.find(pkg => pkg.is_selected);
+        if (!is_bid_in_person && status !== "declined" && selectedPackage) {
+          const packageInfo = selectedPackage;
           
           checkPageBreak(50);
           

@@ -38,6 +38,7 @@ import {
   Add,
   Download,
   PictureAsPdf,
+  Image as ImageIcon,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
@@ -707,6 +708,89 @@ const QuoteDetailsPage = () => {
                       </Box>
                     ))}
                   </Box>
+                </Card>
+              )}
+
+              {/* Images Section */}
+              {quote?.images && quote.images.length > 0 && (
+                <Card>
+                  <Box sx={{ p: 3, py: 2 }}>
+                    <Stack direction="row" alignItems="center" spacing={2}>
+                      <Avatar sx={{ bgcolor: "#023c8f" }}>
+                        <ImageIcon />
+                      </Avatar>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: '#023c8f', fontSize: { xs: "1rem", sm: "1.2rem", md: "1.5rem" } }}>
+                        Images
+                      </Typography>
+                    </Stack>
+                  </Box>
+                  <Divider />
+                  <CardContent sx={{ p: 3 }}>
+                    <Grid container spacing={2}>
+                      {quote.images.map((image, index) => (
+                        <Grid item xs={12} sm={6} md={4} key={image.id || index}>
+                          <Box
+                            sx={{
+                              position: "relative",
+                              width: "100%",
+                              paddingTop: "75%", // 4:3 aspect ratio
+                              backgroundColor: "grey.100",
+                              borderRadius: 1,
+                              overflow: "hidden",
+                              border: "1px solid",
+                              borderColor: "divider",
+                              cursor: "pointer",
+                              "&:hover": {
+                                boxShadow: 2,
+                              },
+                            }}
+                            onClick={() => window.open(image.url || image.image_url || image.file || image.image, '_blank')}
+                          >
+                            <img
+                              src={image.url || image.image_url || image.file || image.image}
+                              alt={`Quote image ${image.id || index}`}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) {
+                                  e.target.nextSibling.style.display = 'flex';
+                                }
+                              }}
+                            />
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                display: "none",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "grey.200",
+                              }}
+                            >
+                              <Typography variant="body2" color="text.secondary">
+                                Failed to load
+                              </Typography>
+                            </Box>
+                          </Box>
+                          {image.created_at && (
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
+                              {new Date(image.created_at).toLocaleDateString()}
+                            </Typography>
+                          )}
+                        </Grid>
+                      ))}
+                    </Grid>
+                  </CardContent>
                 </Card>
               )}
 

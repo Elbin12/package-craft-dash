@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import {
   Dialog,
   DialogTitle,
@@ -20,6 +20,16 @@ import {
   Grid,
   Collapse,
   TextField,
+  Alert,
+  Snackbar,
+  Paper,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Radio,
+  RadioGroup,
+  FormControlLabel,
 } from "@mui/material"
 import {
   User,
@@ -40,8 +50,12 @@ import {
   ChevronDown,
   ChevronUp,
   Save,
+  Image as ImageIcon,
+  Upload,
+  Trash2,
+  AlertCircle,
 } from "lucide-react"
-import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation } from "../../store/api/user/quoteApi"
 import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
@@ -56,11 +70,36 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [editingPackagePrice, setEditingPackagePrice] = useState({});
   const [tempPackagePrices, setTempPackagePrices] = useState({});
 
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [deletingImageId, setDeletingImageId] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  
+  // Size range edit state
+  const [sizeRangeDialogOpen, setSizeRangeDialogOpen] = useState(false);
+  const [selectedSizeRange, setSelectedSizeRange] = useState(null);
+  const [updatingSizeRange, setUpdatingSizeRange] = useState(false);
+
   const [editPackagePrice] = useEditPackagePriceMutation();
   const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
   const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
 
   const [addNotes] = useAddNotesMutation();
+  
+  // Image management - images come from the quote details API response
+  const [uploadQuoteImage] = useUploadQuoteImageMutation();
+  const [deleteQuoteImage] = useDeleteQuoteImageMutation();
+
+  // Extract images from the quote details data
+  const images = data?.images || [];
+
+  // Size range management
+  const propertyType = data?.property_type === 'residential' ? 'Residential' : data?.property_type === 'commercial' ? 'Commercial' : 'Residential';
+  const { data: initialData, isLoading: sizeRangesLoading } = useGetInitialDataQuery(propertyType, {
+    skip: !sizeRangeDialogOpen || !data?.property_type,
+  });
+  const [updateQuoteSizeRange] = useUpdateQuoteSizeRangeMutation();
+  
+  const sizeRanges = initialData?.size_ranges || [];
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue)
@@ -124,6 +163,104 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
     setEditPrivate(false);
     setEditPublic(false);
   }
+
+  const handleImageUpload = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file || !data?.id) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      setSnackbar({ open: true, message: 'Please select a valid image file', severity: 'error' });
+      return;
+    }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      setSnackbar({ open: true, message: 'Image size must be less than 10MB', severity: 'error' });
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      await uploadQuoteImage({ submissionId: data.id, file }).unwrap();
+      setSnackbar({ open: true, message: 'Image uploaded successfully', severity: 'success' });
+      // Images will be refreshed automatically via cache invalidation
+      // The parent component will refetch quote details automatically
+    } catch (error) {
+      setSnackbar({ 
+        open: true, 
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to upload image', 
+        severity: 'error' 
+      });
+    } finally {
+      setUploadingImage(false);
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  const handleImageDelete = async (imageId) => {
+    if (!data?.id || !imageId) return;
+    
+    if (!window.confirm('Are you sure you want to delete this image?')) {
+      return;
+    }
+
+    setDeletingImageId(imageId);
+    try {
+      await deleteQuoteImage({ submissionId: data.id, imageId }).unwrap();
+      setSnackbar({ open: true, message: 'Image deleted successfully', severity: 'success' });
+      // Images will be refreshed automatically via cache invalidation
+      // The parent component will refetch quote details automatically
+    } catch (error) {
+      setSnackbar({ 
+        open: true, 
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to delete image', 
+        severity: 'error' 
+      });
+    } finally {
+      setDeletingImageId(null);
+    }
+  };
+
+  const handleCloseSnackbar = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+  const handleOpenSizeRangeDialog = () => {
+    // Prevent editing if quote is approved
+    if (data?.status === 'approved') {
+      return;
+    }
+    setSelectedSizeRange(data?.size_range?.id || null);
+    setSizeRangeDialogOpen(true);
+  };
+
+  const handleCloseSizeRangeDialog = () => {
+    setSizeRangeDialogOpen(false);
+    setSelectedSizeRange(null);
+  };
+
+  const handleSaveSizeRange = async () => {
+    if (!selectedSizeRange || !data?.id) return;
+    
+    setUpdatingSizeRange(true);
+    try {
+      await updateQuoteSizeRange({ submissionId: data.id, sizeRange: selectedSizeRange }).unwrap();
+      setSnackbar({ open: true, message: 'Square footage updated successfully', severity: 'success' });
+      handleCloseSizeRangeDialog();
+      // Close modal to refresh data
+      onClose();
+    } catch (error) {
+      setSnackbar({ 
+        open: true, 
+        message: error?.data?.detail || error?.data?.message || 'Failed to update square footage', 
+        severity: 'error' 
+      });
+    } finally {
+      setUpdatingSizeRange(false);
+    }
+  };
 
   const handleEditPackagePrice = (serviceIdx, pkgIdx) => {
     const key = `${serviceIdx}-${pkgIdx}`
@@ -239,6 +376,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
           <Tab label="Overview" value="overview" />
           <Tab label="Services" value="services" />
           <Tab label="Additional Info" value="additional" />
+          <Tab label="Images" value="images" />
         </Tabs>
       </Box>
 
@@ -641,6 +779,54 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
         {/* Services */}
         {tab === "services" && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {/* Square Footage Section - Shown once at the top */}
+            <Card>
+              <CardContent>
+                <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <Layers size={20} color="#51b7ae" />
+                    <Typography variant="h6">Square Footage</Typography>
+                  </Box>
+                  <Button
+                    variant="outlined"
+                    size="small"
+                    startIcon={<Edit2 size={16} />}
+                    onClick={handleOpenSizeRangeDialog}
+                    disabled={data?.status === 'approved'}
+                  >
+                    Edit
+                  </Button>
+                </Box>
+                {data.size_range ? (
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: "grey.50", 
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "divider"
+                  }}>
+                    <Typography variant="body1" fontWeight={600}>
+                      {data.size_range.min_sqft} {data.size_range.max_sqft === null 
+                        ? "sq ft And Up" 
+                        : `- ${data.size_range.max_sqft} sq ft`}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <Box sx={{ 
+                    p: 2, 
+                    bgcolor: "grey.50", 
+                    borderRadius: 1,
+                    border: "1px solid",
+                    borderColor: "divider"
+                  }}>
+                    <Typography variant="body2" color="text.secondary">
+                      No square footage selected
+                    </Typography>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+
             {data.service_selections?.map((service, serviceIdx) => (
               <Card key={serviceIdx}>
                 <CardHeader
@@ -993,6 +1179,71 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                       ))}
                     </Box>
                   )}
+
+                  {/* Addons Section - Show below Job Specs in each service card */}
+                  {data.addons && data.addons.length > 0 && (
+                    <>
+                      <Divider sx={{ my: 3 }} />
+                      <Box>
+                        <Typography variant="h6" display="flex" alignItems="center" gap={1} gutterBottom mb={2}>
+                          <Tag size={20} color="#51b7ae" />
+                          Add-On Services
+                        </Typography>
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          {data.addons.map((addon, addonIdx) => (
+                            <Box
+                              key={addon.id || addonIdx}
+                              sx={{
+                                p: 2,
+                                border: "1px solid",
+                                borderColor: "divider",
+                                borderRadius: 1,
+                                bgcolor: "grey.50",
+                              }}
+                            >
+                              <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 1 }}>
+                                <Box sx={{ flex: 1 }}>
+                                  <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                                    {addon.addon_name}
+                                  </Typography>
+                                  {addon.addon_description && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                                      {addon.addon_description}
+                                    </Typography>
+                                  )}
+                                </Box>
+                                <Box sx={{ textAlign: "right", ml: 2 }}>
+                                  <Typography variant="body2" color="text.secondary">
+                                    ${addon.addon_price} {addon.quantity > 1 && `× ${addon.quantity}`}
+                                  </Typography>
+                                  <Typography variant="h6" fontWeight={600} color="primary">
+                                    ${addon.subtotal || (parseFloat(addon.addon_price || 0) * (addon.quantity || 1)).toFixed(2)}
+                                  </Typography>
+                                </Box>
+                              </Box>
+                              {addon.quantity > 1 && (
+                                <Typography variant="caption" color="text.secondary">
+                                  Quantity: {addon.quantity}
+                                </Typography>
+                              )}
+                            </Box>
+                          ))}
+                        </Box>
+                        {/* {data.total_addons_price && parseFloat(data.total_addons_price) > 0 && (
+                          <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid", borderColor: "divider" }}>
+                            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                              <Typography variant="h6" fontWeight={600}>
+                                Total Add-Ons
+                              </Typography>
+                              <Typography variant="h6" fontWeight={600} color="primary">
+                                ${data.total_addons_price}
+                              </Typography>
+                            </Box>
+                          </Box>
+                        )} */}
+                      </Box>
+                    </>
+                  )}
                 </CardContent>
               </Card>
             ))}
@@ -1156,6 +1407,188 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
             </div>
           </Box>
         )}
+
+        {/* Images Tab */}
+        {tab === "images" && (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            <Card>
+              <CardHeader
+                title={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <ImageIcon size={20} color="#51b7ae" />
+                    <Typography variant="subtitle1">Quote Images</Typography>
+                  </Box>
+                }
+                action={
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                    <input
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      id="upload-image-input"
+                      type="file"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    <label htmlFor="upload-image-input">
+                      <Button
+                        component="span"
+                        variant="contained"
+                        color="primary"
+                        size="small"
+                        startIcon={uploadingImage ? <CircularProgress size={16} /> : <Upload size={16} />}
+                        disabled={uploadingImage || !data?.id}
+                      >
+                        {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                      </Button>
+                    </label>
+                  </Box>
+                }
+              />
+              <CardContent>
+                {isLoading ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : images && images.length > 0 ? (
+                  <Grid container spacing={2}>
+                    {images.map((image) => (
+                      <Grid item xs={12} sm={6} md={4} key={image.id}>
+                        <Paper
+                          elevation={2}
+                          sx={{
+                            position: "relative",
+                            borderRadius: 2,
+                            overflow: "hidden",
+                            "&:hover .delete-button": {
+                              opacity: 1,
+                            },
+                          }}
+                        >
+                          <Box
+                            sx={{
+                              position: "relative",
+                              width: "100%",
+                              paddingTop: "75%", // 4:3 aspect ratio
+                              backgroundColor: "grey.100",
+                            }}
+                          >
+                            <img
+                              src={image.url || image.image_url || image.file || image.image}
+                              alt={`Quote image ${image.id || image.name || 'image'}`}
+                              style={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "cover",
+                              }}
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                if (e.target.nextSibling) {
+                                  e.target.nextSibling.style.display = 'flex';
+                                }
+                              }}
+                            />
+                            <Box
+                              sx={{
+                                position: "absolute",
+                                top: 0,
+                                left: 0,
+                                width: "100%",
+                                height: "100%",
+                                display: "none",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "grey.200",
+                              }}
+                            >
+                              <AlertCircle size={32} color="#999" />
+                            </Box>
+                          </Box>
+                          <Box
+                            className="delete-button"
+                            sx={{
+                              position: "absolute",
+                              top: 8,
+                              right: 8,
+                              opacity: 0,
+                              transition: "opacity 0.2s",
+                            }}
+                          >
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={() => handleImageDelete(image.id || image.image_id)}
+                              disabled={deletingImageId === (image.id || image.image_id)}
+                              sx={{
+                                backgroundColor: "rgba(255, 255, 255, 0.9)",
+                                "&:hover": {
+                                  backgroundColor: "rgba(255, 255, 255, 1)",
+                                },
+                              }}
+                            >
+                              {deletingImageId === (image.id || image.image_id) ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <Trash2 size={16} />
+                              )}
+                            </IconButton>
+                          </Box>
+                          {(image.created_at || image.uploaded_at) && (
+                            <Box sx={{ p: 1, backgroundColor: "grey.50" }}>
+                              <Typography variant="caption" color="text.secondary">
+                                Uploaded: {new Date(image.created_at || image.uploaded_at).toLocaleDateString()}
+                              </Typography>
+                            </Box>
+                          )}
+                        </Paper>
+                      </Grid>
+                    ))}
+                  </Grid>
+                ) : (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      py: 6,
+                      textAlign: "center",
+                    }}
+                  >
+                    <ImageIcon size={48} color="#ccc" style={{ marginBottom: 16 }} />
+                    <Typography variant="h6" color="text.secondary" gutterBottom>
+                      No images uploaded yet
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Upload images to attach them to this quote
+                    </Typography>
+                    <input
+                      accept="image/*"
+                      style={{ display: 'none' }}
+                      id="upload-image-input-empty"
+                      type="file"
+                      onChange={handleImageUpload}
+                      disabled={uploadingImage}
+                    />
+                    <label htmlFor="upload-image-input-empty">
+                      <Button
+                        component="span"
+                        variant="contained"
+                        color="primary"
+                        startIcon={uploadingImage ? <CircularProgress size={16} /> : <Upload size={16} />}
+                        disabled={uploadingImage || !data?.id}
+                      >
+                        {uploadingImage ? 'Uploading...' : 'Upload Your First Image'}
+                      </Button>
+                    </label>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+        )}
       </DialogContent>
 
       <DialogActions>
@@ -1163,6 +1596,104 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
           Close
         </Button>
       </DialogActions>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Size Range Selection Dialog */}
+      <Dialog 
+        open={sizeRangeDialogOpen} 
+        onClose={handleCloseSizeRangeDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <Typography variant="h6">Select Square Footage</Typography>
+            <IconButton onClick={handleCloseSizeRangeDialog} size="small">
+              <X />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {sizeRangesLoading ? (
+            <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", py: 4 }}>
+              <CircularProgress />
+            </Box>
+          ) : sizeRanges.length === 0 ? (
+            <Box sx={{ textAlign: "center", py: 4 }}>
+              <Typography color="text.secondary">
+                No square footage options available for {propertyType} properties
+              </Typography>
+            </Box>
+          ) : (
+            <RadioGroup
+              value={selectedSizeRange || ''}
+              onChange={(e) => setSelectedSizeRange(e.target.value)}
+            >
+              <List sx={{ width: '100%' }}>
+                {sizeRanges.map((range) => (
+                  <ListItem key={range.id} disablePadding>
+                    <ListItemButton
+                      selected={selectedSizeRange === range.id}
+                      onClick={() => setSelectedSizeRange(range.id)}
+                      sx={{
+                        borderRadius: 1,
+                        mb: 1,
+                        border: selectedSizeRange === range.id ? '2px solid' : '1px solid',
+                        borderColor: selectedSizeRange === range.id ? 'primary.main' : 'divider',
+                        bgcolor: selectedSizeRange === range.id ? 'primary.50' : 'transparent',
+                        '&:hover': {
+                          bgcolor: selectedSizeRange === range.id ? 'primary.100' : 'grey.50',
+                        },
+                      }}
+                    >
+                      <FormControlLabel
+                        value={range.id}
+                        control={<Radio />}
+                        label={
+                          <ListItemText
+                            primary={
+                              <Typography variant="body1" fontWeight={600}>
+                                {range.min_sqft} {range.max_sqft === null 
+                                  ? "sq ft And Up" 
+                                  : `- ${range.max_sqft} sq ft`}
+                              </Typography>
+                            }
+                          />
+                        }
+                        sx={{ margin: 0, width: '100%' }}
+                      />
+                    </ListItemButton>
+                  </ListItem>
+                ))}
+              </List>
+            </RadioGroup>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseSizeRangeDialog} variant="outlined">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveSizeRange}
+            variant="contained"
+            disabled={!selectedSizeRange || updatingSizeRange || selectedSizeRange === data?.size_range?.id}
+            startIcon={updatingSizeRange ? <CircularProgress size={16} /> : <Save size={16} />}
+          >
+            {updatingSizeRange ? 'Updating...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Dialog>
   )
 }

@@ -13,13 +13,16 @@ export const axiosInstance = axios.create({
 // axiosBaseQuery.js
 export const axiosBaseQuery =
   ({ baseUrl = '' } = {}) =>
-  async ({ url, method, data, params }) => {
+  async ({ url, method, data, params, baseUrl: queryBaseUrl }) => {
     try {
+      // Use query-specific baseUrl if provided, otherwise use the default baseUrl
+      const finalBaseUrl = queryBaseUrl || baseUrl;
       const result = await axiosInstance({
-        url: baseUrl + (url || ''),
+        url: finalBaseUrl + (url || ''),
         method,
         data,
         params,
+        headers: data instanceof FormData ? { 'Content-Type': 'multipart/form-data' } : undefined,
       });
       return { data: result.data };
     } catch (axiosError) {

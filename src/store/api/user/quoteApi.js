@@ -135,11 +135,50 @@ export const quoteApi = createApi({
         data: payload,
       }),
     }),
+    uploadQuoteImage: builder.mutation({
+      query: ({ submissionId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `quote/${submissionId}/images/upload/`,
+          method: 'POST',
+          data: formData,
+          baseUrl: BASE_URL + '/',
+        };
+      },
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        { type: 'Details' },
+        'quote'
+      ],
+    }),
+    deleteQuoteImage: builder.mutation({
+      query: ({ submissionId, imageId }) => ({
+        url: `quote/${submissionId}/images/${imageId}/`,
+        method: 'DELETE',
+        baseUrl: BASE_URL + '/',
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        { type: 'Details' },
+        'quote'
+      ],
+    }),
+    updateQuoteSizeRange: builder.mutation({
+      query: ({ submissionId, sizeRange }) => ({
+        url: `quote/${submissionId}/sqft/`,
+        method: 'PATCH',
+        data: { size_range: sizeRange },
+        baseUrl: BASE_URL + '/',
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [{ type: 'quote', id: submissionId }, { type: 'Details' }],
+    }),
   }),
 });
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
   useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
-  useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation
+  useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation, useGetQuoteImagesQuery, useUploadQuoteImageMutation, useDeleteQuoteImageMutation,
+  useUpdateQuoteSizeRangeMutation
  } = quoteApi;

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import {
   Box,
   Checkbox,
@@ -26,6 +26,51 @@ import {
 import { useUpdatePackageMutation } from "../../../../store/api/packagesApi"
 import { useEditServiceMutation } from "../../../../store/api/servicesApi"
 
+import ReactQuill from "react-quill"
+import "react-quill/dist/quill.snow.css"
+
+const ResizableQuill = ({ value, onChange }) => {
+  const quillRef = useRef(null)
+
+  const quillModules = {
+    toolbar: [
+      ["bold", "italic", "underline"],
+      [{ list: "ordered" }, { list: "bullet" }],
+      ["link"],
+      ["clean"],
+      [{ color: [] }, { background: [] }],
+      [{ align: [] }],
+      [{ font: [] }],
+    ],
+  }
+
+  useEffect(() => {
+    if (quillRef.current) {
+      const editor = quillRef.current.getEditor()
+      const editorDiv = editor.root
+
+      editorDiv.style.resize = "vertical"
+      editorDiv.style.overflow = "auto"
+      editorDiv.style.minHeight = "150px"
+      editorDiv.style.maxHeight = "550px"
+    }
+  }, [])
+
+  return (
+    <Box >
+      <ReactQuill
+        ref={quillRef}
+        theme="snow"
+        modules={quillModules}
+        value={value}
+        onChange={onChange}
+        style={{ minHeight: 150, maxHeight: 600 }}
+      />
+    </Box>
+  )
+}
+
+
 const ServiceSettingsForm = ({ data, onUpdate }) => {
   const [discounts, setDiscounts] = useState({})
   const [discountForms, setDiscountForms] = useState({})
@@ -47,6 +92,35 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
   const [updateService] = useEditServiceMutation()
 
   const [trigger] = useLazyGetQuantityDiscountsQuery()
+
+
+  const parseDelta = (text) => {
+    console.log(text, 'texttt')
+    // Handle null, undefined, or empty string
+    if (!text || text.trim() === "") {
+      return ""
+    }
+    
+    try {
+      // Try parsing as JSON (Delta format)
+      const parsed = JSON.parse(text)
+      // Verify it's a valid Delta object
+      if (parsed && typeof parsed === 'object' && parsed.ops) {
+        return parsed
+      }
+      // If it's a JSON string but not Delta format, treat as plain text
+      return {
+        ops: [{ insert: String(parsed) + '\n' }]
+      }
+    } catch (error) {
+      // If JSON parse fails, it's plain text - convert to Delta format
+      return {
+        ops: [{ insert: text + '\n' }]
+      }
+    }
+  }
+  
+  
 
   // Get quantity questions with options
   const quantityQuestions = useMemo(
@@ -613,7 +687,7 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
           </>
         )}
       </Box>
-      <Box display={"flex"} flexDirection="column" alignItems={"center"} gap={2}>
+      {/* <Box display={"flex"} flexDirection="column" alignItems={"center"} gap={2}>
         <Typography variant="h5">Disclaimers</Typography>
         <TextField
           label="General Disclaimer"
@@ -649,7 +723,53 @@ const ServiceSettingsForm = ({ data, onUpdate }) => {
             },
           }}
         />
+      </Box> */}
+
+      <Box display="flex" flexDirection="column" alignItems="stretch" gap={2}>
+        <Typography variant="h5">Disclaimers</Typography>
+
+        {/* General Disclaimer */}
+        <Box>
+          <Typography variant="subtitle1" gutterBottom>
+            General Disclaimer
+          </Typography>
+
+          <ResizableQuill
+            value={parseDelta(data?.settings?.general_disclaimer)}
+            onChange={(value, delta, source, editor) => {
+              // SAVE AS TEXT (Quill Delta JSON string)
+              const deltaData = editor.getContents()
+              onUpdate({
+                settings: {
+                  ...data.settings,
+                  general_disclaimer: JSON.stringify(deltaData),
+                },
+              })
+            }}
+          />
+        </Box>
+
+        {/* Bid in Person Disclaimer */}
+        <Box>
+          <Typography variant="subtitle1" gutterBottom>
+            Bid in Person Disclaimer
+          </Typography>
+
+          <ResizableQuill
+            value={parseDelta(data?.settings?.bid_in_person_disclaimer)}
+            onChange={(value, delta, source, editor) => {
+              const deltaData = editor.getContents()
+              onUpdate({
+                settings: {
+                  ...data.settings,
+                  bid_in_person_disclaimer: JSON.stringify(deltaData),
+                },
+              })
+            }}
+          />
+        </Box>
       </Box>
+
 
     </Box>
   )

@@ -36,6 +36,8 @@ export const BookingWizard = () => {
   const [termsAccepted, setTermsAccepted] = useState(false)
   const [isBidInPerson, setIsBidInPerson] = useState(false)
 
+  const navigate = useNavigate()
+
   // const sigCanvasRef = useRef(null);
 
   // Fetch if submission_id present
@@ -210,22 +212,35 @@ export const BookingWizard = () => {
     }
   }, [isSuccess, submissionData]);
 
-  useLayoutEffect(() => {
-    if (isSuccess && submissionData) {
-      if(submissionData?.status.includes("approved", "declined")){
-        if (submissionData.availabilities && submissionData.availabilities.length > 0) {
-          // Has availabilities, redirect to quote details
-          navigate(`/quote/details/${submissionData?.id}`);
-        } else {
-          // No availabilities, show availability screen
-          setShowAvailabilityScreen(true);
-        }
-      } else {
-        // Not submitted yet, go to checkout
-        setActiveStep(3);
-      }
+  useEffect(() => {
+    if (!submissionData) {
+      setActiveStep(0);
+      return;
     }
-  }, [isSuccess, submissionData]);
+  
+    const { status, service_selections, id } = submissionData;
+  
+    if (status === "approved" || status === "declined") {
+      navigate(`/quote/details/${id}`);
+      return;
+    }
+  
+    if (!service_selections?.length) {
+      console.log("No services selected, going to step 1");
+      setActiveStep(1);
+      return;
+    }
+  
+    if (status === "draft") {
+      console.log("Draft status, going to step 2");
+      setActiveStep(2);
+      return;
+    }
+  
+    console.log("Services selected, going to step 3");
+    setActiveStep(3);
+  }, [submissionData, navigate]);
+  
 
   useEffect(() => {
     // Scroll the page to the top when activeStep changes
@@ -246,7 +261,6 @@ export const BookingWizard = () => {
   const [addAvailabilities, { isLoading: addingAvailabilities }] = useAddAvailabilitiesMutation();
   
   const isSavingContact = creating || updating
-  const navigate = useNavigate()
 
   // Use useCallback to prevent infinite loops
   const updateBookingData = useCallback((stepData) => {

@@ -19,82 +19,14 @@ import {
 } from "@mui/material"
 import { ExpandMore } from "@mui/icons-material"
 import { useGetServiceQuestionsQuery } from "../../../store/api/user/quoteApi"
+import {ServiceQuestionsSection} from "./ServiceQuestionsSection"
 
 export const QuestionsForm = ({ data, onUpdate }) => {
-  const [allServiceQuestions, setAllServiceQuestions] = useState([])
-  const [loadingServices, setLoadingServices] = useState([])
-  const [forceRefresh, setForceRefresh] = useState(0)
   const [expandedService, setExpandedService] = useState(null)
 
   const selectedServices = data?.selectedServices || []
 
   console.log(data, 'allServiceQuestionsState')
-
-  const serviceQueries = selectedServices.map((service) =>
-    useGetServiceQuestionsQuery(service.id, {
-      skip: !service.id,
-      refetchOnMountOrArgChange: true,
-    }),
-  )
-  // console.log(serviceQueries, 'allServiceQuestions')
-
-  useEffect(() => {
-    setForceRefresh((prev) => prev + 1)
-    setAllServiceQuestions([])
-    if (selectedServices.length > 0) {
-      setExpandedService(selectedServices[0].id)
-    }
-  }, [selectedServices.map((s) => s.id).join(",")])
-
-  useEffect(() => {
-    const processServiceQuestions = () => {
-      const processedServices = []
-      let hasLoading = false
-      let hasError = false
-
-      serviceQueries.forEach((query, index) => {
-        const service = selectedServices[index]
-
-        if (query.isLoading) {
-          hasLoading = true
-          if (!loadingServices.includes(service.id)) {
-            setLoadingServices((prev) => [...prev, service.id])
-          }
-        } else {
-          setLoadingServices((prev) => prev.filter((id) => id !== service.id))
-        }
-
-        if (query.isError) {
-          hasError = true
-          return
-        }
-
-        if (query.data && !query.isLoading) {
-          const serviceData = query.data
-
-          const normalizedQuestions = Array.from(serviceData.questions || [])
-            .sort((a, b) => (a.order || 0) - (b.order || 0))
-            .map((q) => normalizeQuestion(q))
-
-          processedServices.push({
-            service: serviceData.service,
-            questions: normalizedQuestions,
-          })
-        }
-      })
-
-      if (!hasLoading && !hasError && processedServices.length > 0) {
-        setAllServiceQuestions(processedServices)
-      }
-    }
-
-    processServiceQuestions()
-  }, [
-    serviceQueries.map((q) => q.data),
-    serviceQueries.map((q) => q.isLoading),
-    serviceQueries.map((q) => q.isError),
-    forceRefresh,
-  ])
 
   const handleRefresh = () => {
     setForceRefresh((prev) => prev + 1)
@@ -828,197 +760,52 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     setExpandedService(isExpanded ? serviceId : null)
   }
 
-  if (serviceQueries.some((query) => query.isLoading)) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
-        <CircularProgress sx={{ color: '#023c8f' }} />
-        <Typography sx={{ ml: 2 }}>Loading questions...</Typography>
-      </Box>
-    )
-  }
-
-  if (serviceQueries.some((query) => query.isError)) {
-    return (
-      <Alert 
-        severity="error" 
-        action={
-          <button 
-            onClick={handleRefresh} 
-            style={{ 
-              padding: "8px 16px", 
-              backgroundColor: '#023c8f',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer'
-            }}
-          >
-            Retry
-          </button>
-        }
-      >
-        Failed to load questions. Please try again.
-      </Alert>
-    )
-  }
-
-  if (allServiceQuestions.length === 0) {
-    return (
-      <Box sx={{ textAlign: 'center', py: 4 }}>
-        <Typography variant="h6" gutterBottom>
-          Service Questions
-        </Typography>
-        <Typography color="text.secondary" sx={{ mb: 2 }}>
-          No questions available for the selected services.
-        </Typography>
-        <button 
-          onClick={handleRefresh} 
-          style={{ 
-            padding: "10px 20px",
-            backgroundColor: '#023c8f',
-            color: 'white',
-            border: 'none',
-            borderRadius: '6px',
-            cursor: 'pointer'
-          }}
-        >
-          Refresh Questions
-        </button>
-      </Box>
-    )
-  }
-
   // Debug log
   // console.log('Current question answers:', data.questionAnswers)
 
   return (
     <Box>
-      <Typography 
-        variant="h4" 
-        sx={{ 
-          mb: 1, 
-          fontWeight: 300, 
-          color: '#023c8f',
-          textAlign: 'center'
+      <Typography
+        variant="h4"
+        sx={{
+          mb: 1,
+          fontWeight: 300,
+          color: "#023c8f",
+          textAlign: "center",
         }}
       >
         Service Questions
       </Typography>
-      
-      <Typography 
-        sx={{ 
-          mb: 4, 
-          color: '#666', 
-          textAlign: 'center'
+
+      <Typography
+        sx={{
+          mb: 4,
+          color: "#666",
+          textAlign: "center",
         }}
       >
         Please answer the questions for each service
       </Typography>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        {allServiceQuestions.map((serviceData) => {
-          const hasQuestions = serviceData.questions.length > 0
-          const isExpanded = expandedService === serviceData.service.id
-
-          return (
-            <Accordion 
-              key={serviceData.service.id}
-              expanded={isExpanded}
-              onChange={handleAccordionChange(serviceData.service.id)}
-              sx={{
-                border: '1px solid #ddd',
-                borderRadius: '8px !important',
-                '&:before': { display: 'none' },
-                boxShadow: 'none',
-              }}
-            >
-              <AccordionSummary 
-                expandIcon={<ExpandMore sx={{ color: 'white' }} />}
-                sx={{
-                  backgroundColor: '#023c8f',
-                  color: 'white',
-                  borderRadius: '8px',
-                  minHeight: 44,
-                  '&.Mui-expanded': {
-                    minHeight: 44,
-                    borderRadius: '8px 8px 0 0'
-                  },
-                  '& .MuiAccordionSummary-content': {
-                    margin: 0,
-                  },
-                  '& .MuiAccordionSummary-content.Mui-expanded': {
-                    margin: 0,
-                  }
-                }}
-              >
-                <Typography variant="h6" sx={{ fontWeight: 500 }}>
-                  {serviceData.service.name}
-                </Typography>
-              </AccordionSummary>
-              
-              <AccordionDetails sx={{ p: 2 }}>
-                {serviceData.service.description && (
-                  <Typography sx={{ mb: 2, color: '#666', fontSize: '14px' }}>
-                    {serviceData.service.description}
-                  </Typography>
-                )}
-
-                {!hasQuestions ? (
-                  <Typography sx={{ color: '#666', fontStyle: "italic" }}>
-                    No additional questions for this service.
-                  </Typography>
-                ) : (
-                  <Box>
-                    {getAllQuestionsFlattened(serviceData.questions)
-                      .filter(question => shouldShowQuestion(question, serviceData.service.id))
-                      .map((question) => renderQuestion(question, serviceData.service.id))
-                    }
-                  </Box>
-                )}
-              </AccordionDetails>
-            </Accordion>
-          )
-        })}
+        {selectedServices.map((service) => (
+          <ServiceQuestionsSection
+            key={service.id}
+            service={service}
+            data={data}
+            onUpdate={onUpdate}
+            expandedService={expandedService}
+            setExpandedService={setExpandedService}
+            normalizeQuestion={normalizeQuestion}
+            renderQuestion={renderQuestion}
+            getAllQuestionsFlattened={getAllQuestionsFlattened}
+            shouldShowQuestion={shouldShowQuestion}
+          />
+        ))}
       </Box>
-      {allServiceQuestions.some(serviceData => {
-      const hasUnansweredQuestions = getAllQuestionsFlattened(serviceData.questions)
-        .filter(question => shouldShowQuestion(question, serviceData.service.id))
-        .some(question => {
-          const questionKey = `${serviceData.service.id}_${question.id}`;
-          
-          switch (question.type) {
-            case "yes_no":
-            case "conditional":
-            case "describe":
-            case "options":
-              return !data.questionAnswers?.[questionKey];
-            
-            case "quantity":
-              return !Object.keys(data.questionAnswers || {}).some(k => 
-                k.startsWith(`${serviceData.service.id}_${question.id}_`) && 
-                k.endsWith('_quantity') &&
-                parseInt(data.questionAnswers[k]) > 0
-              );
-            
-            case "multiple_yes_no":
-              return !question.sub_questions?.some(subQ => {
-                const subKey = `${serviceData.service.id}_${question.id}_${subQ.id}`;
-                return data.questionAnswers?.[subKey] === "yes" || data.questionAnswers?.[subKey] === "no";
-              });
-            
-            default:
-              return false;
-          }
-        });
       
-      return hasUnansweredQuestions;
-    }) && (
-      <Alert severity="warning" sx={{ mt: 3 }}>
-        Please answer all required questions (marked with *) before proceeding to the next step.
-      </Alert>
-    )}
     </Box>
-  )
+  );
 }
 
 export default QuestionsForm

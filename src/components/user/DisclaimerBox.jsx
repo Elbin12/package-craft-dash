@@ -1,14 +1,41 @@
 import { Box, Typography } from "@mui/material";
 import { useState } from "react";
+import { QuillDeltaToHtmlConverter } from 'quill-delta-to-html';
+import 'react-quill/dist/quill.snow.css';
 
 export default function DisclaimerBox({ title, content, bgColor, textColor }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  // Show expand/collapse for very long content
-  const isLong = content.length > 500; 
-  const displayContent = isLong && !isExpanded 
-    ? content.substring(0, 500) + "..." 
-    : content;
+  // Convert Delta to HTML
+  let htmlContent = "";
+  try {
+    const delta = typeof content === "string" ? JSON.parse(content) : content;
+    const converter = new QuillDeltaToHtmlConverter(delta.ops, {
+      inlineStyles: true, // ADD THIS LINE
+    });
+    htmlContent = converter.convert();
+  } catch (err) {
+    if (typeof content === "string") {
+      htmlContent = content
+        .replace(/\n\n/g, "</p><p>")
+        .replace(/\n/g, "<br/>");
+      htmlContent = `<p>${htmlContent}</p>`;
+    } else {
+      htmlContent = "";
+    }
+  }
+
+  // Count plain text for "Show more"
+  const plainText = htmlContent.replace(/<[^>]+>/g, "");
+  const isLong = plainText.length > 500;
+
+  // Determine displayed HTML for collapsed state
+  let displayHtml = htmlContent;
+  if (isLong && !isExpanded) {
+    const truncatedText = plainText.substring(0, 500) + "...";
+    // Wrap truncated text in a <p> to preserve spacing
+    displayHtml = `<p>${truncatedText}</p>`;
+  }
 
   return (
     <Box
@@ -29,18 +56,18 @@ export default function DisclaimerBox({ title, content, bgColor, textColor }) {
         {title}:
       </Typography> */}
 
-      <Typography
-        variant="body2"
-        sx={{
+      <div
+        className="ql-editor"  // ADD THIS LINE
+        dangerouslySetInnerHTML={{ __html: displayHtml }}
+        style={{
           color: textColor,
-          fontSize: { xs: "0.5rem", sm: "0.75rem", md: "0.9rem" },
+          fontSize: "0.9rem",
           lineHeight: 1.7,
-          whiteSpace: "pre-line", // ✅ preserves line breaks
           textAlign: "justify",
+          padding: 0,  // ADD THIS LINE to remove default Quill padding
         }}
-      >
-        {displayContent}
-      </Typography>
+      />
+
 
       {isLong && (
         <Typography

@@ -23,7 +23,7 @@ import QuestionsForm from '../../components/user/forms/QuestionsForm';
 import { transformSubmissionData } from '../../utils/transformSubmissionData';
 import { transformQuestionAnswersToAPIFormat } from '../../utils/transformQuestionAnswersToAPIFormat';
 import { set } from 'date-fns';
-import { Dialog, DialogContent } from '@mui/material';
+import { Dialog, DialogContent, Snackbar, Alert } from '@mui/material';
 import { QuoteDetailsModal } from './QuoteDetailsModal';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -51,6 +51,7 @@ const Dashboard = () => {
   const [editedData, setEditedData] = useState(null);
 
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [editSnackbar, setEditSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
   const debouncedSearchTerm = useDebounce(search, 500)
 
@@ -167,7 +168,6 @@ const Dashboard = () => {
             }).unwrap();
           }
           setIsSubmitted(false);
-          refetchSubmissions();
           console.log(`Responses submitted for service ${service.id}:`, result);
           return result;
         } catch (error) {
@@ -177,14 +177,18 @@ const Dashboard = () => {
       });
 
       await Promise.all(responsePromises);
-      alert('Quote updated successfully!');
+      refetchSubmissions();
+      setEditSnackbar({ open: true, message: 'Quote updated successfully!', severity: 'success' });
       setIsEditMode(false);
-      setIsModalOpen(false);
       setEditedData(null);
-      setSelectedSubmissionId(null);
+      // Keep main Quote Details modal open (do not setIsModalOpen(false) or clear selectedSubmissionId)
     } catch (error) {
       console.error('Error updating quote:', error);
-      alert('Failed to update quote. Please try again.');
+      setEditSnackbar({
+        open: true,
+        message: error?.message || 'Failed to update quote. Please try again.',
+        severity: 'error',
+      });
     }
   };
 
@@ -794,6 +798,20 @@ const Dashboard = () => {
           </DialogContent>
         </Dialog>
       )}
+      <Snackbar
+        open={editSnackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setEditSnackbar((s) => ({ ...s, open: false }))}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={() => setEditSnackbar((s) => ({ ...s, open: false }))}
+          severity={editSnackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {editSnackbar.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 };

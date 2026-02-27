@@ -55,7 +55,7 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react"
-import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation } from "../../store/api/user/quoteApi"
 import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
@@ -72,6 +72,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
   const [uploadingImage, setUploadingImage] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState(null);
+  const [removingServiceId, setRemovingServiceId] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   // Size range edit state
@@ -84,7 +85,8 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
 
   const [addNotes] = useAddNotesMutation();
-  
+  const [removeServiceFromSubmission] = useRemoveServiceFromSubmissionMutation();
+
   // Image management - images come from the quote details API response
   const [uploadQuoteImage] = useUploadQuoteImageMutation();
   const [deleteQuoteImage] = useDeleteQuoteImageMutation();
@@ -145,6 +147,25 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
       console.error('Error updating package:', error)
     }
   }
+
+  const handleRemoveService = async (serviceId) => {
+    if (!data?.id || !serviceId) return;
+    const confirmed = window.confirm('Are you sure you want to remove this service from the quote?');
+    if (!confirmed) return;
+    setRemovingServiceId(serviceId);
+    try {
+      await removeServiceFromSubmission({ submissionId: data.id, serviceId }).unwrap();
+      setSnackbar({ open: true, message: 'Service removed successfully', severity: 'success' });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to remove service',
+        severity: 'error',
+      });
+    } finally {
+      setRemovingServiceId(null);
+    }
+  };
   
   const handleSavePrivate = () => {
     // TODO: save privateNotes to backend
@@ -294,9 +315,15 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
         return updated
       })
       
-      onClose(); // Close modal to refresh data
+      setSnackbar({ open: true, message: 'Price updated successfully', severity: 'success' });
+      // Modal stays open; quote details will refetch via cache invalidation
     } catch (error) {
       console.error('Error updating package price:', error)
+      setSnackbar({
+        open: true,
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to update price',
+        severity: 'error',
+      });
     }
   }
 
@@ -381,6 +408,25 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
       </Box>
 
       <DialogContent dividers sx={{ maxHeight: "80vh" }}>
+
+      {data.is_bid_in_person && (
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "flex-end",
+            mb: 2
+          }}
+        >
+          <Chip
+            label="Bid In Person"
+            color="warning"
+            variant="outlined"
+            size="small"
+            sx={{ fontWeight: 600 }}
+          />
+        </Box>
+      )}
+
         {/* Overview */}
         {tab === "overview" && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
@@ -426,8 +472,26 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                     <Typography variant="body2" color="text.secondary">
                       Address
                     </Typography>
-                    <Typography>{data.street_address}</Typography>
-                    <Typography color="text.secondary">{data.postal_code}</Typography>
+                    {(data.street_address || data.postal_code) ? (
+                      <Typography
+                        component="a"
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([data.street_address, data.postal_code].filter(Boolean).join(', '))}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                          display: 'block',
+                        }}
+                      >
+                        {data.street_address || ''}
+                        {data.street_address && data.postal_code ? ' ' : ''}
+                        {data.postal_code || ''}
+                      </Typography>
+                    ) : (
+                      <Typography color="text.secondary">—</Typography>
+                    )}
 
                     <Typography variant="body2" color="text.secondary" mt={2}>
                       Communication Preferences
@@ -531,9 +595,27 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                       Location
                     </Typography>
                     <Typography>{data.location_details?.name}</Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {data.location_details?.address}
-                    </Typography>
+                    {data.location_details?.address ? (
+                      <Typography
+                        variant="caption"
+                        component="a"
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(data.location_details.address)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{
+                          color: 'primary.main',
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                          display: 'block',
+                        }}
+                      >
+                        {data.location_details.address}
+                      </Typography>
+                    ) : (
+                      <Typography variant="caption" color="text.secondary">
+                        {data.location_details?.address || '—'}
+                      </Typography>
+                    )}
 
                     {data.location_details?.trip_surcharge && parseFloat(data.location_details.trip_surcharge) > 0 && (
                       <>
@@ -835,7 +917,21 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                       <Box>
                         <Typography variant="h6">{service.service_details?.name || service.service_name}</Typography>
                       </Box>
-                      <Chip label={`$${service.final_total_price}`} color="primary" size="large" />
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                        <Chip label={`$${service.final_total_price}`} color="primary" size="large" />
+                        {(data?.status === "draft" || data?.status === "submitted") && (
+                          <Button
+                            variant="outlined"
+                            color="error"
+                            size="small"
+                            startIcon={removingServiceId === service.service ? <CircularProgress size={16} color="inherit" /> : <Trash2 size={16} />}
+                            onClick={() => handleRemoveService(service.service)}
+                            disabled={removingServiceId === service.service}
+                          >
+                            Remove Service
+                          </Button>
+                        )}
+                      </Box>
                     </Box>
                   }
                 />

@@ -470,12 +470,12 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Address
+                      Street Address
                     </Typography>
-                    {(data.street_address || data.postal_code) ? (
+                    {data.street_address ? (
                       <Typography
                         component="a"
-                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([data.street_address, data.postal_code].filter(Boolean).join(', '))}`}
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([data.street_address, data.city, data.postal_code].filter(Boolean).join(', '))}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         sx={{
@@ -485,12 +485,24 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                           display: 'block',
                         }}
                       >
-                        {data.street_address || ''}
-                        {data.street_address && data.postal_code ? ' ' : ''}
-                        {data.postal_code || ''}
+                        {data.street_address}
                       </Typography>
                     ) : (
                       <Typography color="text.secondary">—</Typography>
+                    )}
+
+                    <Typography variant="body2" color="text.secondary" mt={2}>
+                      City
+                    </Typography>
+                    <Typography>{data.city || data.location_details?.name || '—'}</Typography>
+
+                    {data.postal_code && (
+                      <>
+                        <Typography variant="body2" color="text.secondary" mt={2}>
+                          Postal Code
+                        </Typography>
+                        <Typography>{data.postal_code}</Typography>
+                      </>
                     )}
 
                     <Typography variant="body2" color="text.secondary" mt={2}>
@@ -531,6 +543,19 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
                           <Typography>{data.additional_data.marketing_consent ? "Yes" : "No"}</Typography>
                         </Box>
                       </>
+                    )}
+
+                    <Typography variant="body2" color="text.secondary" mt={2}>
+                      Requested Services
+                    </Typography>
+                    {(data.selected_services?.length || data.service_selections?.length) ? (
+                      <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mt: 0.5 }}>
+                        {(data.selected_services || (data.service_selections || []).map((s) => s.service_details?.name || s.service_name).filter(Boolean)).map((svc, i) => (
+                          <Chip key={i} label={svc} size="small" variant="outlined" sx={{ mt: 0.5 }} />
+                        ))}
+                      </Box>
+                    ) : (
+                      <Typography color="text.secondary">—</Typography>
                     )}
                   </Grid>
                 </Grid>

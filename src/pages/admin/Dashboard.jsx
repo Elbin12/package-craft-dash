@@ -23,7 +23,8 @@ import QuestionsForm from '../../components/user/forms/QuestionsForm';
 import { transformSubmissionData } from '../../utils/transformSubmissionData';
 import { transformQuestionAnswersToAPIFormat } from '../../utils/transformQuestionAnswersToAPIFormat';
 import { set } from 'date-fns';
-import { Dialog, DialogContent, Snackbar, Alert } from '@mui/material';
+import { Dialog, DialogContent, Snackbar, Alert, Tooltip as MuiTooltip } from '@mui/material';
+import { Mail, Phone } from 'lucide-react';
 import { QuoteDetailsModal } from './QuoteDetailsModal';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
@@ -35,6 +36,26 @@ const STATUS_COLORS = {
   declined: 'error',
   packages_selected: 'secondary',
   expired: 'default',
+};
+
+// Service display: icon + short label. Max 3 visible, then "+N more"
+const getServiceIcon = (name) => {
+  const n = (name || '').toLowerCase();
+  if (n.includes('first') || n.includes('residential')) return '🏠';
+  if (n.includes('window')) return '🪟';
+  if (n.includes('carpet')) return '🧹';
+  if (n.includes('garage')) return '🚗';
+  if (n.includes('commercial')) return '🏢';
+  return '🧹';
+};
+const shortenServiceName = (name) => {
+  if (!name) return '';
+  let s = name.replace(/^(residential|commercial):\s*/i, '').trim();
+  if (s === 'Window Cleaning') return 'Window';
+  if (s === 'Carpet Cleaning') return 'Carpet';
+  if (s === 'Garage Clean-up') return 'Garage';
+  if (s === 'First Cleaning') return 'First Cleaning';
+  return s.length > 18 ? s.slice(0, 16) + '…' : s;
 };
 
 const Dashboard = () => {
@@ -554,8 +575,9 @@ const Dashboard = () => {
               <thead>
                 <tr style={{ borderBottom: '2px solid #e5e7eb' }}>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Customer</th>
-                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contact</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Property</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Address</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Requested Service</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
@@ -564,7 +586,7 @@ const Dashboard = () => {
               <tbody>
                 {submissions.results?.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280', fontSize: '14px' }}>
+                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280', fontSize: '14px' }}>
                       No submissions found.
                     </td>
                   </tr>
@@ -576,15 +598,64 @@ const Dashboard = () => {
                     onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f9fafb'}
                     onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                   >
-                    <td style={{ padding: '12px 0', color: '#111827', fontWeight: 500 }}>
-                      <div>{sub.customer_name}</div>
-                      {sub.company_name && <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.company_name}</div>}
-                    </td>
-                    <td style={{ padding: '12px 0', color: '#374151' }}>
-                      <div style={{ fontSize: '13px' }}>{sub.customer_email}</div>
-                      <div style={{ fontSize: '12px', color: '#9ca3af' }}>{sub.customer_phone}</div>
+                    <td style={{ padding: '12px 0' }}>
+                      <div style={{ fontSize: '15px', fontWeight: 600, color: '#111827' }}>{sub.customer_name}</div>
+                      {sub.company_name && <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{sub.company_name}</div>}
+                      {sub.customer_email && (
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Mail size={12} style={{ flexShrink: 0 }} />
+                          {sub.customer_email}
+                        </div>
+                      )}
+                      {sub.customer_phone && (
+                        <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Phone size={12} style={{ flexShrink: 0 }} />
+                          {sub.customer_phone}
+                        </div>
+                      )}
                     </td>
                     <td style={{ padding: '12px 0', color: '#374151' }}>{sub.property_type_display}</td>
+                    <td style={{ padding: '12px 0', color: '#374151', maxWidth: '140px' }}>
+                      {(sub.street_address || sub.city) ? (
+                        <MuiTooltip title={[sub.street_address, sub.city].filter(Boolean).join(', ')} placement="top" arrow>
+                          <div style={{ cursor: 'help' }}>
+                            {sub.street_address && (
+                              <div style={{ fontSize: '12px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '130px' }}>
+                                {sub.street_address.length > 22 ? sub.street_address.slice(0, 20) + '…' : sub.street_address}
+                              </div>
+                            )}
+                            {sub.city && <div style={{ fontSize: '12px', color: '#6b7280' }}>{sub.city}</div>}
+                            {!sub.street_address && !sub.city && '—'}
+                          </div>
+                        </MuiTooltip>
+                      ) : '—'}
+                    </td>
+                    <td style={{ padding: '12px 0', maxWidth: '180px' }}>
+                      {sub.selected_services?.length ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', alignItems: 'center' }}>
+                          {sub.selected_services.slice(0, 3).map((svc, i) => (
+                            <span
+                              key={i}
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                backgroundColor: '#f3f4f6',
+                                fontSize: '11px',
+                                color: '#374151',
+                              }}
+                            >
+                              {getServiceIcon(svc)}{shortenServiceName(svc)}
+                            </span>
+                          ))}
+                          {sub.selected_services.length > 3 && (
+                            <span style={{ fontSize: '11px', color: '#6b7280' }}>+{sub.selected_services.length - 3} more</span>
+                          )}
+                        </div>
+                      ) : '—'}
+                    </td>
                     <td style={{ padding: '12px 0' }}>
                       <span style={{
                         display: 'inline-block',

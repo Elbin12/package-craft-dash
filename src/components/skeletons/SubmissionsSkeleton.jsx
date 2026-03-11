@@ -3,7 +3,7 @@ import Skeleton from './Skeleton';
 
 const SubmissionsSkeleton = () => {
   const rows = 10; // number of fake rows
-  const columns = 6; // Customer, Contact, Property, Status, Amount, Date
+  const columns = 7; // Customer, Property, Address, Requested Service, Status, Amount, Date
 
   return (
     <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px' }}>

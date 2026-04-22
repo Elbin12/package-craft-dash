@@ -131,6 +131,12 @@ All colors MUST be HSL for consistent theming.
     @apply border-border;
   }
 
+  /* Reserve space for the vertical scrollbar so width doesn’t oscillate when
+     embedded widgets (e.g. iframe auto-resize) change page height — avoids flicker on some viewports. */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     @apply bg-background text-foreground;
   }

@@ -66,7 +66,9 @@ export const AdminBookingWizard = () => {
 
   // Use useCallback to prevent infinite loops
   const updateBookingData = useCallback((stepData) => {
-    setBookingData((prev) => ({ ...prev, ...stepData }))
+    setBookingData((prev) =>
+      typeof stepData === "function" ? stepData(prev) : { ...prev, ...stepData }
+    )
   }, [])
 
   const [submitQuote, { isLoading: submittingQuote }] = useSubmitQuoteMutation();

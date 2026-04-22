@@ -5,7 +5,7 @@ import {
   Typography,
   CircularProgress,
   Paper,
-  ListItem,
+  ListItemButton,
   ListItemText,
   ClickAwayListener,
   MenuItem,
@@ -15,8 +15,82 @@ import { LocationOn } from "@mui/icons-material";
 import { useGetInitialDataQuery } from "../../../store/api/user/quoteApi";
 import { commercial_id, residential_id } from "../../../store/axios/axios";
 
+/** Strip to 10 digits; handles +1 and common autofill formats */
+function normalizePhoneDigits(raw) {
+  const d = String(raw || "").replace(/\D/g, "");
+  if (d.length === 11 && d.startsWith("1")) return d.slice(1);
+  if (d.length > 10) return d.slice(-10);
+  return d;
+}
+
+const BOOKING_INPUT = {
+  firstName: "booking-firstName",
+  lastName: "booking-lastName",
+  postalCode: "booking-postalCode",
+  phone: "booking-phone",
+  email: "booking-email",
+  companyName: "booking-companyName",
+  streetAddress: "booking-streetAddress",
+};
+
+/** Read text inputs from the DOM in the same tick as autofill (before React re-renders). */
+function collectBookingFieldsFromDom(root) {
+  if (!root?.querySelector) return {};
+  const q = (name) => root.querySelector(`input[name="${name}"]`)?.value ?? "";
+  const out = {};
+  const fn = q(BOOKING_INPUT.firstName).trim();
+  const ln = q(BOOKING_INPUT.lastName).trim();
+  const pc = q(BOOKING_INPUT.postalCode).trim();
+  const phoneNorm = normalizePhoneDigits(q(BOOKING_INPUT.phone));
+  const em = q(BOOKING_INPUT.email).trim();
+  const co = q(BOOKING_INPUT.companyName).trim();
+  const street = q(BOOKING_INPUT.streetAddress).trim();
+  if (fn) out.firstName = fn;
+  if (ln) out.lastName = ln;
+  if (pc) out.postalCode = pc;
+  if (phoneNorm) out.phone = phoneNorm;
+  if (em) out.email = em;
+  if (co) out.companyName = co;
+  if (street) out.address = street;
+  return out;
+}
+
+function extractPlaceFromGeocoderResult(result, explicitPlaceId) {
+  const loc = result.geometry.location;
+  let postalCode = "";
+  let city = "";
+  if (result.address_components) {
+    result.address_components.forEach((comp) => {
+      if (comp.types.includes("postal_code")) {
+        postalCode = comp.long_name;
+      }
+      if (comp.types.includes("locality")) {
+        city = comp.long_name;
+      }
+    });
+  }
+  const placeId =
+    explicitPlaceId !== undefined && explicitPlaceId !== null && explicitPlaceId !== ""
+      ? explicitPlaceId
+      : result.place_id || "";
+  return {
+    address: result.formatted_address,
+    latitude: loc.lat(),
+    longitude: loc.lng(),
+    placeId,
+    postalCode,
+    provinceCity: city,
+  };
+}
+
 // PlacesAutocomplete
-const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
+const PlacesAutocomplete = ({
+  value,
+  onSelect,
+  onAddressTextChange,
+  error,
+  helperText,
+}) => {
   const [inputValue, setInputValue] = useState(value || "");
   const [suggestions, setSuggestions] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -25,6 +99,9 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
   const autocompleteService = useRef(null);
   const geocoder = useRef(null);
   const debounceRef = useRef(null);
+  const geocodeDebounceRef = useRef(null);
+  const geocodeRequestIdRef = useRef(0);
+  const inputValueRef = useRef(value || "");
 
   useEffect(() => {
     if (window.google && window.google.maps && window.google.maps.places) {
@@ -50,8 +127,29 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
   }, []);
 
   useEffect(() => {
-    setInputValue(value || "");
+    return () => {
+      if (geocodeDebounceRef.current) {
+        window.clearTimeout(geocodeDebounceRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const v = value || "";
+    setInputValue(v);
+    inputValueRef.current = v;
   }, [value]);
+
+  const runAddressGeocode = (trimmed) => {
+    if (!trimmed || !geocoder.current) return;
+    const myId = ++geocodeRequestIdRef.current;
+    geocoder.current.geocode({ address: trimmed }, (results, status) => {
+      if (myId !== geocodeRequestIdRef.current) return;
+      if (status !== "OK" || !results?.[0]) return;
+      if (inputValueRef.current.trim() !== trimmed) return;
+      onSelect(extractPlaceFromGeocoderResult(results[0]));
+    });
+  };
 
   const fetchPredictions = (query) => {
     if (!autocompleteService.current || !googleReady) {
@@ -79,9 +177,53 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
     );
   };
 
+  /**
+   * @param {string} v
+   * @param {{ geocodeMode?: 'debounce' | 'immediate' | 'none' }} opts
+   *   debounce — while typing / autofill input events
+   *   immediate — on blur (user left the field)
+   *   none — dropdown pick; caller runs placeId geocode
+   */
+  const pushAddressText = (v, opts = {}) => {
+    const geocodeMode = opts.geocodeMode ?? "debounce";
+    inputValueRef.current = v;
+    setInputValue(v);
+    onAddressTextChange?.(v);
+
+    if (geocodeMode === "none") {
+      if (geocodeDebounceRef.current) {
+        window.clearTimeout(geocodeDebounceRef.current);
+        geocodeDebounceRef.current = null;
+      }
+      geocodeRequestIdRef.current++;
+      return;
+    }
+
+    if (geocodeDebounceRef.current) {
+      window.clearTimeout(geocodeDebounceRef.current);
+      geocodeDebounceRef.current = null;
+    }
+
+    const trimmed = v.trim();
+    if (!trimmed) {
+      geocodeRequestIdRef.current++;
+      return;
+    }
+
+    if (geocodeMode === "immediate") {
+      runAddressGeocode(trimmed);
+      return;
+    }
+
+    geocodeDebounceRef.current = window.setTimeout(() => {
+      geocodeDebounceRef.current = null;
+      runAddressGeocode(trimmed);
+    }, 650);
+  };
+
   const handleChange = (e) => {
     const v = e.target.value;
-    setInputValue(v);
+    pushAddressText(v, { geocodeMode: "debounce" });
     setShowSuggestions(true);
     if (debounceRef.current) {
       window.clearTimeout(debounceRef.current);
@@ -97,7 +239,7 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
   };
 
   const handleSelect = (prediction) => {
-    setInputValue(prediction.description);
+    pushAddressText(prediction.description, { geocodeMode: "none" });
     setShowSuggestions(false);
     setSuggestions([]);
 
@@ -106,43 +248,9 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
       { placeId: prediction.place_id },
       (results, status) => {
         if (status === "OK" && results && results[0]) {
-          const place = results[0];
-          const loc = place.geometry.location;
-
-          // Extract postal code and city/province from address components
-          let postalCode = "";
-          let city = "";
-          let province = "";
-
-          console.log(place.address_components)
-
-          // console.log()
-
-          if (place.address_components) {
-            place.address_components.forEach((comp) => {
-              if (comp.types.includes("postal_code")) {
-                postalCode = comp.long_name;
-              }
-              if (comp.types.includes("locality")) {
-                city = comp.long_name;
-              }
-              if (
-                comp.types.includes("administrative_area_level_1") || // Province/State
-                comp.types.includes("administrative_area_level_2")
-              ) {
-                province = comp.long_name;
-              }
-            });
-          }
-
-          onSelect({
-            address: place.formatted_address,
-            latitude: loc.lat(),
-            longitude: loc.lng(),
-            placeId: prediction.place_id,
-            postalCode,
-            provinceCity: `${city}`,
-          });
+          onSelect(
+            extractPlaceFromGeocoderResult(results[0], prediction.place_id)
+          );
         }
       }
     );
@@ -157,12 +265,24 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
           size="small"
           value={inputValue}
           onChange={handleChange}
+          onBlur={(e) => {
+            // Browser autofill often skips React onChange; read committed DOM value
+            pushAddressText(e.target.value, { geocodeMode: "immediate" });
+            setShowSuggestions(false);
+          }}
           placeholder="Search for a location..."
           error={error}
           helperText={helperText}
           disabled={!googleReady}
           InputProps={{
             endAdornment: loading && <CircularProgress size={20} />,
+          }}
+          inputProps={{
+            name: BOOKING_INPUT.streetAddress,
+            autoComplete: "street-address",
+            // Autofill may not fire synthetic change; input event is more reliable
+            onInput: (e) =>
+              pushAddressText(e.target.value, { geocodeMode: "debounce" }),
           }}
         />
         {showSuggestions && suggestions.length > 0 && (
@@ -179,9 +299,8 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
             }}
           >
             {suggestions.map((s) => (
-              <ListItem
+              <ListItemButton
                 key={s.place_id}
-                button
                 onClick={() => handleSelect(s)}
               >
                 <LocationOn color="primary" sx={{ mr: 1 }} />
@@ -189,7 +308,7 @@ const PlacesAutocomplete = ({ value, onSelect, error, helperText }) => {
                   primary={s.structured_formatting.main_text}
                   secondary={s.structured_formatting.secondary_text}
                 />
-              </ListItem>
+              </ListItemButton>
             ))}
           </Paper>
         )}
@@ -204,6 +323,7 @@ export const UserInfoForm = ({ data, onUpdate, admin }) => {
 
   const [touched, setTouched] = useState({ phone: false, email: false });
   const [type_id, setTypeId] = useState('Residential');
+  const formRef = useRef(null);
 
   const { data: initialData } = useGetInitialDataQuery(type_id, {
     refetchOnMountOrArgChange: true,
@@ -218,12 +338,10 @@ useEffect(() => {
   setTypeId(newType === "residential" ? "Residential" : "Commercial");
 
   if (prevTypeRef.current && prevTypeRef.current !== newType) {
-    onUpdate({
-      userInfo: {
-        ...data.userInfo,
-        selectedHouseSize: null,
-      },
-    });
+    onUpdate((prev) => ({
+      ...prev,
+      userInfo: { ...prev.userInfo, selectedHouseSize: null },
+    }));
   }
 
   prevTypeRef.current = newType;
@@ -236,13 +354,46 @@ useEffect(() => {
     }
   }, [initialData]);
 
-  const handleChange = (field) => (event) => {
-    onUpdate({
-      userInfo: {
-        ...data.userInfo,
-        [field]: event.target.value,
-      },
+  /**
+   * Merge patch into userInfo using fresh DOM values when available.
+   * Chrome autofill fills many inputs in one tick but only fires change on one;
+   * reading the form here preserves phone/email/postal before React clears them.
+   */
+  const mergeUserInfoFromDomAndPatch = (patch) => {
+    onUpdate((prev) => {
+      const fromDom = collectBookingFieldsFromDom(formRef.current);
+      const u = {
+        ...prev.userInfo,
+        ...fromDom,
+        ...patch,
+      };
+      if (
+        typeof fromDom.address === "string" &&
+        fromDom.address !== prev.userInfo?.address
+      ) {
+        u.latitude = "";
+        u.longitude = "";
+        u.googlePlaceId = "";
+      }
+      return { ...prev, userInfo: u };
     });
+  };
+
+  const handleChange = (field) => (event) => {
+    mergeUserInfoFromDomAndPatch({ [field]: event.target.value });
+  };
+
+  const handleAddressTextChange = (text) => {
+    onUpdate((prev) => ({
+      ...prev,
+      userInfo: {
+        ...prev.userInfo,
+        address: text,
+        latitude: "",
+        longitude: "",
+        googlePlaceId: "",
+      },
+    }));
   };
 
   const handlePlaceSelect = (place) => {
@@ -258,17 +409,19 @@ useEffect(() => {
     }
 
     console.log(place.provinceCity, place.postalCode,'gg')
-    onUpdate({
+    onUpdate((prev) => ({
+      ...prev,
       userInfo: {
-        ...data.userInfo,
+        ...prev.userInfo,
         address: place.address,
         latitude: place.latitude,
         longitude: place.longitude,
         googlePlaceId: place.placeId,
         postalCode: place.postalCode || "",
-        selectedLocation: matchedLocationId || data.userInfo?.selectedLocation || "",
+        selectedLocation:
+          matchedLocationId || prev.userInfo?.selectedLocation || "",
       },
-    });
+    }));
   };
 
   return (
@@ -286,7 +439,14 @@ useEffect(() => {
         )}
         {!admin && 
         (
-          <>
+          <Box
+            component="form"
+            ref={formRef}
+            autoComplete="on"
+            noValidate
+            onSubmit={(e) => e.preventDefault()}
+            sx={{ display: "flex", flexDirection: "column", gap: 3 }}
+          >
             <Box
               sx={{
                 display: "grid",
@@ -299,6 +459,14 @@ useEffect(() => {
                 size="small"
                 value={data.userInfo?.firstName || ""}
                 onChange={handleChange("firstName")}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  mergeUserInfoFromDomAndPatch({ firstName: v });
+                }}
+                inputProps={{
+                  name: BOOKING_INPUT.firstName,
+                  autoComplete: "given-name",
+                }}
                 required={!admin}
               />
               <TextField
@@ -306,6 +474,14 @@ useEffect(() => {
                 size="small"
                 value={data.userInfo?.lastName || ""}
                 onChange={handleChange("lastName")}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  mergeUserInfoFromDomAndPatch({ lastName: v });
+                }}
+                inputProps={{
+                  name: BOOKING_INPUT.lastName,
+                  autoComplete: "family-name",
+                }}
                 required={!admin}
               />
             </Box>
@@ -321,6 +497,7 @@ useEffect(() => {
               <PlacesAutocomplete
                 value={data.userInfo?.address || ""}
                 onSelect={handlePlaceSelect}
+                onAddressTextChange={handleAddressTextChange}
                 error={false}
                 helperText="Start typing to search and select your address"
               />
@@ -354,6 +531,10 @@ useEffect(() => {
                 value={data.userInfo?.companyName || ""}
                 onChange={handleChange("companyName")}
                 size="small"
+                inputProps={{
+                  name: BOOKING_INPUT.companyName,
+                  autoComplete: "organization",
+                }}
               />
               <TextField
                 label="Postal Code"
@@ -361,6 +542,10 @@ useEffect(() => {
                 value={data.userInfo?.postalCode || ""}
                 onChange={handleChange("postalCode")}
                 required={!admin}
+                inputProps={{
+                  name: BOOKING_INPUT.postalCode,
+                  autoComplete: "postal-code",
+                }}
               />
             </Box>
 
@@ -377,8 +562,23 @@ useEffect(() => {
                 label="Primary Phone"
                 size="small"
                 value={data.userInfo?.phone || ""}
-                onChange={handleChange("phone")}
-                onBlur={() => setTouched((p) => ({ ...p, phone: true }))}
+                onChange={(e) => {
+                  const normalized = normalizePhoneDigits(e.target.value);
+                  mergeUserInfoFromDomAndPatch({ phone: normalized });
+                }}
+                onBlur={(e) => {
+                  setTouched((p) => ({ ...p, phone: true }));
+                  const normalized = normalizePhoneDigits(e.target.value);
+                  mergeUserInfoFromDomAndPatch({ phone: normalized });
+                }}
+                inputProps={{
+                  name: BOOKING_INPUT.phone,
+                  autoComplete: "tel",
+                  onInput: (e) => {
+                    const normalized = normalizePhoneDigits(e.target.value);
+                    mergeUserInfoFromDomAndPatch({ phone: normalized });
+                  },
+                }}
                 required={!admin}
                 error={
                   !admin && touched.phone &&
@@ -439,7 +639,18 @@ useEffect(() => {
                 label="Email Address"
                 value={data.userInfo?.email || ""}
                 onChange={handleChange("email")}
-                onBlur={() => setTouched((p) => ({ ...p, email: true }))}
+                onBlur={(e) => {
+                  setTouched((p) => ({ ...p, email: true }));
+                  const v = e.target.value.trim();
+                  mergeUserInfoFromDomAndPatch({ email: v });
+                }}
+                inputProps={{
+                  name: BOOKING_INPUT.email,
+                  autoComplete: "email",
+                  onInput: (e) => {
+                    mergeUserInfoFromDomAndPatch({ email: e.target.value });
+                  },
+                }}
                 required={!admin}
                 error={
                   !admin && touched.email &&
@@ -509,7 +720,7 @@ useEffect(() => {
               <MenuItem value="returning">Returning Customer</MenuItem>
               <MenuItem value="yellow-pages">Yellow Pages</MenuItem>
             </TextField>
-          </>
+          </Box>
       )}
 
         {/* Seventh row: Project Type (full width) */}

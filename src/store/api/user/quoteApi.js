@@ -186,6 +186,18 @@ export const quoteApi = createApi({
         'quote',
       ],
     }),
+    updateBidInPerson: builder.mutation({
+      query: ({ submissionId, is_bid_in_person }) => ({
+        url: `submissions/${submissionId}/bid-in-person/`,
+        method: 'PATCH',
+        data: { is_bid_in_person },
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        { type: 'Details' },
+        'quote',
+      ],
+    }),
   }),
 });
 
@@ -193,5 +205,5 @@ export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSub
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
   useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
   useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation, useGetQuoteImagesQuery, useUploadQuoteImageMutation, useDeleteQuoteImageMutation,
-  useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation
+  useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation
  } = quoteApi;

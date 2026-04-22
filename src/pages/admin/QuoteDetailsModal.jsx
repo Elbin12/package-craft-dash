@@ -30,6 +30,7 @@ import {
   Radio,
   RadioGroup,
   FormControlLabel,
+  Switch,
 } from "@mui/material"
 import {
   User,
@@ -55,7 +56,7 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react"
-import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation } from "../../store/api/user/quoteApi"
 import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
@@ -86,6 +87,9 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
   const [addNotes] = useAddNotesMutation();
   const [removeServiceFromSubmission] = useRemoveServiceFromSubmissionMutation();
+  const [updateBidInPerson, { isLoading: savingBidInPerson }] = useUpdateBidInPersonMutation();
+
+  const [localBidInPerson, setLocalBidInPerson] = useState(!!data?.is_bid_in_person);
 
   // Image management - images come from the quote details API response
   const [uploadQuoteImage] = useUploadQuoteImageMutation();
@@ -102,6 +106,47 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [updateQuoteSizeRange] = useUpdateQuoteSizeRangeMutation();
   
   const sizeRanges = initialData?.size_ranges || [];
+
+  useEffect(() => {
+    setLocalBidInPerson(!!data?.is_bid_in_person);
+  }, [data?.id, data?.is_bid_in_person]);
+
+  /** For approved quotes when turning bid in person OFF: each service must have a selected package (Services tab → Select). */
+  const approvedQuoteHasSelectedPackagePerService = (submission) => {
+    const selections = submission?.service_selections || [];
+    if (selections.length === 0) return false;
+    return selections.every((s) => (s.package_quotes || []).some((p) => p.is_selected));
+  };
+
+  const handleSaveBidInPerson = async () => {
+    if (localBidInPerson === data.is_bid_in_person) return;
+
+    // Submitted (and other non-approved) quotes: no package check.
+    // Approved quotes: only block when switching FROM bid-in-person TO package-based flow.
+    if (!localBidInPerson && data.status === "approved" && !approvedQuoteHasSelectedPackagePerService(data)) {
+      setSnackbar({
+        open: true,
+        message:
+          "For approved quotes, each service must have a selected package before bid in person can be turned off. Open the Services tab and use Select on one package per service.",
+        severity: "error",
+      });
+      return;
+    }
+
+    try {
+      await updateBidInPerson({
+        submissionId: data.id,
+        is_bid_in_person: localBidInPerson,
+      }).unwrap();
+      setSnackbar({ open: true, message: "Bid in person updated successfully", severity: "success" });
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.data?.detail || error?.data?.message || error?.message || "Failed to update bid in person",
+        severity: "error",
+      });
+    }
+  };
 
   const handleTabChange = (event, newValue) => {
     setTab(newValue)
@@ -409,23 +454,56 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
 
       <DialogContent dividers sx={{ maxHeight: "80vh" }}>
 
-      {data.is_bid_in_person && (
+      <Box sx={{ mb: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+        {localBidInPerson && (
+          <Alert severity="info" icon={<AlertCircle size={22} />}>
+            This quote is a <strong>bid in person</strong> job. The customer is shown your in-person bidding flow
+            (e.g. disclaimers and next steps) instead of selecting fixed package prices online, where your services are
+            configured that way.
+          </Alert>
+        )}
         <Box
           sx={{
             display: "flex",
-            justifyContent: "flex-end",
-            mb: 2
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 2,
+            p: 2,
+            border: "1px solid",
+            borderColor: localBidInPerson ? "warning.light" : "divider",
+            borderRadius: 1,
+            bgcolor: localBidInPerson ? "rgba(237, 108, 2, 0.06)" : "grey.50",
           }}
         >
-          <Chip
-            label="Bid In Person"
-            color="warning"
-            variant="outlined"
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
+            {localBidInPerson && (
+              <Chip label="Bid In Person" color="warning" variant="outlined" size="small" sx={{ fontWeight: 600 }} />
+            )}
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={localBidInPerson}
+                  onChange={(e) => setLocalBidInPerson(e.target.checked)}
+                  color="warning"
+                  disabled={savingBidInPerson}
+                />
+              }
+              label="Bid in person"
+            />
+          </Box>
+          <Button
+            variant="contained"
+            color={localBidInPerson ? "warning" : "primary"}
             size="small"
-            sx={{ fontWeight: 600 }}
-          />
+            disabled={localBidInPerson === data.is_bid_in_person || savingBidInPerson}
+            onClick={handleSaveBidInPerson}
+            startIcon={savingBidInPerson ? <CircularProgress size={16} color="inherit" /> : <Save size={16} />}
+          >
+            {savingBidInPerson ? "Saving..." : "Save bid in person"}
+          </Button>
         </Box>
-      )}
+      </Box>
 
         {/* Overview */}
         {tab === "overview" && (

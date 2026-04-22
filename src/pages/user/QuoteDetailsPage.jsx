@@ -39,6 +39,7 @@ import {
   Download,
   PictureAsPdf,
   Image as ImageIcon,
+  EventAvailable,
 } from '@mui/icons-material';
 import { useGetQuoteDetailsQuery } from '../../store/api/user/quoteApi';
 import { Info } from 'lucide-react';
@@ -64,6 +65,34 @@ const formatYesNo = (val) => {
   return 'N/A';
 };
 
+/** API *_time_raw values are UTC without a Z suffix; display in the given IANA timezone. */
+const formatUtcRawInTimeZone = (utcRaw, timeZone) => {
+  if (!utcRaw) return '—';
+  const trimmed = String(utcRaw).trim();
+  const iso = trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T');
+  const withZone =
+    iso.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(iso) ? iso : `${iso}Z`;
+  const d = new Date(withZone);
+  if (Number.isNaN(d.getTime())) return '—';
+  const opts = {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  };
+  try {
+    return new Intl.DateTimeFormat(undefined, {
+      ...opts,
+      timeZone: timeZone || 'UTC',
+    }).format(d);
+  } catch {
+    return new Intl.DateTimeFormat(undefined, { ...opts, timeZone: 'UTC' }).format(d);
+  }
+};
+
 const QuoteDetailsPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -81,7 +110,11 @@ const QuoteDetailsPage = () => {
     refetchOnReconnect: true,
   });
 
+  // Show scheduler until an appointment exists; API often sends book:false before a booking is made.
+  const showBookingIframe = quote?.calendar_booking?.booked !== true;
+
   const sigCanvas = useRef();
+
   useEffect(() => {
     if (quote?.service_selections) {
       const allExpanded = {};
@@ -92,6 +125,16 @@ const QuoteDetailsPage = () => {
     }
   }, [quote]);
 
+  useEffect(() => {
+    if (!showBookingIframe) return;
+    const src = 'https://app.cleanonthego.com/js/form_embed.js';
+    if (document.querySelector(`script[src="${src}"]`)) return;
+    const script = document.createElement('script');
+    script.src = src;
+    script.type = 'text/javascript';
+    script.async = true;
+    document.body.appendChild(script);
+  }, [showBookingIframe]);
 
   const toggleServiceExpansion = (serviceId) => {
     setExpandedServices((prev) => ({
@@ -159,8 +202,12 @@ const QuoteDetailsPage = () => {
     addons,
     total_addons_price,
     is_bid_in_person,
-    bid_notes_public
+    bid_notes_public,
+    calendar_booking,
   } = quote;
+
+  const showBookingConfirmed =
+    calendar_booking?.booked === true && calendar_booking;
 
   const formatPrice = (price) => {
     const numPrice = typeof price === "string" ? Number.parseFloat(price) : price;
@@ -309,7 +356,7 @@ const QuoteDetailsPage = () => {
                   : { xs: "1fr", lg: "2fr 1fr" }
               } gap={6}>
             {/* Left column */}
-            <Box display="flex" flexDirection="column" gap={2}>
+            <Box display="flex" flexDirection="column" gap={2} sx={{ minWidth: 0 }}>
               {/* Customer Info */}
               <Card>
                 <CardContent sx={{ p: 3 }}>
@@ -388,6 +435,66 @@ const QuoteDetailsPage = () => {
                   </Grid>
                 </CardContent>
               </Card>
+
+              {showBookingIframe && (
+                <Card sx={{ overflow: 'visible' }}>
+                  <CardContent sx={{ p: 0, overflow: 'visible' }}>
+                    <iframe
+                      src="https://app.cleanonthego.com/widget/booking/nFPpBgGvhOQOiXqHj9hd"
+                      title="Book a cleaning"
+                      id="nFPpBgGvhOQOiXqHj9hd"
+                      style={{
+                        width: '100%',
+                        minHeight: 'min(85vh, 1100px)',
+                        border: 'none',
+                        display: 'block',
+                        verticalAlign: 'top',
+                      }}
+                    />
+                  </CardContent>
+                </Card>
+              )}
+
+              {showBookingConfirmed && (
+                <Card>
+                  <CardContent sx={{ p: 3 }}>
+                    <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 2 }}>
+                      <EventAvailable sx={{ color: 'success.main', fontSize: 28 }} />
+                      <Typography variant="h6" fontWeight={600} sx={{ color: '#023c8f' }}>
+                        Appointment scheduled
+                      </Typography>
+                    </Stack>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                      Your booking is confirmed for the times below (
+                      {calendar_booking.timezone || 'local time'}).
+                    </Typography>
+                    <Grid container spacing={2}>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          Start
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {formatUtcRawInTimeZone(
+                            calendar_booking.start_time_raw,
+                            calendar_booking.timezone
+                          )}
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="caption" color="text.secondary">
+                          End
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 500 }}>
+                          {formatUtcRawInTimeZone(
+                            calendar_booking.end_time_raw,
+                            calendar_booking.timezone
+                          )}
+                        </Typography>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              )}
               
               {status === "declined" && (
                 <Card

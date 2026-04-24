@@ -61,6 +61,25 @@ export const servicesApi = createApi({
       },
       invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
     }),
+    uploadServiceIcon: builder.mutation({
+      query: ({ id, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `${id}/icon/upload/`,
+          method: 'POST',
+          data: formData,
+        };
+      },
+      invalidatesTags: ['Service'],
+    }),
+    deleteServiceIcon: builder.mutation({
+      query: (id) => ({
+        url: `${id}/icon/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Service'],
+    }),
     deleteService: builder.mutation({
       query: (id) => ({
         url: `${id}/`,
@@ -108,4 +127,6 @@ export const {
   useAutoMapPackagesMutation,
   useGetBasePricesQuery,
   useEditServiceMutation,
+  useUploadServiceIconMutation,
+  useDeleteServiceIconMutation,
 } = servicesApi;

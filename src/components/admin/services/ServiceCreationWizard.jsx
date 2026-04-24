@@ -96,6 +96,9 @@ export const ServiceCreationWizard = ({
         is_enable_dollar_minimum: editData?.is_enable_dollar_minimum || false,
         is_residential: editData?.is_residential,
         is_commercial: editData?.is_commercial,
+        icon: editData.icon,
+        iconFile: null,
+        iconRemoved: false,
       });
       setSavedSteps({
         0: true,
@@ -112,6 +115,9 @@ export const ServiceCreationWizard = ({
         features: [],
         questions: [],
         pricing: {},
+        icon: undefined,
+        iconFile: null,
+        iconRemoved: false,
       });
       setSavedSteps({
         0: false,
@@ -183,9 +189,45 @@ export const ServiceCreationWizard = ({
               is_commercial: serviceData.is_commercial || false,
               is_residential: serviceData.is_residential || false,
             };
-            
+
+            const hasIconUpload = Boolean(serviceData.iconFile);
+            const hadServerIcon = Boolean(
+              (editData && editData.icon) || serviceData.icon
+            );
+            const useMultipart =
+              hasIconUpload ||
+              (Boolean(serviceData.iconRemoved) && hadServerIcon);
+
             let result;
-            if (editData) {
+            if (useMultipart) {
+              const formData = new FormData();
+              formData.append('name', servicePayload.name);
+              formData.append('description', servicePayload.description || '');
+              formData.append('is_commercial', servicePayload.is_commercial);
+              formData.append('is_residential', servicePayload.is_residential);
+              if (serviceData.iconFile) {
+                formData.append('icon', serviceData.iconFile);
+              } else if (serviceData.iconRemoved && hadServerIcon) {
+                formData.append('icon_clear', 'true');
+              }
+              if (editData) {
+                result = await updateService({ id: editData.id, formData }).unwrap();
+                dispatch(
+                  servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
+                    const index = draft.findIndex((item) => item.id === serviceData.id);
+                    if (index !== -1) {
+                      draft[index] = {
+                        ...draft[index],
+                        ...result,
+                      };
+                    }
+                  })
+                );
+              } else {
+                result = await createService(formData).unwrap();
+                dispatch(setEditingService(result));
+              }
+            } else if (editData) {
               result = await updateService({ id: editData.id, ...servicePayload }).unwrap();
               dispatch(
                 servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
@@ -197,10 +239,16 @@ export const ServiceCreationWizard = ({
               );
             } else {
               result = await createService(servicePayload).unwrap();
-              dispatch(setEditingService(result))
+              dispatch(setEditingService(result));
             }
-            
-            setServiceData((prev) => ({ ...prev, id: result.id }));
+
+            setServiceData((prev) => ({
+              ...prev,
+              id: result.id,
+              icon: result.icon,
+              iconFile: null,
+              iconRemoved: false,
+            }));
             setSavedSteps((prev) => ({ ...prev, 0: true }));
           }
           break;
@@ -283,6 +331,9 @@ export const ServiceCreationWizard = ({
       packages: [],
       questions: [],
       pricing: {},
+      icon: undefined,
+      iconFile: null,
+      iconRemoved: false,
     });
     setSavedSteps({
       0: false,
@@ -297,6 +348,41 @@ export const ServiceCreationWizard = ({
     setServiceData((prev) => ({ ...prev, ...stepData }));
   };
 
+  const persistServiceIcon = async (file) => {
+    const serviceId = serviceData?.id;
+    if (!serviceId) {
+      return null;
+    }
+    const formData = new FormData();
+    if (file) {
+      formData.append('icon', file);
+    } else {
+      if (!serviceData?.icon) {
+        return null;
+      }
+      formData.append('icon_clear', 'true');
+    }
+    const result = await updateService({ id: serviceId, formData }).unwrap();
+    setServiceData((prev) => ({
+      ...prev,
+      icon: result.icon,
+      iconFile: null,
+      iconRemoved: false,
+    }));
+    dispatch(
+      servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
+        const index = draft.findIndex((s) => s.id === serviceId);
+        if (index !== -1) {
+          draft[index] = { ...draft[index], ...result };
+        }
+      }),
+    );
+    if (editData) {
+      dispatch(setEditingService({ ...editData, ...result }));
+    }
+    return result;
+  };
+
   console.log(serviceData, 'serviceData in wizard')
 
   const getStepContent = (step) => {
@@ -307,6 +393,7 @@ export const ServiceCreationWizard = ({
             data={serviceData}
             onUpdate={updateServiceData}
             setSavedSteps={setSavedSteps}
+            onPersistServiceIcon={persistServiceIcon}
           />
         );
       case 1:

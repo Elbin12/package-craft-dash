@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   Box,
@@ -21,7 +21,8 @@ import {
   DialogActions,
   DialogContentText,
   CircularProgress,
-  Switch
+  Switch,
+  Avatar,
 } from '@mui/material';
 import {
   Add,
@@ -29,6 +30,8 @@ import {
   Delete,
   DragIndicator,
 } from '@mui/icons-material';
+import ImageIcon from '@mui/icons-material/Image';
+import { BASE_URL } from '../../store/axios/axios';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { ServiceCreationWizard } from '../../components/admin/services/ServiceCreationWizard.jsx';
 import { 
@@ -45,6 +48,57 @@ import {
   setServiceToDelete,
   clearEditingService,
 } from '../../store/slices/servicesSlice';
+
+/** Match ServiceDetailsForm: support absolute URLs and API-relative media paths. */
+function resolveServiceIconUrl(path) {
+  if (!path) return null;
+  const s = String(path);
+  if (s.startsWith('http')) return s;
+  const base = BASE_URL.replace(/\/api\/?$/, '');
+  return `${base}${s.startsWith('/') ? '' : '/'}${s}`;
+}
+
+const ServiceNameWithIcon = ({ name, icon }) => {
+  const [imgFailed, setImgFailed] = useState(false);
+  const src = useMemo(() => resolveServiceIconUrl(icon), [icon]);
+
+  useEffect(() => {
+    setImgFailed(false);
+  }, [icon]);
+
+  const showImage = Boolean(src) && !imgFailed;
+
+  return (
+    <Box
+      display="flex"
+      alignItems="center"
+      gap={1.5}
+      sx={{ minWidth: 0 }}
+    >
+      <Avatar
+        variant="rounded"
+        src={showImage ? src : undefined}
+        alt=""
+        imgProps={showImage ? { onError: () => setImgFailed(true) } : undefined}
+        sx={{
+          width: 40,
+          height: 40,
+          flexShrink: 0,
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'action.hover',
+        }}
+      >
+        {!showImage ? (
+          <ImageIcon sx={{ fontSize: 22, color: 'text.disabled' }} />
+        ) : null}
+      </Avatar>
+      <Typography variant="subtitle2" fontWeight="bold" noWrap title={name}>
+        {name}
+      </Typography>
+    </Box>
+  );
+};
 
 const ServicesManagement = () => {
   const dispatch = useDispatch();
@@ -285,10 +339,8 @@ const ServicesManagement = () => {
                                   }} 
                                 />
                               </TableCell>
-                              <TableCell>
-                                <Typography variant="subtitle2" fontWeight="bold">
-                                  {service.name}
-                                </Typography>
+                              <TableCell sx={{ maxWidth: 280 }}>
+                                <ServiceNameWithIcon name={service.name} icon={service.icon} />
                               </TableCell>
                               <TableCell>
                                 <Typography variant="body2" color="text.secondary">

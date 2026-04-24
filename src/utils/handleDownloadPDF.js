@@ -133,9 +133,8 @@ export const handleDownloadPDF = async (setIsGeneratingPDF, quote) => {
           return response.yes_no_answer ? "Yes" : "No";
         case "multiple_yes_no":
           return response.sub_question_responses
-            ?.filter((sub) => sub.answer)
-            .map((sub) => sub.sub_question_text)
-            .join(", ") || "None selected";
+            ?.map((sub) => `${sub.sub_question_text} (${sub.answer ? "Yes" : "No"})`)
+            .join(", ") || "N/A";
         case "quantity":
           return response.option_responses?.map((opt) => `${opt.option_text}: ${opt.quantity}`).join(", ") || "N/A";
         case "describe":

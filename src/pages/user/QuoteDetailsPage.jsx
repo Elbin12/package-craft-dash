@@ -223,13 +223,37 @@ const QuoteDetailsPage = () => {
       case "yes_no":
       case "conditional":
         return response.yes_no_answer ? "Yes" : "No";
-      case "multiple_yes_no":
+      case "multiple_yes_no": {
+        const subs = response.sub_question_responses;
+        if (!subs?.length) return "N/A";
         return (
-          response.sub_question_responses
-            .filter((sub) => sub.answer)
-            .map((sub) => sub.sub_question_text)
-            .join(", ") || "None selected"
+          <Box sx={{ mt: 0.5 }}>
+            {subs.map((sub, idx) => (
+              <Box
+                key={sub.id ?? idx}
+                sx={{
+                  mb: idx < subs.length - 1 ? 0.75 : 0,
+                  pl: 1,
+                  borderLeft: "3px solid #023c8f",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  sx={{
+                    color: "#023c8f",
+                    fontSize: { xs: "0.75rem", sm: "0.85rem", md: "0.95rem" },
+                  }}
+                >
+                  {sub.sub_question_text}
+                  <Box component="span" sx={{ fontWeight: 700, ml: 0.75 }}>
+                    {sub.answer ? "Yes" : "No"}
+                  </Box>
+                </Typography>
+              </Box>
+            ))}
+          </Box>
         );
+      }
       case "quantity":
         return response.option_responses.map((opt) => `${opt.option_text}: ${opt.quantity}`).join(", ");
       case "describe":

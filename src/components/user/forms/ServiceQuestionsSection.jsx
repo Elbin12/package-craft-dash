@@ -6,8 +6,6 @@ export const ServiceQuestionsSection = ({
     service,
     data,
     onUpdate,
-    expandedService,
-    setExpandedService,
     normalizeQuestion,
     renderQuestion,
     getAllQuestionsFlattened,
@@ -45,20 +43,15 @@ export const ServiceQuestionsSection = ({
     .map((q) => normalizeQuestion(q))
 
   
-    const isExpanded = expandedService === service.id
-  
     return (
       <Accordion
+        defaultExpanded
         sx={{
           border: '1px solid #ddd',
           borderRadius: '8px !important',
           '&:before': { display: 'none' },
           boxShadow: 'none',
         }}
-        expanded={isExpanded}
-        onChange={(e, expanded) =>
-          setExpandedService(expanded ? service.id : null)
-        }
       >
         <AccordionSummary 
           expandIcon={<ExpandMore sx={{ color: 'white' }} />}

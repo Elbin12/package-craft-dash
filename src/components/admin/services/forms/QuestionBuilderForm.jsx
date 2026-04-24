@@ -23,7 +23,8 @@ import {
   Tooltip,
   ClickAwayListener,
 } from "@mui/material"
-import { Add, Block, Delete, Edit, Restore, Save, Image as ImageIcon, Close } from "@mui/icons-material"
+import { Add, Block, Delete, Edit, Restore, Save, Image as ImageIcon, Close, DragIndicator } from "@mui/icons-material"
+import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
 import {
   useCreateQuestionMutation,
   useDeleteQuestionMutation,
@@ -1006,6 +1007,58 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
   const confirmHardDelete = (question) => {
     setSelectedQuestion(question)
     setOpenConfirmModal(true)
+  }
+
+  const sortQuestionsByOrder = (list) =>
+    [...(list || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+
+  const handleQuestionsDragEnd = async (result) => {
+    if (!result.destination || !data.id) return
+
+    const sourceIndex = result.source.index
+    const destinationIndex = result.destination.index
+
+    if (sourceIndex === destinationIndex) return
+
+    const sortedBefore = sortQuestionsByOrder(questions)
+    const previousQuestions = sortedBefore.map((q) => ({ ...q }))
+
+    const reordered = Array.from(sortedBefore)
+    const [moved] = reordered.splice(sourceIndex, 1)
+    reordered.splice(destinationIndex, 0, moved)
+
+    const withNewOrders = reordered.map((q, i) => ({ ...q, order: i + 1 }))
+
+    setQuestions(withNewOrders)
+    onUpdate({ questions: withNewOrders })
+
+    try {
+      await Promise.all(
+        withNewOrders.map((q, index) => {
+          const newOrder = index + 1
+          const prev = previousQuestions.find((p) => p.id === q.id)
+          if (prev && prev.order === newOrder) {
+            return Promise.resolve()
+          }
+          return updateQuestion({
+            formData: {
+              id: q.id,
+              question_text: q.question_text,
+              question_type: q.question_type,
+              order: newOrder,
+              service: data.id,
+            },
+          }).unwrap()
+        }),
+      )
+    } catch (err) {
+      console.error("Failed to reorder questions:", err)
+      setQuestions(previousQuestions)
+      onUpdate({ questions: previousQuestions })
+      setErrors({
+        general: err?.data?.message || err?.data?.detail || "Failed to update question order. Please try again.",
+      })
+    }
   }
 
   const updateExistingQuestion = async (question) => {
@@ -2215,7 +2268,8 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
         Question Builder
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Create questions that will be used for dynamic pricing calculations.
+        Create questions that will be used for dynamic pricing calculations. Drag by the grip icon to reorder,
+        like services on the Services page.
       </Typography>
 
       {errors.general && (
@@ -2240,11 +2294,43 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
       {questions.length === 0 ? (
         <Typography color="text.secondary">No questions created yet.</Typography>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {questions.map((question) => (
-            <Card key={question.id}>
+        <DragDropContext onDragEnd={handleQuestionsDragEnd}>
+          <Droppable droppableId="service-questions-builder">
+            {(droppableProvided) => (
+              <Box
+                ref={droppableProvided.innerRef}
+                {...droppableProvided.droppableProps}
+                sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+              >
+                {sortQuestionsByOrder(questions).map((question, index) => (
+                  <Draggable key={question.id} draggableId={String(question.id)} index={index}>
+                    {(provided, snapshot) => (
+                      <Box
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        sx={{
+                          ...(snapshot.isDragging ? { opacity: 0.9 } : {}),
+                        }}
+                      >
+                        <Card
+                          sx={{
+                            boxShadow: snapshot.isDragging ? 6 : undefined,
+                          }}
+                        >
               <CardContent>
                 <Box display="flex" justifyContent="space-between" alignItems="start">
+                  <Box
+                    {...provided.dragHandleProps}
+                    sx={{
+                      pt: 0.5,
+                      cursor: "grab",
+                      color: "text.secondary",
+                      flexShrink: 0,
+                      "&:active": { cursor: "grabbing" },
+                    }}
+                  >
+                    <DragIndicator />
+                  </Box>
                   <Box sx={{ flex: 1 }}>
                     {editingQuestionId === question.id ? (
                       <TextField
@@ -2575,9 +2661,16 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
                   </Box>
                 </Box>
               </CardContent>
-            </Card>
-          ))}
-        </Box>
+                        </Card>
+                      </Box>
+                    )}
+                  </Draggable>
+                ))}
+                {droppableProvided.placeholder}
+              </Box>
+            )}
+          </Droppable>
+        </DragDropContext>
       )}
 
       {/* Confirm Delete Dialog */}

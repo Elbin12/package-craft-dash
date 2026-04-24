@@ -1,6 +1,5 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import {
   Box,
   Typography,
@@ -11,31 +10,15 @@ import {
   CircularProgress,
   TextField,
   Checkbox,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Alert,
   Button,
 } from "@mui/material"
-import { ExpandMore } from "@mui/icons-material"
-import { useGetServiceQuestionsQuery } from "../../../store/api/user/quoteApi"
 import {ServiceQuestionsSection} from "./ServiceQuestionsSection"
 
 export const QuestionsForm = ({ data, onUpdate }) => {
-  const [expandedService, setExpandedService] = useState(null)
-
   const selectedServices = data?.selectedServices || []
 
   console.log(data, 'allServiceQuestionsState')
-
-  const handleRefresh = () => {
-    setForceRefresh((prev) => prev + 1)
-    serviceQueries.forEach((query) => {
-      if (query.refetch) {
-        query.refetch()
-      }
-    })
-  }
 
   const normalizeQuestion = (question) => {
     const normalized = {
@@ -756,13 +739,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
     }
   }
 
-  const handleAccordionChange = (serviceId) => (event, isExpanded) => {
-    setExpandedService(isExpanded ? serviceId : null)
-  }
-
-  // Debug log
-  // console.log('Current question answers:', data.questionAnswers)
-
   return (
     <Box>
       <Typography
@@ -794,8 +770,6 @@ export const QuestionsForm = ({ data, onUpdate }) => {
             service={service}
             data={data}
             onUpdate={onUpdate}
-            expandedService={expandedService}
-            setExpandedService={setExpandedService}
             normalizeQuestion={normalizeQuestion}
             renderQuestion={renderQuestion}
             getAllQuestionsFlattened={getAllQuestionsFlattened}

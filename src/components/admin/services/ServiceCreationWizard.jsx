@@ -27,7 +27,9 @@ import {
   useCreateServiceMutation, 
   useCreateServiceSettingsMutation, 
   useUpdateServiceMutation, 
-  useUpdateServiceSettingsMutation
+  useUpdateServiceSettingsMutation,
+  useUploadServiceIconMutation,
+  useDeleteServiceIconMutation,
 } from '../../../store/api/servicesApi';
 import { useCreatePackageMutation } from '../../../store/api/packagesApi';
 import { useCreateFeatureMutation } from '../../../store/api/featuresApi';
@@ -71,6 +73,8 @@ export const ServiceCreationWizard = ({
 
   const [createService] = useCreateServiceMutation();
   const [updateService] = useUpdateServiceMutation();
+  const [uploadServiceIcon] = useUploadServiceIconMutation();
+  const [deleteServiceIcon] = useDeleteServiceIconMutation();
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [createQuestion] = useCreateQuestionMutation();
@@ -190,44 +194,12 @@ export const ServiceCreationWizard = ({
               is_residential: serviceData.is_residential || false,
             };
 
-            const hasIconUpload = Boolean(serviceData.iconFile);
-            const hadServerIcon = Boolean(
-              (editData && editData.icon) || serviceData.icon
+            const hadGhlIcon = Boolean(
+              (editData && editData.icon) || serviceData.icon,
             );
-            const useMultipart =
-              hasIconUpload ||
-              (Boolean(serviceData.iconRemoved) && hadServerIcon);
 
             let result;
-            if (useMultipart) {
-              const formData = new FormData();
-              formData.append('name', servicePayload.name);
-              formData.append('description', servicePayload.description || '');
-              formData.append('is_commercial', servicePayload.is_commercial);
-              formData.append('is_residential', servicePayload.is_residential);
-              if (serviceData.iconFile) {
-                formData.append('icon', serviceData.iconFile);
-              } else if (serviceData.iconRemoved && hadServerIcon) {
-                formData.append('icon_clear', 'true');
-              }
-              if (editData) {
-                result = await updateService({ id: editData.id, formData }).unwrap();
-                dispatch(
-                  servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
-                    const index = draft.findIndex((item) => item.id === serviceData.id);
-                    if (index !== -1) {
-                      draft[index] = {
-                        ...draft[index],
-                        ...result,
-                      };
-                    }
-                  })
-                );
-              } else {
-                result = await createService(formData).unwrap();
-                dispatch(setEditingService(result));
-              }
-            } else if (editData) {
+            if (editData) {
               result = await updateService({ id: editData.id, ...servicePayload }).unwrap();
               dispatch(
                 servicesApi.util.updateQueryData('getServices', undefined, (draft) => {
@@ -235,11 +207,19 @@ export const ServiceCreationWizard = ({
                   if (index !== -1) {
                     draft[index] = result;
                   }
-                })
+                }),
               );
             } else {
               result = await createService(servicePayload).unwrap();
-              dispatch(setEditingService(result));
+            }
+
+            if (serviceData.iconFile) {
+              result = await uploadServiceIcon({
+                id: result.id,
+                file: serviceData.iconFile,
+              }).unwrap();
+            } else if (serviceData.iconRemoved && hadGhlIcon) {
+              result = await deleteServiceIcon(result.id).unwrap();
             }
 
             setServiceData((prev) => ({
@@ -249,6 +229,7 @@ export const ServiceCreationWizard = ({
               iconFile: null,
               iconRemoved: false,
             }));
+            dispatch(setEditingService(editData ? { ...editData, ...result } : result));
             setSavedSteps((prev) => ({ ...prev, 0: true }));
           }
           break;
@@ -353,16 +334,15 @@ export const ServiceCreationWizard = ({
     if (!serviceId) {
       return null;
     }
-    const formData = new FormData();
+    let result;
     if (file) {
-      formData.append('icon', file);
+      result = await uploadServiceIcon({ id: serviceId, file }).unwrap();
     } else {
       if (!serviceData?.icon) {
         return null;
       }
-      formData.append('icon_clear', 'true');
+      result = await deleteServiceIcon(serviceId).unwrap();
     }
-    const result = await updateService({ id: serviceId, formData }).unwrap();
     setServiceData((prev) => ({
       ...prev,
       icon: result.icon,

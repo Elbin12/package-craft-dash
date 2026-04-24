@@ -1,8 +1,47 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import axios from "axios";
 import { useGetServicesQuery } from "../../../store/api/user/priceApi";
+import { BASE_URL } from "../../../store/axios/axios";
+
+function resolveServiceImageUrl(service) {
+  const raw = service?.icon_url ?? service?.icon;
+  if (!raw) return null;
+  const s = String(raw);
+  if (s.startsWith("http")) return s;
+  const base = BASE_URL.replace(/\/api\/?$/, "");
+  return `${base}${s.startsWith("/") ? "" : "/"}${s}`;
+}
+
+function ServiceCardIcon({ service }) {
+  const [failed, setFailed] = useState(false);
+  const url = useMemo(
+    () => resolveServiceImageUrl(service),
+    [service?.icon_url, service?.icon, service?.id]
+  );
+
+  useEffect(() => {
+    setFailed(false);
+  }, [url]);
+
+  if (!url || failed) {
+    return (
+      <div
+        className="h-10 w-10 shrink-0 rounded-md border border-slate-200 bg-slate-100"
+        aria-hidden
+      />
+    );
+  }
+
+  return (
+    <img
+      src={url}
+      alt=""
+      className="h-10 w-10 shrink-0 rounded-md border border-slate-200 object-cover bg-white"
+      onError={() => setFailed(true)}
+    />
+  );
+}
 
 const MultiServiceSelectionForm = ({ data, onUpdate }) => {
   const { projectType } = data?.userInfo || {}
@@ -70,11 +109,11 @@ const MultiServiceSelectionForm = ({ data, onUpdate }) => {
               className={`cursor-pointer ${checked ? "border-blue-500 bg-blue-50" : ""}`}
               onClick={() => toggleService(service)}
             >
-              <CardContent className="flex items-center space-x-3 px-5 py-2">
+              <CardContent className="flex items-center gap-3 px-5 py-3">
                 <Checkbox checked={checked} onChange={() => toggleService(service)} />
-                <div>
-                  <p className="font-semibold">{service.name}</p>
-                  {/* <p className="text-sm text-gray-600">{service.description}</p> */}
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                  <ServiceCardIcon service={service} />
+                  <p className="min-w-0 flex-1 truncate font-semibold">{service.name}</p>
                 </div>
               </CardContent>
             </Card>

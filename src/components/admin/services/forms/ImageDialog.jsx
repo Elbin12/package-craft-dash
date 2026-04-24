@@ -8,16 +8,40 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
+  CircularProgress,
 } from "@mui/material"
 import { Close } from "@mui/icons-material"
 
-export const ImageDialog = ({ open, onClose, imageUrl, onImageChange, title }) => {
+const runOnImageChange = (cb, value) => {
+  if (!cb) return Promise.resolve()
+  const out = cb(value)
+  return out && typeof out.then === "function" ? out : Promise.resolve()
+}
+
+export const ImageDialog = ({
+  open,
+  onClose,
+  imageUrl,
+  onImageChange,
+  title,
+  accept = "image/jpeg,image/png,image/gif,image/webp,image/svg+xml,.svg",
+}) => {
   const [selectedFile, setSelectedFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(imageUrl)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
 
   useEffect(() => {
     setPreviewUrl(imageUrl)
   }, [imageUrl])
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedFile(null)
+      setSaveError(null)
+    }
+  }, [open])
 
   const handleFileSelect = (event) => {
     const file = event.target.files?.[0]
@@ -31,21 +55,76 @@ export const ImageDialog = ({ open, onClose, imageUrl, onImageChange, title }) =
     }
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    if (!onImageChange) {
+      onClose()
+      return
+    }
+    setSaveError(null)
     if (selectedFile) {
-      onImageChange(selectedFile)
-    } else if (!imageUrl) {
-      // If no image was selected and there was no initial image, clear it
-      onImageChange(null)
+      setSaving(true)
+      try {
+        await runOnImageChange(onImageChange, selectedFile)
+        onClose()
+      } catch (e) {
+        setSaveError(
+          e?.data?.detail ||
+            e?.data?.message ||
+            (typeof e?.data === "string" ? e.data : null) ||
+            e?.message ||
+            "Save failed. Please try again.",
+        )
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+    if (!imageUrl) {
+      setSaving(true)
+      try {
+        await runOnImageChange(onImageChange, null)
+        onClose()
+      } catch (e) {
+        setSaveError(
+          e?.data?.detail ||
+            e?.data?.message ||
+            (typeof e?.data === "string" ? e.data : null) ||
+            e?.message ||
+            "Save failed. Please try again.",
+        )
+      } finally {
+        setSaving(false)
+      }
+      return
     }
     onClose()
   }
 
-  const handleRemove = () => {
-    setSelectedFile(null)
-    setPreviewUrl(null)
-    onImageChange(null)
-    onClose()
+  const handleRemove = async () => {
+    if (!onImageChange) {
+      setSelectedFile(null)
+      setPreviewUrl(null)
+      onClose()
+      return
+    }
+    setSaveError(null)
+    setSaving(true)
+    try {
+      await runOnImageChange(onImageChange, null)
+      setSelectedFile(null)
+      setPreviewUrl(null)
+      onClose()
+    } catch (e) {
+      setSaveError(
+        e?.data?.detail ||
+          e?.data?.message ||
+          (typeof e?.data === "string" ? e.data : null) ||
+          e?.message ||
+          "Remove failed. Please try again.",
+      )
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -60,6 +139,11 @@ export const ImageDialog = ({ open, onClose, imageUrl, onImageChange, title }) =
       </DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, alignItems: "center" }}>
+          {saveError && (
+            <Alert severity="error" sx={{ width: "100%" }} onClose={() => setSaveError(null)}>
+              {saveError}
+            </Alert>
+          )}
           {previewUrl ? (
             <Box
               component="img"
@@ -92,19 +176,26 @@ export const ImageDialog = ({ open, onClose, imageUrl, onImageChange, title }) =
 
           <Button variant="outlined" component="label" fullWidth>
             {previewUrl ? "Change Image" : "Upload Image"}
-            <input type="file" hidden accept="image/*" onChange={handleFileSelect} />
+            <input type="file" hidden accept={accept} onChange={handleFileSelect} />
           </Button>
         </Box>
       </DialogContent>
       <DialogActions>
         {previewUrl && (
-          <Button onClick={handleRemove} color="error">
+          <Button onClick={handleRemove} color="error" disabled={saving}>
             Remove Image
           </Button>
         )}
-        <Button onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" disabled={!selectedFile && !previewUrl}>
-          Save
+        <Button onClick={onClose} disabled={saving}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleSave}
+          variant="contained"
+          disabled={saving || (!selectedFile && !previewUrl)}
+          startIcon={saving ? <CircularProgress size={16} color="inherit" /> : null}
+        >
+          {saving ? "Saving…" : "Save"}
         </Button>
       </DialogActions>
     </Dialog>

@@ -15,19 +15,21 @@ export const servicesApi = createApi({
       providesTags: (result, error, id) => [{ type: 'Service', id }],
     }),
     createService: builder.mutation({
-      query: (serviceData) => ({
+      query: (body) => ({
         url: '',
         method: 'POST',
-        data: serviceData,
+        data: body,
       }),
       invalidatesTags: ['Service'],
     }),
     updateService: builder.mutation({
-      query: ({ id, ...serviceData }) => ({
-        url: `${id}/`,
-        method: 'PATCH',
-        data: serviceData,
-      }),
+      query: (requestPayload) => {
+        const { id, formData, ...jsonBody } = requestPayload;
+        if (formData) {
+          return { url: `${id}/`, method: 'PATCH', data: formData };
+        }
+        return { url: `${id}/`, method: 'PATCH', data: jsonBody };
+      },
       async onQueryStarted({ id, ...patch }, { dispatch, queryFulfilled }) {
         try {
           const { data: updatedService } = await queryFulfilled;
@@ -50,11 +52,13 @@ export const servicesApi = createApi({
       },
     }),
     EditService: builder.mutation({
-      query: ({ id, ...serviceData }) => ({
-        url: `${id}/`,
-        method: 'PATCH',
-        data: serviceData,
-      }),
+      query: (requestPayload) => {
+        const { id, formData, ...jsonBody } = requestPayload;
+        if (formData) {
+          return { url: `${id}/`, method: 'PATCH', data: formData };
+        }
+        return { url: `${id}/`, method: 'PATCH', data: jsonBody };
+      },
       invalidatesTags: (result, error, { id }) => [{ type: 'Service', id }],
     }),
     deleteService: builder.mutation({

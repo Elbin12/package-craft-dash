@@ -28,6 +28,7 @@ import Dashboard from './pages/admin/Dashboard.jsx';
 import LeadSourceAnalytics from './pages/admin/LeadSourceAnalytics.jsx';
 import OnTheGoCalculator from './pages/admin/OnTheGoCalculator.jsx';
 import UsersManagement from './pages/admin/UsersManagement.jsx';
+import CallScreen from './pages/admin/CallScreen.jsx';
 
 // Create Material-UI theme that integrates with our design system
 const theme = createTheme({
@@ -94,6 +95,7 @@ function App() {
                   <Route path="/admin" element={<AdminProtectedRoute><AdminLayout><Dashboard /></AdminLayout></AdminProtectedRoute>} />
                   <Route path="/admin/reports" element={<AdminProtectedRoute><AdminLayout><LeadSourceAnalytics /></AdminLayout></AdminProtectedRoute>} />
                   <Route path="/admin/on-the-go-calculator" element={<AdminProtectedRoute><AdminLayout><OnTheGoCalculator /></AdminLayout></AdminProtectedRoute>} />
+                  <Route path="/admin/call-screen" element={<AdminProtectedRoute><AdminLayout><CallScreen /></AdminLayout></AdminProtectedRoute>} />
                   <Route path="/admin/users" element={<AdminProtectedRoute><AdminLayout><UsersManagement /></AdminLayout></AdminProtectedRoute>} />              
                   {/* Catch-all route */}
                   <Route path="*" element={<NotFound />} />

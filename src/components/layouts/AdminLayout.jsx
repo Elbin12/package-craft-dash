@@ -33,7 +33,7 @@ import {
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { Calculator, House, ListPlus } from 'lucide-react';
+import { Calculator, House, ListPlus, PhoneCall } from 'lucide-react';
 
 const drawerWidth = 280;
 
@@ -50,6 +50,7 @@ const allMenuItems = [
   { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services', permission: 'can_access_addon_service' },
   { text: 'Coupons', icon: DiscountOutlined , path: '/admin/coupons', permission: 'can_access_coupon' },
   { text: 'On the Go Calculator', icon: Calculator , path: '/admin/on-the-go-calculator', permission: 'can_access_on_the_go_calculator' },
+  { text: 'Call Screen', icon: PhoneCall , path: '/admin/call-screen', permission: 'can_access_on_the_go_calculator' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 

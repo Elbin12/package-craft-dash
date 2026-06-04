@@ -115,6 +115,19 @@ const QuoteDetailsPage = () => {
 
   const sigCanvas = useRef();
 
+  const firstName = quote?.first_name
+  const lastName = quote?.last_name
+  const phone = quote?.customer_phone
+  const email = quote?.customer_email
+
+  const params = new URLSearchParams()
+
+  if (firstName) params.append("first_name", firstName)
+  if (lastName) params.append("last_name", lastName)
+  if (phone) params.append("phone", phone)
+  if (email) params.append("email", email)
+  const paramsString = params.toString()
+
   useEffect(() => {
     if (quote?.service_selections) {
       const allExpanded = {};
@@ -464,7 +477,7 @@ const QuoteDetailsPage = () => {
                 <Card sx={{ overflow: 'visible' }}>
                   <CardContent sx={{ p: 0, overflow: 'visible' }}>
                     <iframe
-                      src="https://app.cleanonthego.com/widget/booking/2OtK2k2GgX6ol6iKzcmD"
+                      src={`https://app.cleanonthego.com/widget/booking/2OtK2k2GgX6ol6iKzcmD${paramsString ? `?${paramsString}` : ""}`}
                       title="Book a cleaning"
                       id="2OtK2k2GgX6ol6iKzcmD_1780425816190"
                       style={{
@@ -499,7 +512,7 @@ const QuoteDetailsPage = () => {
                         </Typography>
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                           {formatUtcRawInTimeZone(
-                            calendar_booking.start_time_raw,
+                            calendar_booking.start_time,
                             calendar_booking.timezone
                           )}
                         </Typography>
@@ -510,7 +523,7 @@ const QuoteDetailsPage = () => {
                         </Typography>
                         <Typography variant="body1" sx={{ fontWeight: 500 }}>
                           {formatUtcRawInTimeZone(
-                            calendar_booking.end_time_raw,
+                            calendar_booking.end_time,
                             calendar_booking.timezone
                           )}
                         </Typography>

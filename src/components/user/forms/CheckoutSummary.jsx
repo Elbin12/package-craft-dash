@@ -61,6 +61,7 @@ export const CheckoutSummary = ({
   const [isDeclineLoading, setIsDeclineLoading] = useState(false)
 
   const [addonQuantities, setAddonQuantities] = useState({})
+  const [addonError, setAddonError] = useState('')
 
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState(null)
@@ -98,14 +99,36 @@ export const CheckoutSummary = ({
     }
 
   }, [response]);
-  
+
+  const quoteData = useMemo(() => response, [response])
+
+  const serviceIdsKey = useMemo(
+    () => quoteData?.service_selections
+      ?.map((s) => s.service_details?.id)
+      .filter(Boolean)
+      .sort()
+      .join(',') ?? '',
+    [quoteData?.service_selections]
+  )
+
   const {
     data: addonsResponse,
     isLoading: addonsLoading,
     isError: addonsError,
-  } = useGetAddonsQuery()
+    refetch: refetchAddons,
+  } = useGetAddonsQuery(
+    { submission_id: data.submission_id },
+    {
+      skip: !data.submission_id,
+      refetchOnMountOrArgChange: true,
+    }
+  )
 
-  console.log(addonsResponse, 'response', addonsError)
+  useEffect(() => {
+    if (data.submission_id && serviceIdsKey) {
+      refetchAddons()
+    }
+  }, [data.submission_id, serviceIdsKey, refetchAddons])
 
   const [addAddonsToSubmission] = useAddAddonsMutation()
   const [removeAddonFromSubmission] = useDeleteAddonsMutation()
@@ -113,8 +136,25 @@ export const CheckoutSummary = ({
 
   const sigCanvasRef = useRef(null);
 
-  const quoteData = useMemo(() => response, [response])
   const addonsData = useMemo(() => addonsResponse || [], [addonsResponse])
+
+  const getAddonErrorMessage = (error) =>
+    error?.data?.error || 'Failed to update add-on. Please try again.'
+
+  const getAddonInfo = (addonId) => {
+    const catalogAddon = addonsData.find((a) => a.id === addonId)
+    if (catalogAddon) return catalogAddon
+
+    const submissionAddon = response?.addons?.find((a) => a.addon === addonId)
+    if (submissionAddon) {
+      return {
+        id: addonId,
+        name: submissionAddon.addon_name,
+        base_price: submissionAddon.addon_price,
+      }
+    }
+    return null
+  }
 
   // Expand all services by default
   useEffect(() => {
@@ -190,6 +230,7 @@ export const CheckoutSummary = ({
 
   const handleAddonQuantityChange = async (addonId, newQuantity) => {
     try {
+      setAddonError('')
       setAddonQuantities(prev => ({
         ...prev,
         [addonId]: newQuantity
@@ -205,6 +246,7 @@ export const CheckoutSummary = ({
       }).unwrap()
     } catch (error) {
       console.error('Error updating addon quantity:', error)
+      setAddonError(getAddonErrorMessage(error))
       setAddonQuantities(prev => ({
       ...prev,
       [addonId]: addonQuantities[addonId] || 1
@@ -214,8 +256,8 @@ export const CheckoutSummary = ({
 
   const handleAddonToggle = async (addonId, isSelected) => {
     try {
+      setAddonError('')
       if (isSelected) {
-        // Remove addon
         await removeAddonFromSubmission({
           submissionId: data.submission_id,
           addon_ids: [addonId]
@@ -227,7 +269,6 @@ export const CheckoutSummary = ({
           return newQuantities;
         });
       } else {
-        // Add addon
         await addAddonsToSubmission({
           submissionId: data.submission_id,
           addons: [
@@ -245,6 +286,7 @@ export const CheckoutSummary = ({
       }
     } catch (error) {
       console.error('Error toggling addon:', error)
+      setAddonError(getAddonErrorMessage(error))
     }
   }
 
@@ -427,7 +469,7 @@ export const CheckoutSummary = ({
 
   const calculateAddonsTotal = () => {
     return selectedAddons.reduce((total, addonId) => {
-      const addon = addonsData.find(addon => addon.id === addonId)
+      const addon = getAddonInfo(addonId)
       const quantity = addonQuantities[addonId] || 1
       return total + (addon ? Number.parseFloat(addon.base_price || 0) * quantity : 0)
     }, 0)
@@ -908,10 +950,14 @@ export const CheckoutSummary = ({
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 Enhance your service with these additional options
               </Typography>
+              {addonError && (
+                <Typography variant="body2" color="error" sx={{ mb: 2 }}>
+                  {addonError}
+                </Typography>
+              )}
               <Grid container spacing={2}>
                 {addonsData.map((addon) => {
                   const isSelected = selectedAddons.includes(addon.id)
-                  const selectedAddon = response?.addons?.find(a => a.id === addon.id)
                   const currentQuantity = addonQuantities[addon.id] || 1
                   return (
                     <Grid item xs={12} sm={6} md={4} key={addon.id} width={"100%"} sx={{flex: "1 1 500px"}}>
@@ -1258,7 +1304,7 @@ export const CheckoutSummary = ({
                   Add-ons
                 </Typography>
                 {selectedAddons.map((addonId) => {
-                  const addon = addonsData.find(a => a.id === addonId)
+                  const addon = getAddonInfo(addonId)
                   const quantity = addonQuantities[addonId] || 1
                   if (addon) {
                     return (

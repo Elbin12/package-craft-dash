@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Plus, Edit, Trash2, Save, X, DollarSign, FileText, Tag } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { Plus, Edit, Trash2, Save, X, FileText, Tag } from 'lucide-react';
 import { useCreateAddOnMutation, useDeleteAddOnMutation, useGetAllAddOnsQuery, useUpdateAddOnMutation } from '../../store/api/addOnServicesApi';
-
+import { useGetServicesQuery } from '../../store/api/servicesApi';
 
 const AddOns = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -9,20 +9,30 @@ const AddOns = () => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
-    base_price: ''
+    base_price: '',
+    services: [],
   });
 
-  // RTK Query hooks
   const { data: addOns, isLoading, error, refetch } = useGetAllAddOnsQuery();
+  const { data: services = [] } = useGetServicesQuery();
   const [createAddOn, { isLoading: isCreating }] = useCreateAddOnMutation();
   const [updateAddOn, { isLoading: isUpdating }] = useUpdateAddOnMutation();
   const [deleteAddOn, { isLoading: isDeleting }] = useDeleteAddOnMutation();
+
+  const serviceNameById = useMemo(() => {
+    const map = {};
+    services.forEach((service) => {
+      map[service.id] = service.name;
+    });
+    return map;
+  }, [services]);
 
   const resetForm = () => {
     setFormData({
       name: '',
       description: '',
-      base_price: ''
+      base_price: '',
+      services: [],
     });
     setEditingAddOn(null);
   };
@@ -33,7 +43,8 @@ const AddOns = () => {
       setFormData({
         name: addOn.name,
         description: addOn.description,
-        base_price: addOn.base_price
+        base_price: addOn.base_price,
+        services: addOn.is_global ? [] : (addOn.services || []),
       });
     } else {
       resetForm();
@@ -54,20 +65,46 @@ const AddOns = () => {
     }));
   };
 
+  const handleServiceToggle = (serviceId) => {
+    setFormData(prev => {
+      const isSelected = prev.services.includes(serviceId);
+      return {
+        ...prev,
+        services: isSelected
+          ? prev.services.filter(id => id !== serviceId)
+          : [...prev.services, serviceId],
+      };
+    });
+  };
+
+  const getAvailabilityLabel = (addOn) => {
+    if (addOn.is_global) return 'All services';
+    const names = (addOn.services || [])
+      .map(id => serviceNameById[id])
+      .filter(Boolean);
+    return names.length > 0 ? names.join(', ') : 'Specific services';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = {
+      name: formData.name,
+      description: formData.description,
+      base_price: formData.base_price,
+      services: formData.services,
+    };
     try {
       if (editingAddOn) {
         await updateAddOn({
           id: editingAddOn.id,
-          ...formData
+          ...payload,
         }).unwrap();
       } else {
-        await createAddOn(formData).unwrap();
+        await createAddOn(payload).unwrap();
       }
       handleCloseModal();
-    } catch (error) {
-      console.error('Error saving add-on:', error);
+    } catch (err) {
+      console.error('Error saving add-on:', err);
     }
   };
 
@@ -75,8 +112,8 @@ const AddOns = () => {
     if (window.confirm('Are you sure you want to delete this add-on service?')) {
       try {
         await deleteAddOn(id).unwrap();
-      } catch (error) {
-        console.error('Error deleting add-on:', error);
+      } catch (err) {
+        console.error('Error deleting add-on:', err);
       }
     }
   };
@@ -122,7 +159,6 @@ const AddOns = () => {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
-      {/* Header */}
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-3xl font-semibold text-gray-900">Add-on Services</h1>
@@ -137,7 +173,6 @@ const AddOns = () => {
         </button>
       </div>
 
-      {/* Add-ons Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {addOns?.map((addOn) => (
           <div key={addOn.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
@@ -171,10 +206,24 @@ const AddOns = () => {
                 </div>
 
                 <div className="flex items-center gap-2">
-                  {/* <DollarSign className="text-green-600" size={16} /> */}
                   <span className="text-2xl font-bold text-green-600">
                     {formatPrice(addOn.base_price)}
                   </span>
+                </div>
+
+                <div className="pt-2">
+                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                    addOn.is_global
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-blue-100 text-blue-800'
+                  }`}>
+                    {addOn.is_global ? 'All services' : 'Service-specific'}
+                  </span>
+                  {!addOn.is_global && (
+                    <p className="text-sm text-gray-600 mt-1.5">
+                      {getAvailabilityLabel(addOn)}
+                    </p>
+                  )}
                 </div>
 
                 <div className="pt-4 border-t border-gray-100">
@@ -203,10 +252,9 @@ const AddOns = () => {
         )}
       </div>
 
-      {/* Modal */}
       {isModalOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center p-6 border-b border-gray-200">
               <h2 className="text-xl font-semibold text-gray-900">
                 {editingAddOn ? 'Edit Add-on Service' : 'Create New Add-on Service'}
@@ -268,6 +316,38 @@ const AddOns = () => {
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="0.00"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Available for services
+                </label>
+                <p className="text-xs text-gray-500 mb-3">
+                  Leave all unchecked for &quot;Available for all services&quot;
+                </p>
+                <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto divide-y divide-gray-100">
+                  {services.length === 0 ? (
+                    <p className="p-3 text-sm text-gray-500">No services found</p>
+                  ) : (
+                    services.map((service) => (
+                      <label
+                        key={service.id}
+                        className="flex items-center gap-3 px-3 py-2.5 hover:bg-gray-50 cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formData.services.includes(service.id)}
+                          onChange={() => handleServiceToggle(service.id)}
+                          className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm text-gray-800">{service.name}</span>
+                      </label>
+                    ))
+                  )}
+                </div>
+                {formData.services.length === 0 && (
+                  <p className="text-xs text-green-700 mt-2 font-medium">Available for all services</p>
+                )}
               </div>
 
               <div className="flex gap-3 pt-4">

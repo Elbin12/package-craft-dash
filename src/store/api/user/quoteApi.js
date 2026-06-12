@@ -54,6 +54,7 @@ export const quoteApi = createApi({
         method: 'POST',
         data: payload,
       }),
+      invalidatesTags: ['addons'],
     }),
     getQuoteDetails: builder.query({
         query: (id)=>({url:`${id}/`}),
@@ -68,8 +69,16 @@ export const quoteApi = createApi({
       invalidatesTags: ['Quote', 'Submission'],
     }),
     getAddons: builder.query({
-        query: ()=>({url:'addons/'}),
-        providesTags: ['addons'],
+      query: (params = {}) => {
+        const queryParams = {};
+        if (params.submission_id) {
+          queryParams.submission_id = params.submission_id;
+        } else if (params.service_ids) {
+          queryParams.service_ids = params.service_ids;
+        }
+        return { url: 'addons/', params: queryParams };
+      },
+      providesTags: ['addons'],
     }),
     addAddons: builder.mutation({
       query: ({ submissionId, addons }) => ({
@@ -77,7 +86,7 @@ export const quoteApi = createApi({
         method: 'POST',
         data: {"addons":addons},
       }),
-      invalidatesTags: ['Add addons'],
+      invalidatesTags: ['addons', 'Details', 'quote'],
     }),
     deleteAddons: builder.mutation({
       query: ({submissionId, addon_ids}) => ({
@@ -184,6 +193,7 @@ export const quoteApi = createApi({
         { type: 'quote', id: submissionId },
         { type: 'Details' },
         'quote',
+        'addons',
       ],
     }),
     updateBidInPerson: builder.mutation({

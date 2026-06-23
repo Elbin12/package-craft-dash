@@ -27,6 +27,7 @@ import bookingReducer from './slices/bookingSlice';
 import { addOnServicesApi } from './api/addOnServicesApi';
 import { couponsApi } from './api/couponsApi';
 import { dashboardApi } from './api/dashboardApi';
+import { clientApi } from './api/clientApi';
 import { adminsApi } from './api/adminsApi';
 
 const persistConfig = {
@@ -64,6 +65,7 @@ export const store = configureStore({
     [addOnServicesApi.reducerPath]: addOnServicesApi.reducer,
     [couponsApi.reducerPath]: couponsApi.reducer,
     [dashboardApi.reducerPath]: dashboardApi.reducer,
+    [clientApi.reducerPath]: clientApi.reducer,
     [adminsApi.reducerPath]: adminsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
@@ -94,6 +96,7 @@ export const store = configureStore({
       .concat(addOnServicesApi.middleware)
       .concat(couponsApi.middleware)
       .concat(dashboardApi.middleware)
+      .concat(clientApi.middleware)
       .concat(adminsApi.middleware)
 });
 

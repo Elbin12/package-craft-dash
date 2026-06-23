@@ -56,7 +56,7 @@ import {
   Trash2,
   AlertCircle,
 } from "lucide-react"
-import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation } from "../../store/api/user/quoteApi"
+import { useAddNotesMutation, useCreateQuestionResponsesMutation, useEditPackagePriceMutation, useUpdateQuestionResponsesForSubmittedMutation, useUploadQuoteImageMutation, useDeleteQuoteImageMutation, useGetInitialDataQuery, useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation, useDeleteSubmissionMutation } from "../../store/api/user/quoteApi"
 import { add, set } from "date-fns"
 
 export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEdit, isSubmitted }) {
@@ -74,6 +74,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [uploadingImage, setUploadingImage] = useState(false);
   const [deletingImageId, setDeletingImageId] = useState(null);
   const [removingServiceId, setRemovingServiceId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   
   // Size range edit state
@@ -88,6 +89,7 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
   const [addNotes] = useAddNotesMutation();
   const [removeServiceFromSubmission] = useRemoveServiceFromSubmissionMutation();
   const [updateBidInPerson, { isLoading: savingBidInPerson }] = useUpdateBidInPersonMutation();
+  const [deleteSubmission, { isLoading: isDeletingSubmission }] = useDeleteSubmissionMutation();
 
   const [localBidInPerson, setLocalBidInPerson] = useState(!!data?.is_bid_in_person);
 
@@ -228,7 +230,25 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
     onClose();
     setEditPrivate(false);
     setEditPublic(false);
+    setDeleteDialogOpen(false);
   }
+
+  const handleDeleteSubmission = async () => {
+    if (!data?.id) return;
+
+    try {
+      await deleteSubmission({ submissionId: data.id }).unwrap();
+      setDeleteDialogOpen(false);
+      setSnackbar({ open: true, message: 'Submission deleted successfully.', severity: 'success' });
+      handleClose();
+    } catch (error) {
+      setSnackbar({
+        open: true,
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to delete submission.',
+        severity: 'error',
+      });
+    }
+  };
 
   const handleImageUpload = async (event) => {
     const file = event.target.files?.[0];
@@ -436,6 +456,15 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
               Edit
             </Button>
           )}
+          <Button
+            variant="contained"
+            color="error"
+            size="small"
+            startIcon={<Trash2 size={16} />}
+            onClick={() => setDeleteDialogOpen(true)}
+          >
+            Delete
+          </Button>
           <IconButton onClick={handleClose} sx={{ color: "primary.contrastText" }}>
             <X />
           </IconButton>
@@ -1890,6 +1919,30 @@ export function QuoteDetailsModal({ open, onClose, data, isLoading = false, onEd
             startIcon={updatingSizeRange ? <CircularProgress size={16} /> : <Save size={16} />}
           >
             {updatingSizeRange ? 'Updating...' : 'Save'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={deleteDialogOpen} onClose={() => !isDeletingSubmission && setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Submission</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete the submission for{' '}
+            <strong>{data?.customer_name || 'this customer'}</strong>?
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={isDeletingSubmission}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteSubmission}
+            color="error"
+            variant="contained"
+            disabled={isDeletingSubmission}
+          >
+            {isDeletingSubmission ? 'Deleting...' : 'Delete'}
           </Button>
         </DialogActions>
       </Dialog>

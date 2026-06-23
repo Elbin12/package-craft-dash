@@ -208,6 +208,18 @@ export const quoteApi = createApi({
         'quote',
       ],
     }),
+    deleteSubmission: builder.mutation({
+      query: ({ submissionId, deleted_by } = {}) => ({
+        url: `submissions/${submissionId}/delete/`,
+        method: 'DELETE',
+        ...(deleted_by ? { data: { deleted_by } } : {}),
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        { type: 'Details' },
+        'quote',
+      ],
+    }),
   }),
 });
 
@@ -215,5 +227,6 @@ export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSub
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
   useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
   useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation, useGetQuoteImagesQuery, useUploadQuoteImageMutation, useDeleteQuoteImageMutation,
-  useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation
+  useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation,
+  useDeleteSubmissionMutation
  } = quoteApi;

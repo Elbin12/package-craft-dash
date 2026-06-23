@@ -18,12 +18,12 @@ import { useGetDashboardDataQuery, useGetSubmissionsQuery } from '../../store/ap
 import DashboardSkeleton from '../../components/skeletons/DashboardSkeleton';
 import SubmissionsSkeleton from '../../components/skeletons/SubmissionsSkeleton';
 import {useDebounce} from '../../hooks/useDebounce';
-import { useCreateQuestionResponsesMutation, useGetQuoteDetailsQuery, useUpdateQuestionResponsesForSubmittedMutation } from '../../store/api/user/quoteApi';
+import { useCreateQuestionResponsesMutation, useDeleteSubmissionMutation, useGetQuoteDetailsQuery, useUpdateQuestionResponsesForSubmittedMutation } from '../../store/api/user/quoteApi';
 import QuestionsForm from '../../components/user/forms/QuestionsForm';
 import { transformSubmissionData } from '../../utils/transformSubmissionData';
 import { transformQuestionAnswersToAPIFormat } from '../../utils/transformQuestionAnswersToAPIFormat';
 import { set } from 'date-fns';
-import { Dialog, DialogContent, Snackbar, Alert, Tooltip as MuiTooltip } from '@mui/material';
+import { Dialog, DialogTitle, DialogContent, DialogActions, Button, Snackbar, Alert, Tooltip as MuiTooltip } from '@mui/material';
 import { Mail, Phone } from 'lucide-react';
 import { QuoteDetailsModal } from './QuoteDetailsModal';
 
@@ -73,11 +73,14 @@ const Dashboard = () => {
 
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [editSnackbar, setEditSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [submissionToDelete, setSubmissionToDelete] = useState(null);
 
   const debouncedSearchTerm = useDebounce(search, 500)
 
   const [updateQuestionResponses] = useCreateQuestionResponsesMutation();
   const [updateQuestionResponsesForSubmitted] = useUpdateQuestionResponsesForSubmittedMutation();
+  const [deleteSubmission, { isLoading: isDeletingSubmission }] = useDeleteSubmissionMutation();
 
   const {
     data: submissionDataDetails,
@@ -128,6 +131,43 @@ const Dashboard = () => {
     setIsModalOpen(true);
     setIsEditMode(false);
     setIsSubmitted(false);
+  };
+
+  const handleDeleteClick = (submission) => {
+    setSubmissionToDelete(submission);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!submissionToDelete) return;
+
+    try {
+      await deleteSubmission({ submissionId: submissionToDelete.id }).unwrap();
+      setDeleteDialogOpen(false);
+      setSubmissionToDelete(null);
+
+      if (selectedSubmissionId === submissionToDelete.id) {
+        setIsModalOpen(false);
+        setSelectedSubmissionId(null);
+        setIsEditMode(false);
+        setEditedData(null);
+        setIsSubmitted(false);
+      }
+
+      refetchSubmissions();
+      refetchDashboard();
+      setEditSnackbar({
+        open: true,
+        message: 'Submission deleted successfully.',
+        severity: 'success',
+      });
+    } catch (error) {
+      setEditSnackbar({
+        open: true,
+        message: error?.data?.detail || error?.data?.message || error?.message || 'Failed to delete submission.',
+        severity: 'error',
+      });
+    }
   };
 
   const handleEdit = () => {
@@ -433,17 +473,33 @@ const Dashboard = () => {
       {/* Monthly Performance */}
       <div style={{ border: '1px solid #e5e7eb', borderRadius: '8px', backgroundColor: '#fff', padding: '20px', marginBottom: '32px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: 600, margin: '0 0 16px 0', color: '#111827' }}>Monthly Performance</h3>
-        <ResponsiveContainer width="100%" height={320}>
-          <BarChart data={charts.monthly_sales_trend || []}>
+        <ResponsiveContainer width="100%" height={360}>
+          <BarChart data={charts.monthly_sales_trend || []} barCategoryGap="20%">
             <CartesianGrid strokeDasharray="0" stroke="#f3f4f6" vertical={false} />
             <XAxis dataKey="month_name" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-            <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-            <YAxis yAxisId="right" orientation="right" stroke="#9ca3af" style={{ fontSize: '12px' }} />
-            <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#fff' }} />
+            <YAxis yAxisId="left" stroke="#9ca3af" style={{ fontSize: '12px' }} allowDecimals={false} />
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              stroke="#9ca3af"
+              style={{ fontSize: '12px' }}
+              tickFormatter={(val) => `$${(val / 1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb', backgroundColor: '#fff' }}
+              formatter={(value, name) => {
+                if (name === 'Revenue ($)') {
+                  return [`$${Number(value).toLocaleString(undefined, { maximumFractionDigits: 2 })}`, name];
+                }
+                return [value, name];
+              }}
+            />
             <Legend wrapperStyle={{ paddingTop: '16px' }} />
             <Bar yAxisId="left" dataKey="total_submissions" fill="#3b82f6" name="Submissions" radius={[4, 4, 0, 0]} />
-            <Bar yAxisId="left" dataKey="submitted_orders" fill="#8b5cf6" name="Submitted" radius={[4, 4, 0, 0]} />
-            <Bar yAxisId="right" dataKey="revenue" fill="#10b981" name="Revenue ($)" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="left" dataKey="approved_orders" fill="#10b981" name="Approved" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="left" dataKey="draft_orders" fill="#f59e0b" name="Draft" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="left" dataKey="declined_orders" fill="#ef4444" name="Declined" radius={[4, 4, 0, 0]} />
+            <Bar yAxisId="right" dataKey="revenue" fill="#8b5cf6" name="Revenue ($)" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -581,12 +637,13 @@ const Dashboard = () => {
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Status</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Amount</th>
                   <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</th>
+                  <th style={{ padding: '12px 0', textAlign: 'left', fontWeight: 600, color: '#6b7280', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {submissions.results?.length === 0 ? (
                   <tr>
-                    <td colSpan={7} style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280', fontSize: '14px' }}>
+                    <td colSpan={8} style={{ textAlign: 'center', padding: '40px 0', color: '#6b7280', fontSize: '14px' }}>
                       No submissions found.
                     </td>
                   </tr>
@@ -676,20 +733,36 @@ const Dashboard = () => {
                       {new Date(sub.created_at).toLocaleDateString()}
                     </td>
                     <td style={{ padding: '12px 0' }}>
-                    <button
-                      onClick={() => handleViewSubmission(sub.id)}
-                      style={{
-                        padding: '6px 12px',
-                        backgroundColor: '#3b82f6',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer',
-                        fontSize: '12px'
-                      }}
-                    >
-                      View
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button
+                        onClick={() => handleViewSubmission(sub.id)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#3b82f6',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        View
+                      </button>
+                      <button
+                        onClick={() => handleDeleteClick(sub)}
+                        style={{
+                          padding: '6px 12px',
+                          backgroundColor: '#ef4444',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '12px'
+                        }}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </td>
                   </tr>
                 ))
@@ -883,6 +956,28 @@ const Dashboard = () => {
           {editSnackbar.message}
         </Alert>
       </Snackbar>
+
+      <Dialog open={deleteDialogOpen} onClose={() => !isDeletingSubmission && setDeleteDialogOpen(false)}>
+        <DialogTitle>Delete Submission</DialogTitle>
+        <DialogContent>
+          Are you sure you want to delete the submission for{' '}
+          <strong>{submissionToDelete?.customer_name || 'this customer'}</strong>?
+          This action cannot be undone.
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={() => setDeleteDialogOpen(false)} disabled={isDeletingSubmission}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            variant="contained"
+            disabled={isDeletingSubmission}
+          >
+            {isDeletingSubmission ? 'Deleting...' : 'Delete'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 };

@@ -29,6 +29,7 @@ import {
   AnalyticsOutlined,
   People,
   Block,
+  Contacts,
 } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -42,6 +43,8 @@ const drawerWidth = 280;
 // Define all menu items with their permission requirements
 const allMenuItems = [
   { text: 'Dashboard', icon: Dashboard, path: '/admin', permission: 'can_access_dashboard' },
+  { text: 'Call Screen', icon: PhoneCall , path: '/admin/call-screen', permission: 'can_access_on_the_go_calculator' },
+  { text: 'Clients', icon: Contacts, path: '/admin/clients', permission: 'can_access_dashboard' },
   { text: 'Users', icon: People, path: '/admin/users', permission: null, requiresSuperAdmin: true },
   { text: 'Reports', icon: AnalyticsOutlined, path: '/admin/reports', permission: 'can_access_reports' },
   { text: 'Service Management', icon: BusinessCenterOutlined, path: '/admin/services', permission: 'can_access_service_management' },
@@ -50,7 +53,6 @@ const allMenuItems = [
   { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services', permission: 'can_access_addon_service' },
   { text: 'Coupons', icon: DiscountOutlined , path: '/admin/coupons', permission: 'can_access_coupon' },
   { text: 'On the Go Calculator', icon: Calculator , path: '/admin/on-the-go-calculator', permission: 'can_access_on_the_go_calculator' },
-  { text: 'Call Screen', icon: PhoneCall , path: '/admin/call-screen', permission: 'can_access_on_the_go_calculator' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];
 
@@ -92,7 +94,9 @@ export const AdminLayout = ({ children }) => {
 
   // Check if current route is accessible
   const isRouteAccessible = (path) => {
-    const menuItem = allMenuItems.find((item) => item.path === path);
+    const menuItem = allMenuItems.find(
+      (item) => item.path === path || (item.path !== '/admin' && path.startsWith(`${item.path}/`))
+    );
     if (!menuItem) return true; // Allow unknown routes (might be handled elsewhere)
 
     if (!user) return false;
@@ -134,7 +138,11 @@ export const AdminLayout = ({ children }) => {
           menuItems.map((item) => (
             <ListItem key={item.text} disablePadding>
               <ListItemButton
-                selected={location.pathname === item.path}
+                selected={
+                  item.path === '/admin'
+                    ? location.pathname === '/admin'
+                    : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)
+                }
                 onClick={() => navigate(item.path)}
                 className="mx-2 rounded-lg"
                 sx={{
@@ -147,7 +155,7 @@ export const AdminLayout = ({ children }) => {
                   },
                 }}
               >
-                <ListItemIcon sx={{minWidth: 40, color: location.pathname === item.path ? 'hsl(var(--primary))' : 'inherit' }}>
+                <ListItemIcon sx={{minWidth: 40, color: (item.path === '/admin' ? location.pathname === '/admin' : location.pathname === item.path || location.pathname.startsWith(`${item.path}/`)) ? 'hsl(var(--primary))' : 'inherit' }}>
                   <item.icon />
                 </ListItemIcon>
                 <ListItemText primary={item.text} />

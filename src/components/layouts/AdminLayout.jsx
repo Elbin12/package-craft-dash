@@ -23,6 +23,7 @@ import {
   QuestionAnswer,
   Settings,
   DiscountOutlined,
+  LayersOutlined,
   LocationOnRounded,
   LocationOnOutlined,
   BusinessCenterOutlined,
@@ -52,6 +53,7 @@ const allMenuItems = [
   { text: 'House Size Info', icon: House, path: '/admin/house-size-info', permission: 'can_access_house_size_management' },
   { text: 'Add-On Services', icon: ListPlus , path: '/admin/add-on/services', permission: 'can_access_addon_service' },
   { text: 'Coupons', icon: DiscountOutlined , path: '/admin/coupons', permission: 'can_access_coupon' },
+  { text: 'Bundles', icon: LayersOutlined, path: '/admin/bundles', permission: 'can_access_coupon' },
   { text: 'On the Go Calculator', icon: Calculator , path: '/admin/on-the-go-calculator', permission: 'can_access_on_the_go_calculator' },
   // { text: 'Settings', icon: Settings, path: '/admin/settings' },
 ];

@@ -38,7 +38,7 @@ export const quoteApi = createApi({
         method: 'POST',
         data: payload,
       }),
-      invalidatesTags: ['Quote', 'Submission', 'Details'],
+      invalidatesTags: ['quote', 'Details'],
     }),
     updateQuestionResponsesForSubmitted: builder.mutation({
       query: ({submissionId, serviceId, payload}) => ({
@@ -46,7 +46,7 @@ export const quoteApi = createApi({
         method: 'PUT',
         data: payload,
       }),
-      invalidatesTags: ['Quote', 'Submission', 'Details'],
+      invalidatesTags: ['quote', 'Details'],
     }),
     createServiceToSubmission: builder.mutation({
       query: ({submissionId, payload}) => ({
@@ -105,16 +105,58 @@ export const quoteApi = createApi({
       invalidatesTags: ['Quote'], // Adjust tags as needed
     }),
     applyCoupon: builder.mutation({
-      query: ({ submission_id, code, amount }) => ({
-        url: 'coupons-apply/',
+      query: ({ submission_id, code }) => ({
+        url: 'coupons/apply/',
         method: 'POST',
         data: {
           submission_id,
           code,
-          amount,
         },
       }),
-      invalidatesTags: ['Quote'],
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    removeCoupon: builder.mutation({
+      query: ({ submission_id }) => ({
+        url: 'coupons-remove/',
+        method: 'POST',
+        data: { submission_id },
+      }),
+      invalidatesTags: ['quote', 'Details'],
+    }),
+    syncAvailableBundles: builder.mutation({
+      query: ({ submissionId, selected_packages }) => ({
+        url: `${submissionId}/available-bundles/`,
+        method: 'POST',
+        data: { selected_packages },
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        'Details',
+        'quote',
+      ],
+    }),
+    applyBundle: builder.mutation({
+      query: ({ submissionId, bundle_id }) => ({
+        url: `${submissionId}/apply-bundle/`,
+        method: 'POST',
+        data: { bundle_id },
+      }),
+      invalidatesTags: (result, error, { submissionId }) => [
+        { type: 'quote', id: submissionId },
+        'Details',
+        'quote',
+      ],
+    }),
+    removeBundle: builder.mutation({
+      query: (submissionId) => ({
+        url: `${submissionId}/remove-bundle/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (result, error, submissionId) => [
+        { type: 'quote', id: submissionId },
+        'Details',
+        'quote',
+      ],
     }),
     addAvailabilities: builder.mutation({
       query: ({ submissionId, payload }) => ({
@@ -225,8 +267,8 @@ export const quoteApi = createApi({
 
 export const { useGetInitialDataQuery, useGetServiceQuestionsQuery, useCreateSubmissionMutation, useUpdateSubmissionMutation, useCreateQuestionResponsesMutation,
   useCreateServiceToSubmissionMutation,   useGetQuoteDetailsQuery,useSubmitQuoteMutation, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation,
-  useDeclineQuoteMutation, useApplyCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
+  useDeclineQuoteMutation, useApplyCouponMutation, useRemoveCouponMutation, useAddAvailabilitiesMutation, useUpdateQuestionResponsesForSubmittedMutation,
   useGetGlobalCouponsQuery, useAddNotesMutation, useEditPackagePriceMutation, useGetQuoteImagesQuery, useUploadQuoteImageMutation, useDeleteQuoteImageMutation,
   useUpdateQuoteSizeRangeMutation, useRemoveServiceFromSubmissionMutation, useUpdateBidInPersonMutation,
-  useDeleteSubmissionMutation
+  useDeleteSubmissionMutation, useSyncAvailableBundlesMutation, useApplyBundleMutation, useRemoveBundleMutation
  } = quoteApi;

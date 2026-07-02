@@ -335,7 +335,10 @@ export const AdminBookingWizard = () => {
 
       // Prepare the payload for quote submission
       const payload = {
-        coupon_id: bookingData?.coupon_id || null,
+        coupon_id:
+          bookingData?.coupon_id ||
+          quoteDetails?.applied_coupon?.id ||
+          null,
         customer_confirmation: true,
         selected_packages: selectedPackages.map(pkg => ({
           service_selection_id: pkg.service_selection_id,

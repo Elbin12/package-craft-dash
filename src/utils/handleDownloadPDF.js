@@ -498,8 +498,11 @@ yPosition = 20;
 
       // Professional pricing table
       pdf.setFillColor(...lightGray);
+      const hasBundleDiscount =
+        quote?.is_bundle_applied && parseFloat(quote.bundle_discount_amount || 0) > 0;
       const tableHeight = 60 + (service_selections?.length * 8) + 
         (total_addons_price && parseFloat(total_addons_price) > 0 ? 8 : 0) +
+        (hasBundleDiscount ? 8 : 0) +
         (quote?.is_coupon_applied ? 8 : 0);
       
       pdf.rect(margin + contentWidth - 120, yPosition - 5, 115, tableHeight, 'F');
@@ -525,6 +528,16 @@ yPosition = 20;
       if (total_addons_price && parseFloat(total_addons_price) > 0) {
         pdf.text('Add-ons:', priceTableX, priceTableY);
         pdf.text(formatPrice(total_addons_price), priceTableX + 80, priceTableY);
+        priceTableY += 8;
+      }
+
+      // Applied bundle if any
+      if (hasBundleDiscount) {
+        pdf.setTextColor(...accentGreen);
+        const bundleLabel = `Bundle: ${quote.applied_bundle?.name || 'Applied'}`;
+        pdf.text(bundleLabel, priceTableX, priceTableY);
+        pdf.text(`-${formatPrice(quote.bundle_discount_amount)}`, priceTableX + 80, priceTableY);
+        pdf.setTextColor(...darkGray);
         priceTableY += 8;
       }
 

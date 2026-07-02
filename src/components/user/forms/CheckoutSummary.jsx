@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useMemo } from "react"
+import { useEffect, useState, useMemo, useRef } from "react"
 import {
   Box,
   Typography,
@@ -27,8 +27,7 @@ import {
   Stack,
 } from "@mui/material"
 import { Check, Close, ExpandMore, ExpandLess, Add, Remove } from "@mui/icons-material"
-import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation, useGetGlobalCouponsQuery } from "../../../store/api/user/quoteApi"
-import { useRef } from "react"
+import { useGetQuoteDetailsQuery, useGetAddonsQuery, useAddAddonsMutation, useDeleteAddonsMutation, useDeclineQuoteMutation, useApplyCouponMutation, useRemoveCouponMutation, useGetGlobalCouponsQuery, useSyncAvailableBundlesMutation, useApplyBundleMutation, useRemoveBundleMutation } from "../../../store/api/user/quoteApi"
 import SignatureCanvas from "react-signature-canvas"
 import { useNavigate } from "react-router-dom"
 import DisclaimerBox from "../DisclaimerBox"
@@ -68,17 +67,29 @@ export const CheckoutSummary = ({
   const [appliedCouponId, setAppliedCouponId] = useState(null)
   const [couponError, setCouponError] = useState('')
   const [isApplyingCoupon, setIsApplyingCoupon] = useState(false)
+  const [isRemovingCoupon, setIsRemovingCoupon] = useState(false)
+
+  const [bundleError, setBundleError] = useState('')
+  const [isApplyingBundle, setIsApplyingBundle] = useState(false)
+  const [isRemovingBundle, setIsRemovingBundle] = useState(false)
+  const [applyingBundleId, setApplyingBundleId] = useState(null)
+  const [bundlePreview, setBundlePreview] = useState(null)
+  const [isLoadingBundles, setIsLoadingBundles] = useState(false)
+  const bundlesSyncKeyRef = useRef('')
 
   const navigate = useNavigate();
 
   const [applyCoupon] = useApplyCouponMutation()
-
-  console.log(appliedCoupon, 'appliedCoupon')
+  const [removeCoupon] = useRemoveCouponMutation()
+  const [syncAvailableBundles] = useSyncAvailableBundlesMutation()
+  const [applyBundle] = useApplyBundleMutation()
+  const [removeBundle] = useRemoveBundleMutation()
 
   const {
     data: response,
     isLoading,
     isError,
+    refetch: refetchQuoteDetails,
   } = useGetQuoteDetailsQuery(data.submission_id, {
     refetchOnMountOrArgChange: true,
     refetchOnFocus: true,
@@ -101,6 +112,74 @@ export const CheckoutSummary = ({
   }, [response]);
 
   const quoteData = useMemo(() => response, [response])
+
+  const isQuoteApproved = quoteData?.status === 'approved'
+
+  const buildSelectedPackagesPayload = useMemo(() => {
+    if (!quoteData?.service_selections?.length) return null
+    const entries = quoteData.service_selections
+      .map((s) => {
+        const packageQuoteId = selectedPackages[s.id]
+        if (!packageQuoteId) return null
+        const pkg = s.package_quotes?.find((p) => p.id === packageQuoteId)
+        if (!pkg) return null
+        return {
+          service_selection_id: s.id,
+          package_id: pkg.package,
+        }
+      })
+      .filter(Boolean)
+    if (entries.length !== quoteData.service_selections.length) return null
+    return entries
+  }, [quoteData?.service_selections, selectedPackages])
+
+  const allPackagesSelectedLocally = buildSelectedPackagesPayload !== null
+
+  const syncBundlesPreview = async (payload) => {
+    const result = await syncAvailableBundles({
+      submissionId: data.submission_id,
+      selected_packages: payload,
+    }).unwrap()
+    setBundlePreview(result)
+    await refetchQuoteDetails()
+    return result
+  }
+
+  // Review step: POST available-bundles once all packages are picked (saves packages + returns previews)
+  useEffect(() => {
+    if (!data.submission_id || !quoteData || isQuoteApproved) return
+
+    if (!buildSelectedPackagesPayload) {
+      setBundlePreview(null)
+      bundlesSyncKeyRef.current = ''
+      return
+    }
+
+    const syncKey = JSON.stringify(buildSelectedPackagesPayload)
+    if (syncKey === bundlesSyncKeyRef.current) return
+
+    let cancelled = false
+    const runSync = async () => {
+      setIsLoadingBundles(true)
+      try {
+        await syncBundlesPreview(buildSelectedPackagesPayload)
+        if (!cancelled) bundlesSyncKeyRef.current = syncKey
+      } catch (error) {
+        console.error('Failed to sync bundles preview:', error)
+        if (!cancelled) {
+          setBundlePreview(null)
+          bundlesSyncKeyRef.current = ''
+        }
+      } finally {
+        if (!cancelled) setIsLoadingBundles(false)
+      }
+    }
+
+    runSync()
+    return () => {
+      cancelled = true
+    }
+  }, [buildSelectedPackagesPayload, data.submission_id, quoteData, isQuoteApproved])
 
   const serviceIdsKey = useMemo(
     () => quoteData?.service_selections
@@ -167,19 +246,52 @@ export const CheckoutSummary = ({
     }
   }, [quoteData]);
 
+  // Hydrate package selections from server
+  useEffect(() => {
+    if (!quoteData?.service_selections) return
+    const fromServer = {}
+    quoteData.service_selections.forEach((s) => {
+      const selected = s.package_quotes?.find((p) => p.is_selected)
+      if (selected) {
+        fromServer[s.id] = selected.id
+      }
+    })
+    if (Object.keys(fromServer).length === 0) return
+
+    setSelectedPackages((prev) => {
+      const same = Object.keys(fromServer).every((k) => prev[k] === fromServer[k])
+        && Object.keys(prev).length === Object.keys(fromServer).length
+      if (same) return prev
+      return { ...fromServer, ...prev }
+    })
+  }, [quoteData?.service_selections])
+
   useEffect(() => {
       setIsBidInPerson(quoteData?.is_bid_in_person)
-      if(quoteData?.applied_coupon){
-        setAppliedCoupon({code:quoteData?.applied_coupon?.code, discount:quoteData?.discounted_amount} || null)
+      if (quoteData?.is_coupon_applied && quoteData?.applied_coupon) {
+        setAppliedCoupon({
+          code: quoteData.applied_coupon.code,
+          discount: quoteData.discounted_amount,
+        })
+        if (quoteData.applied_coupon.id) {
+          setAppliedCouponId(quoteData.applied_coupon.id)
+        }
+      } else if (quoteData && !quoteData.is_coupon_applied) {
+        setAppliedCoupon(null)
+        setAppliedCouponId(null)
       }
   }, [quoteData])
 
-  useEffect(()=>{
-    onUpdate({coupon_id: appliedCouponId})
-  },[appliedCouponId])
+  useEffect(() => {
+    const couponId =
+      (quoteData?.is_coupon_applied && quoteData?.applied_coupon?.id) ||
+      appliedCouponId ||
+      null
+    onUpdate({ coupon_id: couponId })
+  }, [quoteData?.is_coupon_applied, quoteData?.applied_coupon?.id, appliedCouponId, onUpdate])
 
   useEffect(() => {
-    if (quoteData && !isLoading && !data.quoteDetails) {
+    if (quoteData && !isLoading) {
       onUpdate({
         quoteDetails: quoteData,
         pricing: {
@@ -190,7 +302,7 @@ export const CheckoutSummary = ({
         },
       })
     }
-  }, [quoteData, isLoading, data.quoteDetails, onUpdate])
+  }, [quoteData, isLoading, onUpdate])
 
   const toggleServiceExpansion = (serviceId) => {
     setExpandedServices((prev) => ({
@@ -321,36 +433,121 @@ export const CheckoutSummary = ({
     setIsApplyingCoupon(true)
     
     try {
-      const result = await applyCoupon({ submission_id: data.submission_id, code: couponCode.trim(), amount: finalTotal }).unwrap()
-
-      console.log(result, 'coupon result')
+      const result = await applyCoupon({
+        submission_id: data.submission_id,
+        code: couponCode.trim(),
+      }).unwrap()
       
       if (result) {
-        const discount = parseFloat((result?.discounted_amount));
+        const discount = parseFloat(result?.discounted_amount || 0)
+        const couponId =
+          result?.coupon?.id ||
+          result?.applied_coupon?.id ||
+          result?.coupon_id ||
+          null
         setAppliedCoupon({
-          code: couponCode,
-          discount: discount || 0
+          code: couponCode.trim().toUpperCase(),
+          discount: discount || 0,
         })
-        console.log(result?.coupon?.id, 'iddd')
-        setAppliedCouponId(result?.coupon?.id)
+        const refreshed = await refetchQuoteDetails()
+        const idFromQuote = refreshed?.data?.applied_coupon?.id
+        const resolvedCouponId = couponId || idFromQuote || null
+        setAppliedCouponId(resolvedCouponId)
+        onUpdate({ coupon_id: resolvedCouponId })
         setCouponCode('')
-        // You may want to update the final total here based on the discount
       } else {
         setCouponError(result.message || 'Invalid coupon code')
       }
     } catch (error) {
-      setCouponError('Failed to apply coupon. Please try again.')
+      setCouponError(error?.data?.error || error?.data?.code?.[0] || 'Failed to apply coupon. Please try again.')
       console.error('Error applying coupon:', error)
     } finally {
       setIsApplyingCoupon(false)
     }
   }
 
-  const handleRemoveCoupon = () => {
-    setAppliedCoupon(null)
-    setCouponCode('')
+  const handleRemoveCoupon = async () => {
     setCouponError('')
-    setAppliedCouponId(null)
+    setIsRemovingCoupon(true)
+
+    try {
+      await removeCoupon({
+        submission_id: data.submission_id,
+      }).unwrap()
+
+      await refetchQuoteDetails()
+
+      setAppliedCoupon(null)
+      setCouponCode('')
+      setAppliedCouponId(null)
+      onUpdate({ coupon_id: null })
+    } catch (error) {
+      setCouponError(error?.data?.error || error?.data?.detail || 'Failed to remove coupon. Please try again.')
+      console.error('Error removing coupon:', error)
+    } finally {
+      setIsRemovingCoupon(false)
+    }
+  }
+
+  const formatBundleDiscountBadge = (bundle) => {
+    if (bundle.discount_percentage) {
+      return `Save ${Number.parseFloat(bundle.discount_percentage)}%`
+    }
+    if (bundle.discount_type === 'percent' && bundle.discount_percentage) {
+      return `${Number.parseFloat(bundle.discount_percentage)}% off`
+    }
+    if (bundle.discount_fixed) {
+      return `$${formatPrice(bundle.discount_fixed)} off`
+    }
+    return 'Save'
+  }
+
+  const getBundleId = (bundle) => bundle.bundle_id || bundle.id
+
+  const handleApplyBundle = async (bundle) => {
+    if (isQuoteApproved) return
+    const bundleId = getBundleId(bundle)
+    setBundleError('')
+    setIsApplyingBundle(true)
+    setApplyingBundleId(bundleId)
+    try {
+      await applyBundle({
+        submissionId: data.submission_id,
+        bundle_id: bundleId,
+      }).unwrap()
+      await refetchQuoteDetails()
+      if (buildSelectedPackagesPayload) {
+        bundlesSyncKeyRef.current = ''
+        await syncBundlesPreview(buildSelectedPackagesPayload)
+        bundlesSyncKeyRef.current = JSON.stringify(buildSelectedPackagesPayload)
+      }
+    } catch (error) {
+      setBundleError(error?.data?.error || error?.data?.detail || 'Failed to apply bundle. Please try again.')
+      console.error('Error applying bundle:', error)
+    } finally {
+      setIsApplyingBundle(false)
+      setApplyingBundleId(null)
+    }
+  }
+
+  const handleRemoveBundle = async () => {
+    if (isQuoteApproved) return
+    setBundleError('')
+    setIsRemovingBundle(true)
+    try {
+      await removeBundle(data.submission_id).unwrap()
+      await refetchQuoteDetails()
+      bundlesSyncKeyRef.current = ''
+      if (buildSelectedPackagesPayload) {
+        await syncBundlesPreview(buildSelectedPackagesPayload)
+        bundlesSyncKeyRef.current = JSON.stringify(buildSelectedPackagesPayload)
+      }
+    } catch (error) {
+      setBundleError(error?.data?.error || error?.data?.detail || 'Failed to remove bundle. Please try again.')
+      console.error('Error removing bundle:', error)
+    } finally {
+      setIsRemovingBundle(false)
+    }
   }
 
   if (isLoading) {
@@ -494,12 +691,38 @@ export const CheckoutSummary = ({
   const surchargeAmount = quoteData.quote_surcharge_applicable
     ? Number.parseFloat(quoteData.location_details?.trip_surcharge || 0)
     : 0
-  const couponDiscount = Number.parseFloat(appliedCoupon?.discount || 0)
-  // const finalTotal = formatPrice(totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0))
-  const subtotal = totalSelectedPrice + addonsTotal;
-  const couponAmount = calculateCouponDiscount(subtotal, appliedCoupon);
-  const finalTotal = formatPrice(Math.max(0, subtotal - couponAmount));
-  // const finalTotal = formatPrice(Math.max(0, totalSelectedPrice + addonsTotal - (appliedCoupon?.discount || 0)))
+  const couponDiscount = quoteData?.is_coupon_applied
+    ? Number.parseFloat(quoteData.discounted_amount || 0)
+    : Number.parseFloat(appliedCoupon?.discount || 0)
+  const subtotal = totalSelectedPrice + addonsTotal
+  const couponAmount = quoteData?.is_coupon_applied
+    ? couponDiscount
+    : calculateCouponDiscount(subtotal, appliedCoupon)
+  const bundleDiscountAmount = Number.parseFloat(quoteData?.bundle_discount_amount || 0)
+  const displayBundles = bundlePreview?.available_bundles || []
+  const appliedBundleId =
+    bundlePreview?.applied_bundle_id ||
+    quoteData?.applied_bundle?.id ||
+    displayBundles.find((b) => b.is_applied)?.bundle_id ||
+    null
+  const isBundleApplied = Boolean(
+    bundlePreview?.is_bundle_applied || quoteData?.is_bundle_applied
+  )
+  const finalTotal = formatPrice(quoteData?.final_total ?? Math.max(0, subtotal - couponAmount))
+
+  const showBundleLoading =
+    allPackagesSelectedLocally &&
+    !isQuoteApproved &&
+    isLoadingBundles
+  const showBundleList =
+    bundlePreview?.pricing_ready &&
+    displayBundles.length > 0 &&
+    !isQuoteApproved
+  const showBundlesSection =
+    !isQuoteApproved &&
+    (isBundleApplied ||
+      displayBundles.length > 0 ||
+      showBundleLoading)
 
   return (
     <Box>
@@ -1092,168 +1315,318 @@ export const CheckoutSummary = ({
           </CardContent>
         </Card>
 
-        {/* Coupon Section */}
-        <Card sx={{ mb: 3 }}>
-          <CardContent sx={{ p: 3 }}>
-            {!appliedCoupon &&
-              <>
-                <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
-                  Apply Coupon
-                </Typography>
-                <Box display="flex" gap={2} alignItems="flex-start" flexDirection={{ xs: 'column', sm: 'row' }}>
-                  <TextField
-                    size="small"
-                    placeholder="Enter coupon code"
-                    fullWidth
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
-                    disabled={Object.keys(selectedPackages).length === 0 && !isBidInPerson}
-                    sx={{
-                      '& .MuiOutlinedInput-root': {
-                        '&:hover fieldset': {
-                          borderColor: '#023c8f',
-                        },
-                        '&.Mui-focused fieldset': {
-                          borderColor: '#023c8f',
-                        },
-                      },
-                    }}
-                  />
-                  <Button
-                    variant="contained"
-                    onClick={handleApplyCoupon}
-                    disabled={!couponCode.trim() || isApplyingCoupon || (Object.keys(selectedPackages).length === 0 && !isBidInPerson)}
-                    sx={{
-                      bgcolor: '#023c8f',
-                      '&:hover': { bgcolor: '#012a6b' },
-                      '&:disabled': { bgcolor: '#e0e0e0' },
-                      fontWeight: 600,
-                      minWidth: { xs: '100%', sm: '120px' },
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {isApplyingCoupon ? (
-                      <>
-                        <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
-                        Applying...
-                      </>
-                    ) : (
-                      'Apply'
-                    )}
-                  </Button>
-                </Box>
-              </>
-            }
-
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
-                Available Coupons
-              </Typography>
-
-              {isLoadingCoupons && (
-                <Typography variant="body2" color="text.secondary">Loading coupons...</Typography>
-              )}
-
-              {!isLoadingCoupons && globalCoupons?.length === 0 && (
-                <Typography variant="body2" color="text.secondary">
-                  No coupons available.
-                </Typography>
-              )}
-
-              {!isLoadingCoupons && globalCoupons?.length > 0 && (
-                <Box display="flex" flexDirection="column" gap={1}>
-                  {globalCoupons.map((coupon) => {
-                    return (
-                      <Box
-                        key={coupon.id}
+        {/* Coupons & Bundles */}
+        <Box
+          sx={{
+            display: 'flex',
+            flexDirection: { xs: 'column', md: 'row' },
+            gap: 3,
+            mb: 3,
+            width: '100%',
+          }}
+        >
+          <Box
+            sx={{
+              flex: { xs: '1 1 100%', md: showBundlesSection ? '1 1 0' : '1 1 100%' },
+              minWidth: 0,
+              width: { xs: '100%', md: showBundlesSection ? '50%' : '100%' },
+            }}
+          >
+            <Card sx={{ height: '100%' }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                {!appliedCoupon &&
+                  <>
+                    <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                      Apply Coupon
+                    </Typography>
+                    <Box display="flex" gap={2} alignItems="flex-start" flexDirection={{ xs: 'column', sm: 'row' }}>
+                      <TextField
+                        size="small"
+                        placeholder="Enter coupon code"
+                        fullWidth
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                        disabled={Object.keys(selectedPackages).length === 0 && !isBidInPerson}
                         sx={{
-                          p: 2,
-                          bgcolor: '#f9fbff',
-                          border: '1px solid #d0e3ff',
-                          borderRadius: 1,
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
+                          '& .MuiOutlinedInput-root': {
+                            '&:hover fieldset': { borderColor: '#023c8f' },
+                            '&.Mui-focused fieldset': { borderColor: '#023c8f' },
+                          },
+                        }}
+                      />
+                      <Button
+                        variant="contained"
+                        onClick={handleApplyCoupon}
+                        disabled={!couponCode.trim() || isApplyingCoupon || (Object.keys(selectedPackages).length === 0 && !isBidInPerson)}
+                        sx={{
+                          bgcolor: '#023c8f',
+                          '&:hover': { bgcolor: '#012a6b' },
+                          '&:disabled': { bgcolor: '#e0e0e0' },
+                          fontWeight: 600,
+                          minWidth: { xs: '100%', sm: '120px' },
+                          whiteSpace: 'nowrap',
                         }}
                       >
-                        <Box>
-                          {/* Coupon Code */}
-                          <Typography fontWeight={600} sx={{ color: "#023c8f" }}>
-                            {coupon.code}
-                          </Typography>
+                        {isApplyingCoupon ? (
+                          <>
+                            <CircularProgress size={20} sx={{ mr: 1, color: 'white' }} />
+                            Applying...
+                          </>
+                        ) : (
+                          'Apply'
+                        )}
+                      </Button>
+                    </Box>
+                  </>
+                }
 
-                          {/* Discount Details */}
-                          <Typography variant="body2" color="text.primary">
-                            {coupon.percentage_discount
-                              ? `• ${coupon.percentage_discount}% off`
-                              : null}
-                          </Typography>
+                <Box sx={{ mt: appliedCoupon ? 0 : 3 }}>
+                  <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                    Available Coupons
+                  </Typography>
 
-                          <Typography variant="body2" color="text.primary">
-                            {coupon.fixed_discount
-                              ? `• $${coupon.fixed_discount} off`
-                              : null}
-                          </Typography>
-                        </Box>
+                  {isLoadingCoupons && (
+                    <Typography variant="body2" color="text.secondary">Loading coupons...</Typography>
+                  )}
 
-                        {/* Use Button */}
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => setCouponCode(coupon.code.toUpperCase())}
-                          sx={{ 
-                            borderColor: '#023c8f', 
-                            color: '#023c8f',
-                            opacity: 1 
+                  {!isLoadingCoupons && globalCoupons?.length === 0 && (
+                    <Typography variant="body2" color="text.secondary">
+                      No coupons available.
+                    </Typography>
+                  )}
+
+                  {!isLoadingCoupons && globalCoupons?.length > 0 && (
+                    <Box display="flex" flexDirection="column" gap={1}>
+                      {globalCoupons.map((coupon) => (
+                        <Box
+                          key={coupon.id}
+                          sx={{
+                            p: 2,
+                            bgcolor: '#f9fbff',
+                            border: '1px solid #d0e3ff',
+                            borderRadius: 1,
+                            display: 'flex',
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            justifyContent: 'space-between',
+                            alignItems: { xs: 'stretch', sm: 'center' },
+                            gap: 1.5,
                           }}
                         >
-                          Use
-                        </Button>
-                      </Box>
-                    );
-                  })}
+                          <Box sx={{ minWidth: 0 }}>
+                            <Typography fontWeight={600} sx={{ color: "#023c8f" }}>
+                              {coupon.code}
+                            </Typography>
+                            {coupon.percentage_discount && (
+                              <Typography variant="body2" color="text.primary">
+                                • {coupon.percentage_discount}% off
+                              </Typography>
+                            )}
+                            {coupon.fixed_discount && (
+                              <Typography variant="body2" color="text.primary">
+                                • ${coupon.fixed_discount} off
+                              </Typography>
+                            )}
+                          </Box>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => setCouponCode(coupon.code.toUpperCase())}
+                            sx={{
+                              borderColor: '#023c8f',
+                              color: '#023c8f',
+                              width: { xs: '100%', sm: 'auto' },
+                              flexShrink: 0,
+                            }}
+                          >
+                            Use
+                          </Button>
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                 </Box>
-              )}
-            </Box>
 
-            
-            {couponError && (
-              <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                {couponError}
-              </Typography>
-            )}
-            
-            {appliedCoupon && (
-              <Box 
-                sx={{ 
-              
-                  p: 2, 
-                  bgcolor: '#f0f7ff', 
-                  borderRadius: 1,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}
-              >
-                <Box>
-                  <Typography variant="body2" fontWeight={600} sx={{ color: '#023c8f' }}>
-                    Coupon Applied: {appliedCoupon.code}
+                {couponError && (
+                  <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                    {couponError}
                   </Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    Discount: ${formatPrice(appliedCoupon.discount)}
+                )}
+
+                {appliedCoupon && (
+                  <Box
+                    sx={{
+                      p: 2,
+                      bgcolor: '#f0f7ff',
+                      borderRadius: 1,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      mt: 2,
+                    }}
+                  >
+                    <Box>
+                      <Typography variant="body2" fontWeight={600} sx={{ color: '#023c8f' }}>
+                        Coupon Applied: {appliedCoupon.code}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Discount: ${formatPrice(appliedCoupon.discount)}
+                      </Typography>
+                    </Box>
+                    <IconButton
+                      size="small"
+                      onClick={handleRemoveCoupon}
+                      disabled={isRemovingCoupon}
+                      sx={{ color: '#d32f2f' }}
+                    >
+                      {isRemovingCoupon ? (
+                        <CircularProgress size={16} sx={{ color: '#d32f2f' }} />
+                      ) : (
+                        <Close fontSize="small" />
+                      )}
+                    </IconButton>
+                  </Box>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+
+          {showBundlesSection && (
+          <Box sx={{ flex: { xs: '1 1 100%', md: '1 1 0' }, minWidth: 0, width: { xs: '100%', md: '50%' } }}>
+            <Card sx={{ height: '100%', border: '1px solid #c8e6c9' }}>
+              <CardContent sx={{ p: { xs: 2, sm: 3 } }}>
+                <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
+                  Bundle these services
+                </Typography>
+
+                {showBundleLoading && !showBundleList && (
+                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, py: 1 }}>
+                    <CircularProgress size={20} sx={{ color: '#023c8f' }} />
+                    <Typography variant="body2" color="text.secondary">
+                      Checking bundle offers...
+                    </Typography>
+                  </Box>
+                )}
+
+                {showBundleList ? (
+                  <Stack spacing={1.5}>
+                    {displayBundles.map((bundle) => {
+                      const bundleId = getBundleId(bundle)
+                      const isThisApplied =
+                        isBundleApplied &&
+                        (bundle.is_applied ||
+                          bundleId === appliedBundleId ||
+                          bundleId === quoteData?.applied_bundle?.id)
+
+                      return (
+                      <Box
+                        key={bundleId}
+                        sx={{
+                          p: 2,
+                          bgcolor: isThisApplied ? '#f0fff0' : '#f9fff9',
+                          border: isThisApplied ? '2px solid #42bd3f' : '1px solid #e0e0e0',
+                          borderRadius: 1,
+                          display: 'flex',
+                          flexDirection: { xs: 'column', sm: 'row' },
+                          justifyContent: 'space-between',
+                          alignItems: { xs: 'stretch', sm: 'center' },
+                          gap: 2,
+                        }}
+                      >
+                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                          <Typography
+                            variant="body1"
+                            fontWeight={600}
+                            sx={{
+                              color: isThisApplied ? '#2e7d32' : '#023c8f',
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              alignItems: 'center',
+                              gap: 0.5,
+                            }}
+                          >
+                            {bundle.name}
+                            <Chip
+                              label={formatBundleDiscountBadge(bundle)}
+                              size="small"
+                              color="success"
+                            />
+                            {isThisApplied && (
+                              <Chip
+                                label="Applied"
+                                size="small"
+                                color="success"
+                                variant="outlined"
+                              />
+                            )}
+                          </Typography>
+                          <Typography variant="body2" sx={{ mt: 0.5 }}>
+                            <Box
+                              component="span"
+                              sx={{ textDecoration: 'line-through', color: 'text.secondary', mr: 1 }}
+                            >
+                              ${formatPrice(bundle.original_services_total)}
+                            </Box>
+                            <Box component="span" fontWeight={700} color="success.main">
+                              ${formatPrice(bundle.bundled_services_total)}
+                            </Box>
+                          </Typography>
+                        </Box>
+                        {isThisApplied ? (
+                          !isQuoteApproved && (
+                            <Button
+                              variant="outlined"
+                              color="error"
+                              size="small"
+                              onClick={handleRemoveBundle}
+                              disabled={isRemovingBundle}
+                              fullWidth={false}
+                              sx={{ width: { xs: '100%', sm: 'auto' }, flexShrink: 0 }}
+                              startIcon={isRemovingBundle ? <CircularProgress size={16} /> : <Close />}
+                            >
+                              {isRemovingBundle ? 'Removing...' : 'Remove'}
+                            </Button>
+                          )
+                        ) : (
+                          <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => handleApplyBundle(bundle)}
+                            disabled={isApplyingBundle || isQuoteApproved}
+                            sx={{
+                              bgcolor: '#42bd3f',
+                              '&:hover': { bgcolor: '#369932' },
+                              whiteSpace: 'nowrap',
+                              width: { xs: '100%', sm: 'auto' },
+                              flexShrink: 0,
+                            }}
+                          >
+                            {isApplyingBundle && applyingBundleId === bundleId ? (
+                              <>
+                                <CircularProgress size={16} sx={{ mr: 1, color: 'white' }} />
+                                Applying...
+                              </>
+                            ) : isBundleApplied ? (
+                              'Switch to this bundle'
+                            ) : (
+                              'Apply bundle'
+                            )}
+                          </Button>
+                        )}
+                      </Box>
+                    )})}
+                  </Stack>
+                ) : null}
+
+                {bundleError && (
+                  <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                    {bundleError}
                   </Typography>
-                </Box>
-                <IconButton 
-                  size="small" 
-                  onClick={handleRemoveCoupon}
-                  sx={{ color: '#d32f2f' }}
-                >
-                  <Close fontSize="small" />
-                </IconButton>
-              </Box>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
+          </Box>
+          )}
+        </Box>
 
         {/* Order Summary */}
         <Card sx={{ mb: 3 }}>
@@ -1337,6 +1710,22 @@ export const CheckoutSummary = ({
               </Box>
             )} */}
             
+            {quoteData?.is_bundle_applied && bundleDiscountAmount > 0 && (
+              <Box mb={2}>
+                <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
+                  Bundle Discount
+                </Typography>
+                <Box display="flex" justifyContent="space-between">
+                  <Typography variant="body1" fontWeight={500}>
+                    {quoteData?.applied_bundle?.name || 'Bundle'}
+                  </Typography>
+                  <Typography variant="body1" fontWeight={600} color="success.main">
+                    - ${formatPrice(bundleDiscountAmount)}
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+
             {appliedCoupon &&
               <Box mb={2}>
                 <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
@@ -1350,7 +1739,7 @@ export const CheckoutSummary = ({
                         </Typography>
                       </Box>
                       <Typography variant="body1" fontWeight={600}>
-                        - ${appliedCoupon?.discount}
+                        - ${formatPrice(couponDiscount)}
                       </Typography>
                     </Box>
                   </Box>

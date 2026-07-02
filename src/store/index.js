@@ -10,6 +10,7 @@ import { questionOptionsApi } from './api/questionOptionsApi';
 import servicesSlice from './slices/servicesSlice';
 import locationsSlice from './slices/locationsSlice';
 import couponsSlice from './slices/couponsSlice';
+import bundlesSlice from './slices/bundlesSlice';
 import authSlice from './slices/authSlice';
 import { createOptionPricingApi } from './api/optionPricing';
 import { contactsApi } from './api/user/contactsApi';
@@ -26,6 +27,7 @@ import persistStore from 'redux-persist/lib/persistStore';
 import bookingReducer from './slices/bookingSlice';
 import { addOnServicesApi } from './api/addOnServicesApi';
 import { couponsApi } from './api/couponsApi';
+import { bundlesApi } from './api/bundlesApi';
 import { dashboardApi } from './api/dashboardApi';
 import { clientApi } from './api/clientApi';
 import { adminsApi } from './api/adminsApi';
@@ -44,6 +46,7 @@ export const store = configureStore({
     services: servicesSlice,
     locations: locationsSlice,
     coupons: couponsSlice,
+    bundles: bundlesSlice,
 
     auth: authSlice,
     [servicesApi.reducerPath]: servicesApi.reducer,
@@ -64,6 +67,7 @@ export const store = configureStore({
     [quoteApi.reducerPath]: quoteApi.reducer,
     [addOnServicesApi.reducerPath]: addOnServicesApi.reducer,
     [couponsApi.reducerPath]: couponsApi.reducer,
+    [bundlesApi.reducerPath]: bundlesApi.reducer,
     [dashboardApi.reducerPath]: dashboardApi.reducer,
     [clientApi.reducerPath]: clientApi.reducer,
     [adminsApi.reducerPath]: adminsApi.reducer,
@@ -95,6 +99,7 @@ export const store = configureStore({
       .concat(quoteApi.middleware)
       .concat(addOnServicesApi.middleware)
       .concat(couponsApi.middleware)
+      .concat(bundlesApi.middleware)
       .concat(dashboardApi.middleware)
       .concat(clientApi.middleware)
       .concat(adminsApi.middleware)

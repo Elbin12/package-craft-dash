@@ -217,6 +217,12 @@ const QuoteDetailsPage = () => {
     is_bid_in_person,
     bid_notes_public,
     calendar_booking,
+    is_bundle_applied,
+    applied_bundle,
+    bundle_discount_amount,
+    is_coupon_applied,
+    applied_coupon,
+    discounted_amount,
   } = quote;
 
   const showBookingConfirmed =
@@ -1160,7 +1166,7 @@ const QuoteDetailsPage = () => {
                         </Typography>
                       </Box> */}
 
-                      {quote?.is_coupon_applied &&
+                      {is_bundle_applied && parseFloat(bundle_discount_amount || 0) > 0 &&
                         <Box display="flex" flexDirection="column" gap={2}>
                           <Box
                             sx={{
@@ -1170,10 +1176,29 @@ const QuoteDetailsPage = () => {
                             }}
                           >
                             <Typography variant="body2">
-                              {quote?.applied_coupon?.code}
+                              Bundle: {applied_bundle?.name}
+                            </Typography>
+                            <Typography variant="subtitle2" color="success.main">
+                              - ${formatPrice(bundle_discount_amount)}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      }
+
+                      {is_coupon_applied &&
+                        <Box display="flex" flexDirection="column" gap={2}>
+                          <Box
+                            sx={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <Typography variant="body2">
+                              {applied_coupon?.code}
                             </Typography>
                             <Typography variant="subtitle2">
-                              - ${quote?.discounted_amount}
+                              - ${formatPrice(discounted_amount)}
                             </Typography>
                           </Box>
                         </Box>

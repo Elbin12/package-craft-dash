@@ -1,5 +1,6 @@
 "use client"
 
+import { useState } from "react"
 import {
   Box,
   Typography,
@@ -12,13 +13,130 @@ import {
   Checkbox,
   Alert,
   Button,
+  Dialog,
+  IconButton,
 } from "@mui/material"
+import CloseIcon from "@mui/icons-material/Close"
+import ZoomInIcon from "@mui/icons-material/ZoomIn"
+import ZoomOutIcon from "@mui/icons-material/ZoomOut"
+import RestartAltIcon from "@mui/icons-material/RestartAlt"
 import {ServiceQuestionsSection} from "./ServiceQuestionsSection"
+
+const PREVIEW_ZOOM_MIN = 0.5
+const PREVIEW_ZOOM_MAX = 3
+const PREVIEW_ZOOM_STEP = 0.25
 
 export const QuestionsForm = ({ data, onUpdate }) => {
   const selectedServices = data?.selectedServices || []
+  const [previewImage, setPreviewImage] = useState(null)
+  const [previewZoom, setPreviewZoom] = useState(1)
+  const [previewBaseSize, setPreviewBaseSize] = useState({ width: 0, height: 0 })
 
   console.log(data, 'allServiceQuestionsState')
+
+  const openImagePreview = (e, src, alt = "Preview") => {
+    e.preventDefault()
+    e.stopPropagation()
+    setPreviewZoom(1)
+    setPreviewBaseSize({ width: 0, height: 0 })
+    setPreviewImage({ src, alt })
+  }
+
+  const closeImagePreview = () => {
+    setPreviewImage(null)
+    setPreviewZoom(1)
+    setPreviewBaseSize({ width: 0, height: 0 })
+  }
+
+  const handlePreviewImageLoad = (e) => {
+    const img = e.currentTarget
+    const maxW = Math.min(window.innerWidth * 0.85, 720)
+    const maxH = window.innerHeight * 0.6
+    const scale = Math.min(1, maxW / img.naturalWidth, maxH / img.naturalHeight)
+    // Small icons: still show at a readable base size (at least ~220px)
+    const minDisplay = 220
+    const fittedW = img.naturalWidth * scale
+    const fittedH = img.naturalHeight * scale
+    const boost = fittedW < minDisplay && fittedH < minDisplay
+      ? Math.min(minDisplay / fittedW, minDisplay / fittedH, maxW / fittedW, maxH / fittedH)
+      : 1
+    setPreviewBaseSize({
+      width: Math.round(fittedW * boost),
+      height: Math.round(fittedH * boost),
+    })
+  }
+
+  const zoomInPreview = () => {
+    setPreviewZoom((z) => Math.min(PREVIEW_ZOOM_MAX, Math.round((z + PREVIEW_ZOOM_STEP) * 100) / 100))
+  }
+
+  const zoomOutPreview = () => {
+    setPreviewZoom((z) => Math.max(PREVIEW_ZOOM_MIN, Math.round((z - PREVIEW_ZOOM_STEP) * 100) / 100))
+  }
+
+  const resetPreviewZoom = () => setPreviewZoom(1)
+
+  const previewDisplayWidth = previewBaseSize.width
+    ? previewBaseSize.width * previewZoom
+    : undefined
+  const previewDisplayHeight = previewBaseSize.height
+    ? previewBaseSize.height * previewZoom
+    : undefined
+
+  const renderZoomableImage = (src, alt, sizeSx = { width: 90, height: 90 }) => (
+    <Box
+      onClick={(e) => openImagePreview(e, src, alt)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          openImagePreview(e, src, alt)
+        }
+      }}
+      title="Click to enlarge"
+      sx={{
+        ...sizeSx,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "#f9f9f9",
+        borderRadius: "6px",
+        position: "relative",
+        cursor: "zoom-in",
+        overflow: "hidden",
+        flexShrink: 0,
+        "&:hover .zoom-hint": { opacity: 1 },
+        "&:hover img": { opacity: 0.85 },
+      }}
+    >
+      <img
+        src={src}
+        alt={alt}
+        style={{
+          maxWidth: "100%",
+          maxHeight: "100%",
+          objectFit: "contain",
+          pointerEvents: "none",
+        }}
+      />
+      <Box
+        className="zoom-hint"
+        sx={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          backgroundColor: "rgba(2, 60, 143, 0.35)",
+          opacity: 0,
+          transition: "opacity 0.15s ease",
+          pointerEvents: "none",
+        }}
+      >
+        <ZoomInIcon sx={{ color: "white", fontSize: 28 }} />
+      </Box>
+    </Box>
+  )
 
   const normalizeQuestion = (question) => {
     const normalized = {
@@ -198,29 +316,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
             mb: 2
           }}
         >
-          {question.image && (
-            <Box 
-              sx={{ 
-                width: 80, 
-                height: 80, 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center',
-                borderRadius: '6px',
-              }}
-            >
-              <img 
-                src={question.image} 
-                alt="question image" 
-                style={{ 
-                  maxWidth: '100%',
-                  maxHeight: '100%',
-                  display: 'inline-block',
-                  objectFit: 'contain',
-                }} 
-              />
-            </Box>
-          )}
+          {question.image && renderZoomableImage(question.image, "question image", { width: 80, height: 80 })}
           <Typography 
             sx={{ 
               color: '#2c2c6c',
@@ -284,29 +380,7 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                   control={<Radio sx={{ color: '#e1e1e1 ', '&.Mui-checked': { color: '#023c8f' } }} />}
                   label={
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      {option.image && (
-                        <Box 
-                          sx={{ 
-                            width: 90, 
-                            height: 90, 
-                            display: 'flex', 
-                            alignItems: 'center', 
-                            justifyContent: 'center',
-                            backgroundColor: '#f9f9f9', // optional
-                            borderRadius: '6px',
-                          }}
-                        >
-                          <img 
-                            src={option.image} 
-                            alt="option image" 
-                            style={{
-                              maxWidth: '100%',
-                              maxHeight: '100%',
-                              objectFit: 'contain',
-                            }}
-                          />
-                        </Box>
-                      )}
+                      {option.image && renderZoomableImage(option.image, option.text || "option image")}
                       <Typography>{option.text}</Typography>
                     </Box>
                   }
@@ -360,29 +434,11 @@ export const QuestionsForm = ({ data, onUpdate }) => {
                     }
                     label={
                       <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                        {option.image && (
-                          <Box 
-                            sx={{ 
-                              width: {xs: 50, sm: 75, md: 90}, 
-                              height: {xs: 50, sm: 75, md: 90}, 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'center',
-                              backgroundColor: '#f9f9f9', // optional
-                              borderRadius: '6px',
-                            }}
-                          >
-                              <img 
-                                src={option.image} 
-                                alt="option image" 
-                                style={{
-                                  maxWidth: '100%',
-                                  maxHeight: '100%',
-                                  objectFit: 'contain',
-                                }}
-                              />
-                          </Box>
-                        )}
+                        {option.image &&
+                          renderZoomableImage(option.image, option.text || "option image", {
+                            width: { xs: 50, sm: 75, md: 90 },
+                            height: { xs: 50, sm: 75, md: 90 },
+                          })}
                         <Typography
                           sx={{ fontSize: { xs: '0.75rem', sm: '0.9rem', md: '1rem' } }}
                         >
@@ -452,29 +508,8 @@ export const QuestionsForm = ({ data, onUpdate }) => {
               return (
                 <Box key={subQuestion.id}>
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                    {subQuestion.image && (
-                      <Box 
-                        sx={{ 
-                          width: 90, 
-                          height: 90, 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          justifyContent: 'center',
-                          backgroundColor: '#f9f9f9', // optional
-                          borderRadius: '6px',
-                        }}
-                      >
-                        <img 
-                          src={subQuestion.image} 
-                          alt="sub-question image"
-                          style={{
-                            maxWidth: '100%',
-                            maxHeight: '100%',
-                            objectFit: 'contain',
-                          }}
-                        />
-                      </Box>
-                    )}
+                    {subQuestion.image &&
+                      renderZoomableImage(subQuestion.image, subQuestion.text || "sub-question image")}
                     <Typography sx={{ fontSize: '15px', color: '#555', fontWeight: 500 }}>
                       {subQuestion.text}
                     </Typography>
@@ -777,7 +812,115 @@ export const QuestionsForm = ({ data, onUpdate }) => {
           />
         ))}
       </Box>
-      
+
+      <Dialog
+        open={Boolean(previewImage)}
+        onClose={closeImagePreview}
+        maxWidth={false}
+        PaperProps={{
+          sx: {
+            backgroundColor: "transparent",
+            boxShadow: "none",
+            overflow: "visible",
+            m: 2,
+            width: "auto",
+            maxWidth: "95vw",
+          },
+        }}
+      >
+        <Box sx={{ position: "relative", display: "flex", flexDirection: "column", alignItems: "center", gap: 1.5, p: 1 }}>
+          <IconButton
+            onClick={closeImagePreview}
+            aria-label="Close image preview"
+            sx={{
+              position: "absolute",
+              top: -8,
+              right: -8,
+              zIndex: 2,
+              backgroundColor: "white",
+              boxShadow: 2,
+              "&:hover": { backgroundColor: "#f5f5f5" },
+            }}
+          >
+            <CloseIcon />
+          </IconButton>
+
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              backgroundColor: "white",
+              borderRadius: 999,
+              boxShadow: 2,
+              px: 1,
+              py: 0.5,
+            }}
+          >
+            <IconButton
+              onClick={zoomOutPreview}
+              disabled={previewZoom <= PREVIEW_ZOOM_MIN}
+              aria-label="Zoom out"
+              size="small"
+            >
+              <ZoomOutIcon />
+            </IconButton>
+            <Typography sx={{ minWidth: 48, textAlign: "center", fontSize: 13, fontWeight: 600, color: "#023c8f" }}>
+              {Math.round(previewZoom * 100)}%
+            </Typography>
+            <IconButton
+              onClick={zoomInPreview}
+              disabled={previewZoom >= PREVIEW_ZOOM_MAX}
+              aria-label="Zoom in"
+              size="small"
+            >
+              <ZoomInIcon />
+            </IconButton>
+            <IconButton
+              onClick={resetPreviewZoom}
+              disabled={previewZoom === 1}
+              aria-label="Reset zoom"
+              size="small"
+              title="Reset zoom"
+            >
+              <RestartAltIcon fontSize="small" />
+            </IconButton>
+          </Box>
+
+          <Box
+            sx={{
+              maxWidth: "100%",
+              maxHeight: { xs: "70vh", sm: "80vh" },
+              overflow: "auto",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {previewImage && (
+              <Box
+                component="img"
+                src={previewImage.src}
+                alt={previewImage.alt}
+                onLoad={handlePreviewImageLoad}
+                sx={{
+                  width: previewDisplayWidth || "auto",
+                  height: previewDisplayHeight || "auto",
+                  maxWidth: previewDisplayWidth ? "none" : "85%",
+                  maxHeight: previewDisplayHeight ? "none" : "60vh",
+                  objectFit: "contain",
+                  borderRadius: 1,
+                  backgroundColor: "white",
+                  boxShadow: 3,
+                  transition: "width 0.15s ease, height 0.15s ease",
+                  flexShrink: 0,
+                  display: "block",
+                }}
+              />
+            )}
+          </Box>
+        </Box>
+      </Dialog>
     </Box>
   );
 }

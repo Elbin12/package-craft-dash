@@ -2755,9 +2755,7 @@ const QuestionBuilderForm = ({ data, onUpdate }) => {
 
             {renderNewQuestionOptions()}
             {renderNewQuestionSubQuestions()}
-            
             {renderMeasurementFields()}
-            {renderNewQuestionSubQuestions()}
 
             {/* Conditional Question Section */}
             {newQuestion.question_type === "conditional" && (

@@ -324,6 +324,7 @@ export const UserInfoForm = ({ data, onUpdate, admin }) => {
   const [touched, setTouched] = useState({ phone: false, email: false });
   const [type_id, setTypeId] = useState('Residential');
   const formRef = useRef(null);
+  const showAddressSearch = false;
 
   const { data: initialData } = useGetInitialDataQuery(type_id, {
     refetchOnMountOrArgChange: true,
@@ -494,13 +495,33 @@ useEffect(() => {
                 gap: 3,
               }}
             >
-              <PlacesAutocomplete
-                value={data.userInfo?.address || ""}
-                onSelect={handlePlaceSelect}
-                onAddressTextChange={handleAddressTextChange}
-                error={false}
-                helperText="Start typing to search and select your address"
-              />
+              {showAddressSearch ? (
+                <PlacesAutocomplete
+                  value={data.userInfo?.address || ""}
+                  onSelect={handlePlaceSelect}
+                  onAddressTextChange={handleAddressTextChange}
+                  error={false}
+                  helperText="Start typing to search and select your address"
+                />
+              ) : (
+                <TextField
+                  fullWidth
+                  label="Street Address"
+                  size="small"
+                  value={data.userInfo?.address || ""}
+                  onChange={handleChange("address")}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    mergeUserInfoFromDomAndPatch({ address: v });
+                  }}
+                  placeholder="Enter your street address"
+                  required={!admin}
+                  inputProps={{
+                    name: BOOKING_INPUT.streetAddress,
+                    autoComplete: "street-address",
+                  }}
+                />
+              )}
               <TextField
                 select
                 fullWidth

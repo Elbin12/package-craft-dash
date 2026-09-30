@@ -1164,7 +1164,7 @@ export const CheckoutSummary = ({
         ))}
 
         {/* Add-ons Section */}
-        {!addonsLoading && !addonsError && addonsData.length > 0 && (
+        {!isBidInPerson && !addonsLoading && !addonsError && addonsData.length > 0 && (
           <Card sx={{ mb: 3 }}>
             <CardContent sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom fontWeight={600} sx={{ color: '#023c8f' }}>
@@ -1671,7 +1671,7 @@ export const CheckoutSummary = ({
             )}
 
             {/* Add-ons in Summary */}
-            {selectedAddons.length > 0 && (
+            {!isBidInPerson && selectedAddons.length > 0 && (
               <Box mb={2}>
                 <Typography variant="subtitle2" fontWeight={600} sx={{ color: '#023c8f', mb: 1 }}>
                   Add-ons
@@ -1841,7 +1841,7 @@ export const CheckoutSummary = ({
               </Box>
             }
 
-            {!admin &&
+            {!admin && !isBidInPerson &&
               <Box display="flex" flexDirection={{ xs: "column", sm: "row" }} gap={2} alignItems={{ sm: "center" }}>
                 <FormControlLabel
                   control={

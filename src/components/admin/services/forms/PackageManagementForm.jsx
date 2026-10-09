@@ -64,6 +64,10 @@ const PackageManagementForm = ({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [selectedPackage, setSelectedPackage] = useState(null);
 
+  // Edit state for features
+  const [editingFeatureId, setEditingFeatureId] = useState(null);
+  const [editFeatureName, setEditFeatureName] = useState('');
+
   const [featureToDelete, setFeatureToDelete] = useState(null);
   const [featureDeleteConfirmOpen, setFeatureDeleteConfirmOpen] = useState(false);
 
@@ -82,6 +86,7 @@ const PackageManagementForm = ({
   const [createPackage] = useCreatePackageMutation();
   const [createFeature] = useCreateFeatureMutation();
   const [deleteFeature] = useDeleteFeatureMutation();
+  const [patchFeature] = useUpdateFeatureStatusMutation();
   const [updateFeatureStatus] = useUpdatePackageFeatureMutation();
   const [deletePackage] = useDeletePackageMutation();
   const [updatePackage] = useUpdatePackageMutation();
@@ -238,6 +243,48 @@ const PackageManagementForm = ({
       console.error('Failed to update package:', error);
       setErrors({ 
         edit: error?.data?.message || error?.data?.detail || 'Failed to update package. Please try again.' 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const startEditFeature = (feature) => {
+    setEditingFeatureId(feature.id);
+    setEditFeatureName(feature.name);
+    setErrors({});
+  };
+
+  const cancelEditFeature = () => {
+    setEditingFeatureId(null);
+    setEditFeatureName('');
+  };
+
+  const handleSaveFeatureName = async (feature) => {
+    const name = editFeatureName.trim();
+    if (name === feature.name) {
+      cancelEditFeature();
+      return;
+    }
+    if (name.length < 3) {
+      setErrors({ feature_name: 'Feature name must be at least 3 characters' });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await patchFeature({ id: feature.id, name }).unwrap();
+      const updatedFeatures = features.map(f =>
+        f.id === feature.id ? { ...f, ...result, name: result?.name ?? name } : f
+      );
+      setFeatures(updatedFeatures);
+      onUpdate({ features: updatedFeatures });
+      cancelEditFeature();
+      setErrors({});
+    } catch (error) {
+      console.error('Failed to update feature:', error);
+      setErrors({
+        feature_name: error?.data?.name?.[0] || error?.data?.message || error?.data?.detail || 'Failed to update feature. Please try again.'
       });
     } finally {
       setIsLoading(false);
@@ -549,15 +596,67 @@ const PackageManagementForm = ({
                   {features.map((feature) => (
                     <tr key={feature.id} className="border-b">
                       <td className="p-4 flex items-center justify-between">
-                        <span className="font-medium">{feature.name}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => confirmFeatureDelete(feature)}
-                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="h-3 w-3" />
-                        </Button>
+                        {editingFeatureId === feature.id ? (
+                          <div className="flex-1 mr-2">
+                            <div className="flex items-center gap-1">
+                              <Input
+                                autoFocus
+                                value={editFeatureName}
+                                onChange={(e) => {
+                                  setEditFeatureName(e.target.value);
+                                  if (errors.feature_name) setErrors(prev => ({ ...prev, feature_name: '' }));
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') handleSaveFeatureName(feature);
+                                  if (e.key === 'Escape') cancelEditFeature();
+                                }}
+                                className="h-8"
+                              />
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleSaveFeatureName(feature)}
+                                disabled={isLoading}
+                                className="h-6 w-6 p-0 text-green-600"
+                              >
+                                <Check className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={cancelEditFeature}
+                                className="h-6 w-6 p-0 text-muted-foreground"
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            {errors.feature_name && editingFeatureId === feature.id && (
+                              <p className="text-xs text-destructive mt-1">{errors.feature_name}</p>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="font-medium">{feature.name}</span>
+                        )}
+                        <div className="flex items-center">
+                          {editingFeatureId !== feature.id && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => startEditFeature(feature)}
+                              className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                            >
+                              <Edit3 className="h-3 w-3" />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => confirmFeatureDelete(feature)}
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </Button>
+                        </div>
                       </td>
                       {packages.filter((f)=>f.is_active===true).map((pkg) => (
                         <td key={pkg.id} className="p-4 text-center">

@@ -4,11 +4,11 @@ import { Button } from "../../../ui/button";
 import { Input } from "../../../ui/input";
 import { Label } from "../../../ui/label";
 import { Alert, AlertDescription } from "../../../ui/alert";
-import { Check, X, Plus, Trash2, Edit3, Save, EyeOff, Eye, MoreVertical, GripHorizontal } from 'lucide-react';
+import { Check, X, Plus, Trash2, Edit3, Save, EyeOff, Eye, MoreVertical, GripHorizontal, GripVertical } from 'lucide-react';
 import { useCreatePackageMutation, useDeletePackageMutation, useUpdatePackageMutation } from '../../../../store/api/packagesApi';
 import { useCreateFeatureMutation, useDeleteFeatureMutation, useUpdateFeatureStatusMutation } from '../../../../store/api/featuresApi';
 import { useCreatePackageFeatureMutation, useUpdatePackageFeatureMutation } from '../../../../store/api/packageFeaturesApi';
-import { servicesApi, useGetServiceByIdQuery } from '../../../../store/api/servicesApi';
+import { servicesApi, useGetServiceByIdQuery, useReorderFeaturesMutation } from '../../../../store/api/servicesApi';
 import { useDispatch } from 'react-redux';
 
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
@@ -87,6 +87,7 @@ const PackageManagementForm = ({
   const [createFeature] = useCreateFeatureMutation();
   const [deleteFeature] = useDeleteFeatureMutation();
   const [patchFeature] = useUpdateFeatureStatusMutation();
+  const [reorderFeatures] = useReorderFeaturesMutation();
   const [updateFeatureStatus] = useUpdatePackageFeatureMutation();
   const [deletePackage] = useDeletePackageMutation();
   const [updatePackage] = useUpdatePackageMutation();
@@ -260,6 +261,46 @@ const PackageManagementForm = ({
     setEditFeatureName('');
   };
 
+  const handleFeatureDragEnd = async (result) => {
+    if (!result.destination || isLoading) return;
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+    if (sourceIndex === destinationIndex) return;
+
+    const previous = features;
+    const reordered = Array.from(features);
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(destinationIndex, 0, moved);
+
+    // Optimistic update
+    setFeatures(reordered);
+    setIsLoading(true);
+    try {
+      const result = await reorderFeatures({
+        serviceId: data.id,
+        featureIds: reordered.map(f => f.id),
+      }).unwrap();
+
+      // Use the returned order values if the API sent back the feature list
+      const orderById = Array.isArray(result)
+        ? Object.fromEntries(result.map(f => [f.id, f.order]))
+        : null;
+      const finalFeatures = orderById
+        ? reordered.map(f => (f.id in orderById ? { ...f, order: orderById[f.id] } : f))
+        : reordered;
+      setFeatures(finalFeatures);
+      onUpdate({ features: finalFeatures });
+    } catch (error) {
+      console.error('Failed to reorder features:', error);
+      setFeatures(previous);
+      setErrors({
+        general: error?.data?.message || error?.data?.detail || 'Failed to reorder features. Please try again.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleSaveFeatureName = async (feature) => {
     const name = editFeatureName.trim();
     if (name === feature.name) {
@@ -417,7 +458,8 @@ const PackageManagementForm = ({
       });
 
     setPackages(updatedPackages);
-    // onUpdate({ packages: updatedPackages, features: updatedFeatures });
+    // Keep parent data in sync, otherwise the data.packages effect resets the ticks later
+    onUpdate({ packages: updatedPackages });
   } catch (error) {
     console.error("Failed to update package feature:", error);
   }
@@ -592,10 +634,39 @@ const PackageManagementForm = ({
                     </Droppable>
                   </DragDropContext>
                 </thead>
-                <tbody>
-                  {features.map((feature) => (
-                    <tr key={feature.id} className="border-b">
+                <DragDropContext onDragEnd={handleFeatureDragEnd}>
+                <Droppable droppableId="features" direction="vertical">
+                {(droppableProvided) => (
+                <tbody ref={droppableProvided.innerRef} {...droppableProvided.droppableProps}>
+                  {features.map((feature, featureIndex) => (
+                    <Draggable
+                      key={feature.id}
+                      draggableId={feature.id.toString()}
+                      index={featureIndex}
+                      isDragDisabled={editingFeatureId === feature.id}
+                    >
+                    {(provided, snapshot) => (
+                    <tr
+                      ref={provided.innerRef}
+                      {...provided.draggableProps}
+                      className={`border-b ${snapshot.isDragging ? 'bg-blue-50 shadow-lg' : 'bg-white'}`}
+                      style={{
+                        ...provided.draggableProps.style,
+                        ...(snapshot.isDragging ? { display: 'table' } : {}),
+                      }}
+                    >
                       <td className="p-4 flex items-center justify-between">
+                        <div
+                          {...provided.dragHandleProps}
+                          className={`mr-2 flex items-center cursor-grab active:cursor-grabbing ${
+                            editingFeatureId === feature.id ? 'invisible' : ''
+                          }`}
+                          title="Drag to reorder features"
+                        >
+                          <GripVertical className={`h-4 w-4 transition-colors ${
+                            snapshot.isDragging ? 'text-blue-600' : 'text-gray-400 hover:text-gray-600'
+                          }`} />
+                        </div>
                         {editingFeatureId === feature.id ? (
                           <div className="flex-1 mr-2">
                             <div className="flex items-center gap-1">
@@ -635,7 +706,7 @@ const PackageManagementForm = ({
                             )}
                           </div>
                         ) : (
-                          <span className="font-medium">{feature.name}</span>
+                          <span className="font-medium flex-1">{feature.name}</span>
                         )}
                         <div className="flex items-center">
                           {editingFeatureId !== feature.id && (
@@ -690,8 +761,15 @@ const PackageManagementForm = ({
                       ))}
                       <td className="p-4"></td>
                     </tr>
+                    )}
+                    </Draggable>
                   ))}
-                  
+                  {droppableProvided.placeholder}
+                </tbody>
+                )}
+                </Droppable>
+                </DragDropContext>
+                <tbody>
                   {/* Add Feature Row */}
                   <tr className="border-b bg-muted/25">
                     <td className="p-4">

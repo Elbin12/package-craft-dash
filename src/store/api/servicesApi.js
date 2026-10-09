@@ -109,6 +109,13 @@ export const servicesApi = createApi({
         method: 'POST',
       }),
     }),
+    reorderFeatures: builder.mutation({
+      query: ({ serviceId, featureIds }) => ({
+        url: `${serviceId}/features/reorder/`,
+        method: 'POST',
+        data: { feature_ids: featureIds },
+      }),
+    }),
     getBasePrices: builder.query({
       query: (id) => ({ url: `${id}/mapped-sizes/` }),
       providesTags: ['Service'],
@@ -125,6 +132,7 @@ export const {
   useCreateServiceSettingsMutation,
   useUpdateServiceSettingsMutation,
   useAutoMapPackagesMutation,
+  useReorderFeaturesMutation,
   useGetBasePricesQuery,
   useEditServiceMutation,
   useUploadServiceIconMutation,
